@@ -236,8 +236,6 @@ STR_TOOLTIP_SORT_ORDER                                          :{BLACK}Izvēlē
 STR_TOOLTIP_SORT_CRITERIA                                       :{BLACK}Izvēlēties kārtošanas pazīmes
 STR_TOOLTIP_FILTER_CRITERIA                                     :{BLACK}Izvēlēties filtrēšanas pazīmes
 STR_BUTTON_SORT_BY                                              :{BLACK}Kārtot pēc
-STR_BUTTON_LOCATION                                             :{BLACK}Atrašanās vieta
-STR_BUTTON_RENAME                                               :{BLACK}Pārdēvēt
 STR_BUTTON_CATCHMENT                                            :{BLACK}Pārklājums
 STR_TOOLTIP_CATCHMENT                                           :{BLACK}Pārslēgt pārklājuma laukuma rādīšanu
 
@@ -1839,7 +1837,6 @@ STR_ABANDON_SCENARIO_QUERY                                      :{YELLOW}Vai tie
 # Cheat window
 STR_CHEATS                                                      :{WHITE}Blēdības
 STR_CHEATS_TOOLTIP                                              :{BLACK}Atzīmētās rūtiņas norāda uz to, vai esat jau izmantojis šo blēdību
-STR_CHEATS_WARNING                                              :{BLACK}Brīdinājums! Jūs grasāties būt neuzticams saviem spēles biedriem, sāncenšiem. Iegaumējiet, ka šādu negodu viņi atcerēsies mūžīgi
 STR_CHEAT_MONEY                                                 :{LTBLUE}Palielināt naudas līdzekļus par {CURRENCY_LONG}
 STR_CHEAT_CHANGE_COMPANY                                        :{LTBLUE}Spēlēt kā uzņēmumam: {ORANGE}{COMMA}
 STR_CHEAT_EXTRA_DYNAMITE                                        :{LTBLUE}Burvju buldozers (nojauc ražotnes, nepārvietojamus objektus): {ORANGE}{STRING}
@@ -2126,7 +2123,6 @@ STR_NETWORK_COMPANY_LIST_NEW_COMPANY                            :Jauns uzņēmum
 # Network client list
 STR_NETWORK_CLIENTLIST_KICK                                     :Izmest
 STR_NETWORK_CLIENTLIST_BAN                                      :Aizliegt
-STR_NETWORK_CLIENTLIST_GIVE_MONEY                               :Iedot naudu
 STR_NETWORK_CLIENTLIST_SPEAK_TO_ALL                             :Runāt ar visiem
 STR_NETWORK_CLIENTLIST_SPEAK_TO_COMPANY                         :Runāt ar uzņēmumu
 STR_NETWORK_CLIENTLIST_SPEAK_TO_CLIENT                          :Privāts ziņojums
@@ -2134,8 +2130,6 @@ STR_NETWORK_CLIENTLIST_SPEAK_TO_CLIENT                          :Privāts ziņoj
 STR_NETWORK_SERVER                                              :Serveris
 STR_NETWORK_CLIENT                                              :Spēlētājs
 STR_NETWORK_SPECTATORS                                          :Novērotāji
-
-STR_NETWORK_GIVE_MONEY_CAPTION                                  :{WHITE}Ievadiet cik daudz naudas vēlaties dot
 
 # Network set password
 STR_COMPANY_PASSWORD_CANCEL                                     :{BLACK}Nesaglabāt ievadīto paroli
@@ -2239,8 +2233,6 @@ STR_NETWORK_MESSAGE_CLIENT_COMPANY_SPECTATE                     :*** {STRING} ir
 STR_NETWORK_MESSAGE_CLIENT_COMPANY_NEW                          :*** {STRING} ir nodibinājis jaunu uzņēmumu (#{2:NUM})
 STR_NETWORK_MESSAGE_CLIENT_LEFT                                 :*** {STRING} ir pametis spēli ({2:STRING})
 STR_NETWORK_MESSAGE_NAME_CHANGE                                 :*** {STRING} ir nomainījis savu nosaukumu uz {STRING}
-STR_NETWORK_MESSAGE_GIVE_MONEY                                  :*** {STRING} iedeva jūsu uzņēmumam {2:CURRENCY_LONG}
-STR_NETWORK_MESSAGE_GAVE_MONEY_AWAY                             :*** Jūs iedevāt {1:STRING} {2:CURRENCY_LONG}
 STR_NETWORK_MESSAGE_SERVER_SHUTDOWN                             :{WHITE}Serveris beidza sesiju
 STR_NETWORK_MESSAGE_SERVER_REBOOT                               :{WHITE}Serveris pārstartējas...{}Lūdzu uzgaidiet...
 STR_NETWORK_MESSAGE_KICKED                                      :*** {STRING} tika izmests. Iemesls: ({STRING})
@@ -2358,6 +2350,8 @@ STR_JOIN_STATION_CREATE_SPLITTED_STATION                        :{YELLOW}Būvēt
 
 STR_JOIN_WAYPOINT_CAPTION                                       :{WHITE}Pievienot pieturas punktu
 STR_JOIN_WAYPOINT_CREATE_SPLITTED_WAYPOINT                      :{YELLOW}Uzbūvēt jaunu maršruta punktu
+
+# Generic toolbar
 
 # Rail construction toolbar
 STR_RAIL_TOOLBAR_RAILROAD_CONSTRUCTION_CAPTION                  :Dzelzceļa būvniecība
@@ -2553,6 +2547,12 @@ STR_TREES_RANDOM_TYPE                                           :{BLACK}Nejauši
 STR_TREES_RANDOM_TYPE_TOOLTIP                                   :{BLACK}Izvietot nejaušus kokus. Shift pārslēdz būve/rādīt izmaksu tāmi
 STR_TREES_RANDOM_TREES_BUTTON                                   :{BLACK}Nejauši koki
 STR_TREES_RANDOM_TREES_TOOLTIP                                  :{BLACK}Stādīt nejaušus kokus visā ainavā
+STR_TREES_MODE_NORMAL_BUTTON                                    :{BLACK}Normāls
+STR_TREES_MODE_NORMAL_TOOLTIP                                   :{BLACK}Stādiet atsevišķus kokus, velkot pāri ainavai.
+STR_TREES_MODE_FOREST_SM_BUTTON                                 :{BLACK}Birze
+STR_TREES_MODE_FOREST_SM_TOOLTIP                                :{BLACK}Stādiet mazus mežus, velkot pāri ainavai.
+STR_TREES_MODE_FOREST_LG_BUTTON                                 :{BLACK}Mežs
+STR_TREES_MODE_FOREST_LG_TOOLTIP                                :{BLACK}Stādiet lielos mežus, velkot pāri ainavai.
 
 # Land generation window (SE)
 STR_TERRAFORM_TOOLBAR_LAND_GENERATION_CAPTION                   :{WHITE}Zemes radīšana
@@ -3186,10 +3186,10 @@ STR_GOALS_COMPANY_TITLE                                         :{BLACK}Uzņēmu
 STR_GOALS_TOOLTIP_CLICK_ON_SERVICE_TO_CENTER                    :{BLACK}Klikšķināt uz mērķa, lai centrētu galveno skatu uz ražotni/pilsētu/lauciņu. Ctrl+klikšķis atver jaunu skatvietu uz ražotni/pilsētu/lauciņu
 
 # Goal question window
-STR_GOAL_QUESTION_CAPTION_QUESTION                              :Jautājums
-STR_GOAL_QUESTION_CAPTION_INFORMATION                           :Informācija
-STR_GOAL_QUESTION_CAPTION_WARNING                               :Brīdinājums
-STR_GOAL_QUESTION_CAPTION_ERROR                                 :Kļūda
+STR_GOAL_QUESTION_CAPTION_QUESTION                              :{BLACK}Jautājums
+STR_GOAL_QUESTION_CAPTION_INFORMATION                           :{BLACK}Informācija
+STR_GOAL_QUESTION_CAPTION_WARNING                               :{BLACK}Brīdinājums
+STR_GOAL_QUESTION_CAPTION_ERROR                                 :{YELLOW}Kļūda
 
 ############ Start of Goal Question button list
 STR_GOAL_QUESTION_BUTTON_CANCEL                                 :Atcelt
@@ -3381,6 +3381,8 @@ STR_COMPANY_VIEW_RELOCATE_HQ                                    :{BLACK}Pārviet
 STR_COMPANY_VIEW_RELOCATE_COMPANY_HEADQUARTERS                  :{BLACK}Pārcelt uzņēmuma centrālo biroju uz citu vietu samaksājot 1% no uzņēmuma vērtības. Shift+klikšķis parāda izmaksu novērtējumu, nemainot biroja atrašanās vietu
 STR_COMPANY_VIEW_INFRASTRUCTURE_BUTTON                          :{BLACK}Sīkāk
 STR_COMPANY_VIEW_INFRASTRUCTURE_TOOLTIP                         :{BLACK}Skatīt detalizētāku infrastruktūras uzskaiti
+STR_COMPANY_VIEW_GIVE_MONEY_BUTTON                              :{BLACK}Iedot naudu
+STR_COMPANY_VIEW_GIVE_MONEY_TOOLTIP                             :{BLACK}Iedot naudu šai kompānijai
 
 STR_COMPANY_VIEW_NEW_FACE_BUTTON                                :{BLACK}Jauna seja
 STR_COMPANY_VIEW_NEW_FACE_TOOLTIP                               :{BLACK}Izvēlēties jaunu seju vadītājam
@@ -3398,6 +3400,7 @@ STR_COMPANY_VIEW_SELL_SHARE_TOOLTIP                             :{BLACK}Pārdot 
 
 STR_COMPANY_VIEW_COMPANY_NAME_QUERY_CAPTION                     :Uzņēmuma nosaukums
 STR_COMPANY_VIEW_PRESIDENT_S_NAME_QUERY_CAPTION                 :Vadītāja vārds
+STR_COMPANY_VIEW_GIVE_MONEY_QUERY_CAPTION                       :Ievadiet naudas daudzumu, kuru vēlaties atdot
 
 STR_BUY_COMPANY_MESSAGE                                         :{WHITE}Mēs meklējam transporta uzņēmumu, kurš vēlētos pārņemt mūsējo.{}{}Vai Jūs vēlaties pirkt {COMPANY} par {CURRENCY_LONG}?
 
@@ -3759,10 +3762,6 @@ STR_REPLACE_REMOVE_WAGON_HELP                                   :{BLACK}Automāt
 # Vehicle view
 STR_VEHICLE_VIEW_CAPTION                                        :{WHITE}{VEHICLE}
 
-STR_VEHICLE_VIEW_TRAIN_LOCATION_TOOLTIP                         :{BLACK}Centrēt galveno skatu uz vilcienu. Ctrl+klikšķis sekos vilcienam galvenajā skatā
-STR_VEHICLE_VIEW_ROAD_VEHICLE_LOCATION_TOOLTIP                  :{BLACK}Centrēt galveno skatu uz transportlīdzekli. Ctrl+klikšķis sekos transportlīdzeklim galvenajā skatā
-STR_VEHICLE_VIEW_SHIP_LOCATION_TOOLTIP                          :{BLACK}Centrēt galveno skatu uz kuģi. Ctrl+klikšķis sekos kuģim galvenajā skatā
-STR_VEHICLE_VIEW_AIRCRAFT_LOCATION_TOOLTIP                      :{BLACK}Centrēt galveno skatu uz lidaparātu. Ctrl+klikšķis sekos lidaparātam galvenajā skatā
 
 STR_VEHICLE_VIEW_TRAIN_SEND_TO_DEPOT_TOOLTIP                    :{BLACK}Sūtīt vilcienu uz depo. Ctrl+klikšķis - izvēlēties tikai apkopi
 STR_VEHICLE_VIEW_ROAD_VEHICLE_SEND_TO_DEPOT_TOOLTIP             :{BLACK}Sūtīt autotransporta līdzekli uz depo. Ctrl+klikšķis - izvēlēties tikai apkopi
@@ -3794,10 +3793,7 @@ STR_VEHICLE_VIEW_ROAD_VEHICLE_SHOW_DETAILS_TOOLTIP              :{BLACK}Rādīt 
 STR_VEHICLE_VIEW_SHIP_SHOW_DETAILS_TOOLTIP                      :{BLACK}Rādīt kuģa informāciju
 STR_VEHICLE_VIEW_AIRCRAFT_SHOW_DETAILS_TOOLTIP                  :{BLACK}Rādīt lidaparāta informāciju
 
-STR_VEHICLE_VIEW_TRAIN_STATE_START_STOP_TOOLTIP                 :{BLACK}Vilciena pašreizējā darbība - klikšķināt šeit, lai apturētu/palaistu vilcienu. Ctrl+klikšķis, lai ritinātu līdz galamērķim
-STR_VEHICLE_VIEW_ROAD_VEHICLE_STATE_START_STOP_TOOLTIP          :{BLACK}Transportlīdzekļa pašreizējā darbība - klikšķināt šeit, lai to apturētu/palaistu. Ctrl+klikšķis, lai ritinātu līdz galamērķim
-STR_VEHICLE_VIEW_SHIP_STATE_START_STOP_TOOLTIP                  :{BLACK}Kuģa pašreizējā darbība - klikšķināt šeit, lai apturētu/palaistu kuģi. Ctrl+klikšķis, lai ritinātu līdz galamērķim
-STR_VEHICLE_VIEW_AIRCRAFT_STATE_START_STOP_TOOLTIP              :{BLACK}Lidaparāta pašreizējā darbība - klikšķināt šeit, lai apturētu/palaistu lidaparātu. Ctrl+klikšķis, lai ritinātu līdz galamērķim
+
 
 # Messages in the start stop button in the vehicle view
 STR_VEHICLE_STATUS_LOADING_UNLOADING                            :{LTBLUE}Iekraušana / Izkraušana
@@ -4350,6 +4346,7 @@ STR_ERROR_LOAN_ALREADY_REPAYED                                  :{WHITE}... nav 
 STR_ERROR_CURRENCY_REQUIRED                                     :{WHITE}...{CURRENCY_LONG} nepieciešams
 STR_ERROR_CAN_T_REPAY_LOAN                                      :{WHITE}Nevar atmaksāt aizdevumu...
 STR_ERROR_INSUFFICIENT_FUNDS                                    :{WHITE}Bankas aizdoto naudu nevar dot projām...
+STR_ERROR_CAN_T_GIVE_MONEY                                      :{WHITE}Nav iespējams atdot naudu šai kompānijai...
 STR_ERROR_CAN_T_BUY_COMPANY                                     :{WHITE}Nevar nopirkt uzņēmumu...
 STR_ERROR_CAN_T_BUILD_COMPANY_HEADQUARTERS                      :{WHITE}Nevar uzbūvēt uzņēmuma biroju...
 STR_ERROR_CAN_T_BUY_25_SHARE_IN_THIS                            :{WHITE}Nevar nopirkt 25% daļu šajā uzņēmumā...

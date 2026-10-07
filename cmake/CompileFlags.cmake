@@ -27,9 +27,6 @@ macro(compile_flags)
             # Enable multi-threaded compilation.
             add_compile_options(/MP)
         endif()
-
-        # Add DPI manifest to project; other WIN32 targets get this via ottdres.rc
-        list(APPEND GENERATED_SOURCE_FILES "${CMAKE_SOURCE_DIR}/os/windows/openttd.manifest")
     endif()
 
     # Add some -D flags for Debug builds. We cannot use add_definitions(), because
@@ -126,6 +123,20 @@ macro(compile_flags)
                 # well with our custom pool item allocator
                 "$<$<BOOL:${LIFETIME_DSE_FOUND}>:-flifetime-dse=1>"
             )
+        endif()
+
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+            if (NOT CMAKE_OSX_ARCHITECTURES STREQUAL "arm64")
+                include(CheckCXXCompilerFlag)
+                check_cxx_compiler_flag("-mno-sse4" NO_SSE4_FOUND)
+
+                if(NO_SSE4_FOUND)
+                    add_compile_options(
+                        # Don't use SSE4 for general sources to increase compatibility.
+                        -mno-sse4
+                    )
+                endif()
+            endif()
         endif()
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         add_compile_options(

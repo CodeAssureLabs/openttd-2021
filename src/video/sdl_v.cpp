@@ -25,7 +25,6 @@
 #include <SDL.h>
 #include <mutex>
 #include <condition_variable>
-#include <algorithm>
 
 #include "../safeguards.h"
 
@@ -583,8 +582,8 @@ int VideoDriver_SDL::PollEvent()
 			break;
 
 		case SDL_VIDEORESIZE: {
-			int w = max(ev.resize.w, 64);
-			int h = max(ev.resize.h, 64);
+			int w = std::max(ev.resize.w, 64);
+			int h = std::max(ev.resize.h, 64);
 			CreateMainSurface(w, h);
 			break;
 		}
@@ -614,6 +613,8 @@ const char *VideoDriver_SDL::Start(const StringList &parm)
 		ret_code = SDL_InitSubSystem(SDL_INIT_VIDEO);
 	}
 	if (ret_code < 0) return SDL_GetError();
+
+	this->UpdateAutoResolution();
 
 	GetVideoModes();
 	if (!CreateMainSurface(_cur_resolution.width, _cur_resolution.height)) {

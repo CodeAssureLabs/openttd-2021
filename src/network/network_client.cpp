@@ -68,7 +68,7 @@ struct PacketReader : LoadFilter {
 		assert(this->read_bytes == 0);
 
 		size_t in_packet = p->size - p->pos;
-		size_t to_write  = min((size_t)(this->bufe - this->buf), in_packet);
+		size_t to_write  = std::min<size_t>(this->bufe - this->buf, in_packet);
 		const byte *pbuf = p->buffer + p->pos;
 
 		this->written_bytes += in_packet;
@@ -93,7 +93,7 @@ struct PacketReader : LoadFilter {
 	size_t Read(byte *rbuf, size_t size) override
 	{
 		/* Limit the amount to read to whatever we still have. */
-		size_t ret_size = size = min(this->written_bytes - this->read_bytes, size);
+		size_t ret_size = size = std::min(this->written_bytes - this->read_bytes, size);
 		this->read_bytes += ret_size;
 		const byte *rbufe = rbuf + ret_size;
 
@@ -103,7 +103,7 @@ struct PacketReader : LoadFilter {
 				this->bufe = this->buf + CHUNK;
 			}
 
-			size_t to_write = min(this->bufe - this->buf, rbufe - rbuf);
+			size_t to_write = std::min(this->bufe - this->buf, rbufe - rbuf);
 			memcpy(rbuf, this->buf, to_write);
 			rbuf += to_write;
 			this->buf += to_write;
@@ -211,15 +211,22 @@ void ClientNetworkGameSocketHandler::ClientError(NetworkRecvStatus res)
 		default:                                  errorno = NETWORK_ERROR_GENERAL; break;
 	}
 
-	/* This means we fucked up and the server closed the connection */
-	if (res != NETWORK_RECV_STATUS_SERVER_ERROR && res != NETWORK_RECV_STATUS_SERVER_FULL &&
-			res != NETWORK_RECV_STATUS_SERVER_BANNED) {
+	if (res == NETWORK_RECV_STATUS_SERVER_ERROR || res == NETWORK_RECV_STATUS_SERVER_FULL ||
+			res == NETWORK_RECV_STATUS_SERVER_BANNED) {
+		/* This means the server closed the connection. Emergency save is
+		 * already created if this was appropriate during handling of the
+		 * disconnect. */
+		this->CloseConnection(res);
+	} else {
+		/* This means we as client made a boo-boo. */
 		SendError(errorno);
+
+		/* Close connection before we make an emergency save, as the save can
+		 * take a bit of time; better that the server doesn't stall while we
+		 * are doing the save, and already disconnects us. */
+		this->CloseConnection(res);
+		ClientNetworkEmergencySave();
 	}
-
-	this->CloseConnection(res);
-
-	ClientNetworkEmergencySave();
 
 	_switch_mode = SM_MENU;
 	_networking = false;
@@ -993,11 +1000,7 @@ NetworkRecvStatus ClientNetworkGameSocketHandler::Receive_SERVER_CHAT(Packet *p)
 				ci = NetworkClientInfo::GetByClientID(_network_own_client_id);
 				break;
 
-			/* For speaking to company or giving money, we need the company-name */
-			case NETWORK_ACTION_GIVE_MONEY:
-				if (!Company::IsValidID(ci_to->client_playas)) return NETWORK_RECV_STATUS_OKAY;
-				FALLTHROUGH;
-
+			/* For speaking to company, we need the company-name */
 			case NETWORK_ACTION_CHAT_COMPANY: {
 				StringID str = Company::IsValidID(ci_to->client_playas) ? STR_COMPANY_NAME : STR_NETWORK_SPECTATORS;
 				SetDParam(0, ci_to->client_playas);

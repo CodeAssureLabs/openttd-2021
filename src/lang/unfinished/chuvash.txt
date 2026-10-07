@@ -165,7 +165,6 @@ STR_UNITS_POWER_SI                                              :{COMMA}кВт
 
 # Common window strings
 
-STR_BUTTON_RENAME                                               :{BLACK}Ята улӑштар
 
 STR_TOOLTIP_CLOSE_WINDOW                                        :{BLACK}Чӳречене хуп
 
@@ -787,7 +786,6 @@ STR_NETWORK_START_SERVER_SET_PASSWORD                           :{BLACK}Вырн
 # Network client list
 
 
-
 # Network set password
 
 # Network company info join/password
@@ -826,6 +824,8 @@ STR_CONTENT_DETAIL_VERSION                                      :{SILVER}Вер�
 
 # Join station window
 
+
+# Generic toolbar
 
 # Rail construction toolbar
 
@@ -1179,6 +1179,7 @@ STR_DEPOT_VEHICLE_TOOLTIP_CARGO                                 :{}{CARGO_LONG} 
 
 # Vehicle view
 STR_VEHICLE_VIEW_CAPTION                                        :{WHITE}{VEHICLE}
+
 
 
 

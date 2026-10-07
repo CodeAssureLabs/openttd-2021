@@ -233,8 +233,6 @@ STR_TOOLTIP_SORT_ORDER                                          :{BLACK}Select s
 STR_TOOLTIP_SORT_CRITERIA                                       :{BLACK}Select sorting criteria
 STR_TOOLTIP_FILTER_CRITERIA                                     :{BLACK}Select filtering criteria
 STR_BUTTON_SORT_BY                                              :{BLACK}Sort by
-STR_BUTTON_LOCATION                                             :{BLACK}Location
-STR_BUTTON_RENAME                                               :{BLACK}Rename
 STR_TOOLTIP_CATCHMENT                                           :{BLACK}தழுவு பகுதி காட்சியை நிலைமாற்று
 
 STR_TOOLTIP_CLOSE_WINDOW                                        :{BLACK}சாளரத்தை மூடு
@@ -1879,7 +1877,6 @@ STR_NETWORK_COMPANY_LIST_NEW_COMPANY                            :புதிய
 # Network client list
 STR_NETWORK_CLIENTLIST_KICK                                     :உதை
 STR_NETWORK_CLIENTLIST_BAN                                      :அனுமதிக்காதே
-STR_NETWORK_CLIENTLIST_GIVE_MONEY                               :பணம் தா
 STR_NETWORK_CLIENTLIST_SPEAK_TO_ALL                             :அனைவருடனும் பேசு
 STR_NETWORK_CLIENTLIST_SPEAK_TO_COMPANY                         :நிறுவனத்திடம் பேசு
 STR_NETWORK_CLIENTLIST_SPEAK_TO_CLIENT                          :இரகசிய தகவல்
@@ -1887,8 +1884,6 @@ STR_NETWORK_CLIENTLIST_SPEAK_TO_CLIENT                          :இரகசி
 STR_NETWORK_SERVER                                              :சர்வர்
 STR_NETWORK_CLIENT                                              :Client
 STR_NETWORK_SPECTATORS                                          :கவனிப்பவர்கள்
-
-STR_NETWORK_GIVE_MONEY_CAPTION                                  :{WHITE}கொடுக்கப்படும் பணத்தின் அளவினை இடவும்
 
 # Network set password
 STR_COMPANY_PASSWORD_CANCEL                                     :{BLACK}கடவுச்சொல்லினை நினைவில் வைத்திருக்காதே
@@ -1986,8 +1981,6 @@ STR_NETWORK_MESSAGE_CLIENT_COMPANY_SPECTATE                     :*** {STRING} �
 STR_NETWORK_MESSAGE_CLIENT_COMPANY_NEW                          :*** {STRING} புதிய நிறுவனம் (#{2:NUM})வை துவக்கி உள்ளார்
 STR_NETWORK_MESSAGE_CLIENT_LEFT                                 :*** {STRING} ஆட்டத்தை விட்டு வெளியேரினார் ({2:STRING})
 STR_NETWORK_MESSAGE_NAME_CHANGE                                 :*** {STRING} அவரது/அவளது பெயரினை {STRING} என்று மாற்றினார்
-STR_NETWORK_MESSAGE_GIVE_MONEY                                  :*** {STRING} தங்கள் நிறுவனத்திற்கு {2:CURRENCY_LONG} கொடுத்தார்
-STR_NETWORK_MESSAGE_GAVE_MONEY_AWAY                             :*** நீங்கள் கொடுத்தீற்கள் {1:STRING} {2:CURRENCY_LONG}
 STR_NETWORK_MESSAGE_SERVER_SHUTDOWN                             :{WHITE}சர்வர் ஆட்டத்தினை முடித்தது
 STR_NETWORK_MESSAGE_SERVER_REBOOT                               :{WHITE}சர்வர் மீண்டும் தொடங்குகிறது...{}சற்று பொறுக்கவும்...
 STR_NETWORK_MESSAGE_KICKED                                      :*** {STRING} வெளியேற்றப்பட்டார். காரணம்: ({STRING})
@@ -2090,6 +2083,8 @@ STR_JOIN_STATION_CREATE_SPLITTED_STATION                        :{YELLOW}தன�
 
 STR_JOIN_WAYPOINT_CAPTION                                       :{WHITE}பாதைப்புள்ளியினை இணை
 STR_JOIN_WAYPOINT_CREATE_SPLITTED_WAYPOINT                      :{YELLOW}தனியொரு பாதைப்புள்ளிடினை கட்டு
+
+# Generic toolbar
 
 # Rail construction toolbar
 STR_RAIL_TOOLBAR_RAILROAD_CONSTRUCTION_CAPTION                  :இரயில்வே கட்டுமானம்
@@ -3301,8 +3296,6 @@ STR_REPLACE_REMOVE_WAGON                                        :{BLACK}பெ�
 # Vehicle view
 STR_VEHICLE_VIEW_CAPTION                                        :{WHITE}{VEHICLE}
 
-STR_VEHICLE_VIEW_ROAD_VEHICLE_LOCATION_TOOLTIP                  :{BLACK}வாகனத்தின் இருப்பிடத்தினை மையமாகக் கொள். Ctrl + Click முக்கிய பார்வையில் வாகனத்தைப் பின்தொடரும்
-STR_VEHICLE_VIEW_AIRCRAFT_LOCATION_TOOLTIP                      :{BLACK}விமானத்தின் இருப்பிடத்தினை மையமாகக் கொள். Ctrl + Click முக்கிய பார்வையில் விமானத்தைப் பின்தொடரும்
 
 STR_VEHICLE_VIEW_TRAIN_SEND_TO_DEPOT_TOOLTIP                    :{BLACK}இரயிலினை பணிமனைக்கு அனுப்பவும். Ctrl+Click அழுத்தினால் பழுதுபார்த்தல் மட்டுமே நடக்கும்
 STR_VEHICLE_VIEW_ROAD_VEHICLE_SEND_TO_DEPOT_TOOLTIP             :{BLACK}வாகனத்தினை பணிமனைக்கு அனுப்பவும். Ctrl+Click அழுத்தினால் பழுதுபார்த்தல் மட்டுமே நடக்கும்
@@ -3334,10 +3327,7 @@ STR_VEHICLE_VIEW_ROAD_VEHICLE_SHOW_DETAILS_TOOLTIP              :{BLACK}சா�
 STR_VEHICLE_VIEW_SHIP_SHOW_DETAILS_TOOLTIP                      :{BLACK}கப்பலின் விவரங்களைக் காட்டு
 STR_VEHICLE_VIEW_AIRCRAFT_SHOW_DETAILS_TOOLTIP                  :{BLACK}விமானத்தின் விவரங்களைக் காட்டு
 
-STR_VEHICLE_VIEW_TRAIN_STATE_START_STOP_TOOLTIP                 :{BLACK}தற்போதைய இரயில்வே செயல் - இரயிலினை நிறுத்த/கிளப்ப சொடுக்கவும். Ctrl+Click அழுத்தினால் செல்லவேண்டிய இடத்தினைக் காட்டும்
-STR_VEHICLE_VIEW_ROAD_VEHICLE_STATE_START_STOP_TOOLTIP          :{BLACK}தற்போதைய வாகனங்கள் செயல் - வாகனத்தினை நிறுத்த/கிளப்ப சொடுக்கவும். Ctrl+Click அழுத்தினால் செல்லவேண்டிய இடத்தினைக் காட்டும்
-STR_VEHICLE_VIEW_SHIP_STATE_START_STOP_TOOLTIP                  :{BLACK}தற்போதைய கப்பல் செயல் - கப்பலினை நிறுத்த/கிளப்ப சொடுக்கவும். Ctrl+Click அழுத்தினால் செல்லவேண்டிய இடத்தினைக் காட்டும்
-STR_VEHICLE_VIEW_AIRCRAFT_STATE_START_STOP_TOOLTIP              :{BLACK}தற்போதைய விமான செயல் - விமானத்தினை நிறுத்த/கிளப்ப சொடுக்கவும். Ctrl+Click அழுத்தினால் செல்லவேண்டிய இடத்தினைக் காட்டும்
+
 
 # Messages in the start stop button in the vehicle view
 STR_VEHICLE_STATUS_LOADING_UNLOADING                            :{LTBLUE}சரக்கு ஏற்றம் / இறக்கம்

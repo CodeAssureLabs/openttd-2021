@@ -358,8 +358,6 @@ STR_TOOLTIP_SORT_ORDER                                          :{BLACK}Обер
 STR_TOOLTIP_SORT_CRITERIA                                       :{BLACK}Оберіть критерій сортування
 STR_TOOLTIP_FILTER_CRITERIA                                     :{BLACK}Оберіть критерій фільтру
 STR_BUTTON_SORT_BY                                              :{BLACK}Сортувати
-STR_BUTTON_LOCATION                                             :{BLACK}Показати
-STR_BUTTON_RENAME                                               :{BLACK}Назва
 STR_BUTTON_CATCHMENT                                            :{BLACK}Покриття
 STR_TOOLTIP_CATCHMENT                                           :{BLACK}Вкл./викл. відображення області покриття
 
@@ -1943,7 +1941,6 @@ STR_ABANDON_SCENARIO_QUERY                                      :{YELLOW}Ви д
 # Cheat window
 STR_CHEATS                                                      :{WHITE}Гратиму нечесно
 STR_CHEATS_TOOLTIP                                              :{BLACK}Галка показує, що Ви стали грати нечесно
-STR_CHEATS_WARNING                                              :{BLACK}Попередження! Ви збираєтесь обманути своїх конкурентів. Пам'ятайте, що подібне безчестя буде запам'ятовано назавжди
 STR_CHEAT_MONEY                                                 :{LTBLUE}Збільшити кошти на {CURRENCY_LONG}
 STR_CHEAT_CHANGE_COMPANY                                        :{LTBLUE}Грає як компанія: {ORANGE}{COMMA}
 STR_CHEAT_EXTRA_DYNAMITE                                        :{LTBLUE}Супербульдозер (руйнує все): {ORANGE}{STRING}
@@ -2226,7 +2223,6 @@ STR_NETWORK_COMPANY_LIST_NEW_COMPANY                            :Нова ком
 # Network client list
 STR_NETWORK_CLIENTLIST_KICK                                     :Відключити гравця
 STR_NETWORK_CLIENTLIST_BAN                                      :Бан
-STR_NETWORK_CLIENTLIST_GIVE_MONEY                               :Дати грошей
 STR_NETWORK_CLIENTLIST_SPEAK_TO_ALL                             :Повідомлення всім
 STR_NETWORK_CLIENTLIST_SPEAK_TO_COMPANY                         :Повідомлення компанії
 STR_NETWORK_CLIENTLIST_SPEAK_TO_CLIENT                          :Приватне повідомлення
@@ -2234,8 +2230,6 @@ STR_NETWORK_CLIENTLIST_SPEAK_TO_CLIENT                          :Приватн�
 STR_NETWORK_SERVER                                              :Сервер
 STR_NETWORK_CLIENT                                              :Клієнт
 STR_NETWORK_SPECTATORS                                          :Спостерігачі
-
-STR_NETWORK_GIVE_MONEY_CAPTION                                  :{WHITE}Введіть суму грошей, яку Ви хочете віддати
 
 # Network set password
 STR_COMPANY_PASSWORD_CANCEL                                     :{BLACK}Не запам'ятовувати введений пароль
@@ -2337,8 +2331,6 @@ STR_NETWORK_MESSAGE_CLIENT_COMPANY_SPECTATE                     :*** {STRING} с
 STR_NETWORK_MESSAGE_CLIENT_COMPANY_NEW                          :*** {STRING} заснував нову компанію (№{2:NUM})
 STR_NETWORK_MESSAGE_CLIENT_LEFT                                 :*** {STRING} покинув гру ({2:STRING})
 STR_NETWORK_MESSAGE_NAME_CHANGE                                 :*** {STRING} змінив(-ла) своє ім'я на {STRING}
-STR_NETWORK_MESSAGE_GIVE_MONEY                                  :*** {STRING} дав Вашій компанії {2:CURRENCY_LONG}
-STR_NETWORK_MESSAGE_GAVE_MONEY_AWAY                             :*** Ви дали {1:STRING} {2:CURRENCY_LONG}
 STR_NETWORK_MESSAGE_SERVER_SHUTDOWN                             :{WHITE}Сервер закрив сеанс
 STR_NETWORK_MESSAGE_SERVER_REBOOT                               :{WHITE}Перезавантаження сервера...{}Зачекайте...
 STR_NETWORK_MESSAGE_KICKED                                      :*** {STRING} відключено. Причина: ({STRING})
@@ -2459,6 +2451,8 @@ STR_JOIN_STATION_CREATE_SPLITTED_STATION                        :{YELLOW}Поб�
 
 STR_JOIN_WAYPOINT_CAPTION                                       :{WHITE}З'єднати точку маршруту
 STR_JOIN_WAYPOINT_CREATE_SPLITTED_WAYPOINT                      :{YELLOW}Створити окрему точку маршруту
+
+# Generic toolbar
 
 # Rail construction toolbar
 STR_RAIL_TOOLBAR_RAILROAD_CONSTRUCTION_CAPTION                  :Будівництво залізниці
@@ -3853,10 +3847,6 @@ STR_REPLACE_REMOVE_WAGON_HELP                                   :{BLACK}Дозв
 # Vehicle view
 STR_VEHICLE_VIEW_CAPTION                                        :{WHITE}{VEHICLE}
 
-STR_VEHICLE_VIEW_TRAIN_LOCATION_TOOLTIP                         :{BLACK}Показати поїзд у центрі екрану. Ctrl+клац мишою спричинить слідкування за ним у головному вікні
-STR_VEHICLE_VIEW_ROAD_VEHICLE_LOCATION_TOOLTIP                  :{BLACK}Показати автомобіль у центрі екрану. Ctrl+клац мишою спричинить слідкування за ним у головному вікні
-STR_VEHICLE_VIEW_SHIP_LOCATION_TOOLTIP                          :{BLACK}Показати корабель у центрі екрану. Ctrl+клац мишою спричинить слідкування за ним у головному вікні
-STR_VEHICLE_VIEW_AIRCRAFT_LOCATION_TOOLTIP                      :{BLACK}Показати літак у центрі екрану. Ctrl+клац мишою спричинить слідкування за ним у головному вікні
 
 STR_VEHICLE_VIEW_TRAIN_SEND_TO_DEPOT_TOOLTIP                    :{BLACK}Направити поїзд у депо
 STR_VEHICLE_VIEW_ROAD_VEHICLE_SEND_TO_DEPOT_TOOLTIP             :{BLACK}Направити авто в депо
@@ -3888,10 +3878,7 @@ STR_VEHICLE_VIEW_ROAD_VEHICLE_SHOW_DETAILS_TOOLTIP              :{BLACK}Пока
 STR_VEHICLE_VIEW_SHIP_SHOW_DETAILS_TOOLTIP                      :{BLACK}Показати корабель детально
 STR_VEHICLE_VIEW_AIRCRAFT_SHOW_DETAILS_TOOLTIP                  :{BLACK}Показати літак детально
 
-STR_VEHICLE_VIEW_TRAIN_STATE_START_STOP_TOOLTIP                 :{BLACK}Поточна дія поїзда - натисніть для руху/зупинки поїзда. Утримуйте Ctrl, щоб показати пункт призначення
-STR_VEHICLE_VIEW_ROAD_VEHICLE_STATE_START_STOP_TOOLTIP          :{BLACK}Поточна дія автомобіля - натисніть для руху/зупинки автомобіля. Утримуйте Ctrl, щоб показати пункт призначення
-STR_VEHICLE_VIEW_SHIP_STATE_START_STOP_TOOLTIP                  :{BLACK}Поточна дія корабля - натисніть для руху/зупинки корабля. Утримуйте Ctrl, щоб показати пункт призначення
-STR_VEHICLE_VIEW_AIRCRAFT_STATE_START_STOP_TOOLTIP              :{BLACK}Поточна дія літака - натисніть для руху/зупинки літака. Утримуйте Ctrl, щоб показати пункт призначення
+
 
 # Messages in the start stop button in the vehicle view
 STR_VEHICLE_STATUS_LOADING_UNLOADING                            :{LTBLUE}Вантаження

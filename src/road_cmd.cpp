@@ -1109,7 +1109,8 @@ CommandCost CmdRemoveLongRoad(TileIndex start_tile, DoCommandFlag flags, uint32 
 		p2 ^= IsInsideMM(p2 & 3, 1, 3) ? 3 : 0;
 	}
 
-	Money money = GetAvailableMoneyForCommand();
+	Money money_available = GetAvailableMoneyForCommand();
+	Money money_spent = 0;
 	TileIndex tile = start_tile;
 	CommandCost last_error = CMD_ERROR;
 	bool had_success = false;
@@ -1126,8 +1127,8 @@ CommandCost CmdRemoveLongRoad(TileIndex start_tile, DoCommandFlag flags, uint32 
 			CommandCost ret = RemoveRoad(tile, flags & ~DC_EXEC, bits, rtt, true);
 			if (ret.Succeeded()) {
 				if (flags & DC_EXEC) {
-					money -= ret.GetCost();
-					if (money < 0) {
+					money_spent += ret.GetCost();
+					if (money_spent > 0 && money_spent > money_available) {
 						_additional_cash_required = DoCommand(start_tile, end_tile, p2, flags & ~DC_EXEC, CMD_REMOVE_LONG_ROAD).GetCost();
 						return cost;
 					}
@@ -2290,7 +2291,7 @@ static bool CanConvertUnownedRoadType(Owner owner, RoadTramType rtt)
 }
 
 /**
- * Convert the ownership of the RoadType of the tile if applyable
+ * Convert the ownership of the RoadType of the tile if applicable
  * @param tile the tile of which convert ownership
  * @param num_pieces the count of the roadbits to assign to the new owner
  * @param owner the current owner of the RoadType
@@ -2388,6 +2389,17 @@ CommandCost CmdConvertRoad(TileIndex tile, DoCommandFlag flags, uint32 p1, uint3
 			}
 		}
 
+		/* Base the ability to replace town roads and bridges on the town's
+		 * acceptance of destructive actions. */
+		if (owner == OWNER_TOWN) {
+			Town *t = ClosestTownFromTile(tile, _settings_game.economy.dist_local_authority);
+			CommandCost ret = CheckforTownRating(DC_NONE, t, tt == MP_TUNNELBRIDGE ? TUNNELBRIDGE_REMOVE : ROAD_REMOVE);
+			if (ret.Failed()) {
+				error = ret;
+				continue;
+			}
+		}
+
 		/* Vehicle on the tile when not converting normal <-> powered
 		 * Tunnels and bridges have special check later */
 		if (tt != MP_TUNNELBRIDGE) {
@@ -2416,11 +2428,9 @@ CommandCost CmdConvertRoad(TileIndex tile, DoCommandFlag flags, uint32 p1, uint3
 			cost.AddCost(num_pieces * RoadConvertCost(from_type, to_type));
 
 			if (flags & DC_EXEC) { // we can safely convert, too
-				/* Update the company infrastructure counters. */
+				/* Call ConvertRoadTypeOwner() to update the company infrastructure counters. */
 				if (owner == _current_company) {
-					Company * c = Company::Get(_current_company);
-					c->infrastructure.road[from_type] -= num_pieces;
-					c->infrastructure.road[to_type] += num_pieces;
+					ConvertRoadTypeOwner(tile, num_pieces, owner, from_type, to_type);
 				}
 
 				/* Perform the conversion */

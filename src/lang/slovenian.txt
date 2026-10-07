@@ -384,8 +384,6 @@ STR_TOOLTIP_SORT_ORDER                                          :{BLACK}Izberite
 STR_TOOLTIP_SORT_CRITERIA                                       :{BLACK}Izberite kriterij razvrščanja
 STR_TOOLTIP_FILTER_CRITERIA                                     :{BLACK}Izberite kriterij filtriranja
 STR_BUTTON_SORT_BY                                              :{BLACK}Razvrsti po
-STR_BUTTON_LOCATION                                             :{BLACK}Mesto
-STR_BUTTON_RENAME                                               :{BLACK}Preimenuj
 
 STR_TOOLTIP_CLOSE_WINDOW                                        :{BLACK}Zapri okno
 STR_TOOLTIP_WINDOW_TITLE_DRAG_THIS                              :{BLACK}Naziv okna - s tem lahko premaknete okno
@@ -1916,7 +1914,6 @@ STR_ABANDON_SCENARIO_QUERY                                      :{YELLOW}Zagotov
 # Cheat window
 STR_CHEATS                                                      :{WHITE}Goljufije
 STR_CHEATS_TOOLTIP                                              :{BLACK}Kljukice kažejo, če so bile goljufije že kdaj uporabljene
-STR_CHEATS_WARNING                                              :{BLACK}Pozor! Nameravaš izdati svoje tekmece. Tako sramotno dejanje bo zabeleženo za vselej
 STR_CHEAT_MONEY                                                 :{LTBLUE}Povečaj denar za {CURRENCY_LONG}
 STR_CHEAT_CHANGE_COMPANY                                        :{LTBLUE}Igra kot podjetje: {ORANGE}{COMMA}
 STR_CHEAT_EXTRA_DYNAMITE                                        :{LTBLUE}Čarobni buldožer (odstrani industrije, neodstranljive objekte): {ORANGE}{STRING}
@@ -2198,7 +2195,6 @@ STR_NETWORK_COMPANY_LIST_NEW_COMPANY                            :Novo podjetje
 # Network client list
 STR_NETWORK_CLIENTLIST_KICK                                     :Brcni
 STR_NETWORK_CLIENTLIST_BAN                                      :Blokiraj
-STR_NETWORK_CLIENTLIST_GIVE_MONEY                               :Daj denar
 STR_NETWORK_CLIENTLIST_SPEAK_TO_ALL                             :Pogovor vsem
 STR_NETWORK_CLIENTLIST_SPEAK_TO_COMPANY                         :Pogovor podjetju
 STR_NETWORK_CLIENTLIST_SPEAK_TO_CLIENT                          :Zasebno sporočilo
@@ -2206,8 +2202,6 @@ STR_NETWORK_CLIENTLIST_SPEAK_TO_CLIENT                          :Zasebno sporoč
 STR_NETWORK_SERVER                                              :Strežnik
 STR_NETWORK_CLIENT                                              :Gost
 STR_NETWORK_SPECTATORS                                          :Gledalci
-
-STR_NETWORK_GIVE_MONEY_CAPTION                                  :{WHITE}Vpiši znesek denarja za darovanje
 
 # Network set password
 STR_COMPANY_PASSWORD_CANCEL                                     :{BLACK}Ne shrani vnešenega gesla
@@ -2308,8 +2302,6 @@ STR_NETWORK_MESSAGE_CLIENT_COMPANY_SPECTATE                     :*** {STRING} se
 STR_NETWORK_MESSAGE_CLIENT_COMPANY_NEW                          :*** {STRING} na novo ustvarja podjetje (#{2:NUM})
 STR_NETWORK_MESSAGE_CLIENT_LEFT                                 :*** {STRING} odstopa od igre ({2:STRING})
 STR_NETWORK_MESSAGE_NAME_CHANGE                                 :*** {STRING} je opravil/a spremembo imena v {STRING}
-STR_NETWORK_MESSAGE_GIVE_MONEY                                  :*** {STRING} je podarilo tvojemu podjetju {2:CURRENCY_LONG}
-STR_NETWORK_MESSAGE_GAVE_MONEY_AWAY                             :*** Podjetju {1:STRING} je bil podarjen znesek {2:CURRENCY_LONG}
 STR_NETWORK_MESSAGE_SERVER_SHUTDOWN                             :{WHITE}Strežnik je zaprl sejo
 STR_NETWORK_MESSAGE_SERVER_REBOOT                               :{WHITE}Strežnik se zaganja...{}Prosim počakaj...
 
@@ -2425,6 +2417,8 @@ STR_JOIN_STATION_CREATE_SPLITTED_STATION                        :{YELLOW}Izgradn
 
 STR_JOIN_WAYPOINT_CAPTION                                       :{WHITE}Združi točke poti
 STR_JOIN_WAYPOINT_CREATE_SPLITTED_WAYPOINT                      :{YELLOW}Zgradi ločeno točko poti
+
+# Generic toolbar
 
 # Rail construction toolbar
 STR_RAIL_TOOLBAR_RAILROAD_CONSTRUCTION_CAPTION                  :Gradnja železnice
@@ -3694,10 +3688,6 @@ STR_REPLACE_REMOVE_WAGON_HELP                                   :{BLACK}Dovoli s
 # Vehicle view
 STR_VEHICLE_VIEW_CAPTION                                        :{WHITE}{VEHICLE}
 
-STR_VEHICLE_VIEW_TRAIN_LOCATION_TOOLTIP                         :{BLACK}Osredotoči pogled na lokacijo vlaka. Ctrl+Klik odpre nov pogled na lokaciji vlaka
-STR_VEHICLE_VIEW_ROAD_VEHICLE_LOCATION_TOOLTIP                  :{BLACK}Osredotoči pogled na lokacijo vozila. Ctrl+Klik odpre nov pogled na lokaciji vozila
-STR_VEHICLE_VIEW_SHIP_LOCATION_TOOLTIP                          :{BLACK}Osredotoči pogled na lokacijo ladje. Ctrl+Klik odpre nov pogled na lokaciji ladje
-STR_VEHICLE_VIEW_AIRCRAFT_LOCATION_TOOLTIP                      :{BLACK}Osredotoči pogled na lokacijo letala. Ctrl+Klik odpre nov pogled na lokaciji letala
 
 STR_VEHICLE_VIEW_TRAIN_SEND_TO_DEPOT_TOOLTIP                    :{BLACK}Pošlji vlak v železniško garažo. Ctrl+Klik samo na servis
 STR_VEHICLE_VIEW_ROAD_VEHICLE_SEND_TO_DEPOT_TOOLTIP             :{BLACK}Pošlji vozilo v garažo. Ctrl+Klik samo na servis
@@ -3729,10 +3719,7 @@ STR_VEHICLE_VIEW_ROAD_VEHICLE_SHOW_DETAILS_TOOLTIP              :{BLACK}Prikaži
 STR_VEHICLE_VIEW_SHIP_SHOW_DETAILS_TOOLTIP                      :{BLACK}Prikaži podrobnosti ladje
 STR_VEHICLE_VIEW_AIRCRAFT_SHOW_DETAILS_TOOLTIP                  :{BLACK}Prikaži podrobnosti letala
 
-STR_VEHICLE_VIEW_TRAIN_STATE_START_STOP_TOOLTIP                 :{BLACK}Dejanje trenutnega vlaka - klikni za izklop/zagon vlaka. Ctrl+Klik za premik na destinacijo
-STR_VEHICLE_VIEW_ROAD_VEHICLE_STATE_START_STOP_TOOLTIP          :{BLACK}Dejanja trenutnega vozila - klikni za ustavitev/zagon vozila. Ctrl+Klik za premik na destinacijo
-STR_VEHICLE_VIEW_SHIP_STATE_START_STOP_TOOLTIP                  :{BLACK}Dejanje trenutne ladje - klikni za ustavitev/zagon ladje. Ctrl+Klik za premik na destinacijo
-STR_VEHICLE_VIEW_AIRCRAFT_STATE_START_STOP_TOOLTIP              :{BLACK}Dejanje trenutnega letala - klikni za ustavitev/zagon letala. Ctrl+Klik za premik na destinacijo
+
 
 # Messages in the start stop button in the vehicle view
 STR_VEHICLE_STATUS_LOADING_UNLOADING                            :{LTBLUE}Natovarjanje / Raztovarjanje

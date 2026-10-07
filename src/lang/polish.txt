@@ -613,8 +613,6 @@ STR_TOOLTIP_SORT_ORDER                                          :{BLACK}Wybierz 
 STR_TOOLTIP_SORT_CRITERIA                                       :{BLACK}Wybierz kryterium sortowania
 STR_TOOLTIP_FILTER_CRITERIA                                     :{BLACK}Wybierz kryteria filtrowania
 STR_BUTTON_SORT_BY                                              :{BLACK}Sortuj wg
-STR_BUTTON_LOCATION                                             :{BLACK}Położenie
-STR_BUTTON_RENAME                                               :{BLACK}Zmień nazwę
 STR_BUTTON_CATCHMENT                                            :{BLACK}Zasięg
 STR_TOOLTIP_CATCHMENT                                           :{BLACK}Przełącz wyświetlanie zasięgu
 
@@ -1129,6 +1127,7 @@ STR_SMALLMAP_LEGENDA_DOCK                                       :{TINY_FONT}{BLA
 STR_SMALLMAP_LEGENDA_ROUGH_LAND                                 :{TINY_FONT}{BLACK}Wyboisty teren
 STR_SMALLMAP_LEGENDA_GRASS_LAND                                 :{TINY_FONT}{BLACK}Trawa
 STR_SMALLMAP_LEGENDA_BARE_LAND                                  :{TINY_FONT}{BLACK}Odsłonięta ziemia
+STR_SMALLMAP_LEGENDA_RAINFOREST                                 :{TINY_FONT}{BLACK}Las deszczowy
 STR_SMALLMAP_LEGENDA_FIELDS                                     :{TINY_FONT}{BLACK}Pola
 STR_SMALLMAP_LEGENDA_TREES                                      :{TINY_FONT}{BLACK}Drzewa
 STR_SMALLMAP_LEGENDA_ROCKS                                      :{TINY_FONT}{BLACK}Skały
@@ -1385,7 +1384,7 @@ STR_GAME_OPTIONS_RESOLUTION_OTHER                               :inna
 STR_GAME_OPTIONS_GUI_ZOOM_FRAME                                 :{BLACK}Rozmiar interfejsu
 STR_GAME_OPTIONS_GUI_ZOOM_DROPDOWN_TOOLTIP                      :{BLACK}Wybierz rozmiar elementów interfejsu
 
-STR_GAME_OPTIONS_GUI_ZOOM_DROPDOWN_NORMAL                       :Normalne
+STR_GAME_OPTIONS_GUI_ZOOM_DROPDOWN_NORMAL                       :Normalny
 STR_GAME_OPTIONS_GUI_ZOOM_DROPDOWN_2X_ZOOM                      :Podwójny
 STR_GAME_OPTIONS_GUI_ZOOM_DROPDOWN_4X_ZOOM                      :Poczwórny
 
@@ -1448,7 +1447,7 @@ STR_NUM_VERY_LOW                                                :Bardzo mało
 STR_NUM_LOW                                                     :Mało
 STR_NUM_NORMAL                                                  :Średnio
 STR_NUM_HIGH                                                    :Dużo
-STR_NUM_CUSTOM                                                  :Własne
+STR_NUM_CUSTOM                                                  :Własna
 STR_NUM_CUSTOM_NUMBER                                           :Własna ({NUM})
 
 STR_VARIETY_NONE                                                :Brak
@@ -1831,6 +1830,8 @@ STR_CONFIG_SETTING_PERSISTENT_BUILDINGTOOLS                     :Pozostaw aktywn
 STR_CONFIG_SETTING_PERSISTENT_BUILDINGTOOLS_HELPTEXT            :Zachowaj narzędzia budowy mostów, tuneli, itp. po użyciu
 STR_CONFIG_SETTING_EXPENSES_LAYOUT                              :Pogrupuj wydatki w oknie finsnasów firmy: {STRING}
 STR_CONFIG_SETTING_EXPENSES_LAYOUT_HELPTEXT                     :Określa układ okienka wydatków firmy
+STR_CONFIG_SETTING_AUTO_REMOVE_SIGNALS                          :Automatycznie usuwaj sygnały podczas budowy torów: {STRING}
+STR_CONFIG_SETTING_AUTO_REMOVE_SIGNALS_HELPTEXT                 :Automatycznie usuwaj sygnały, które przeszkadzają w budowie toru. Pamiętaj, że może to doprowadzić do zderzenia pociągów, w przypadku usunięcia ważnych sygnałów.
 
 STR_CONFIG_SETTING_SOUND_TICKER                                 :Pasek informacji: {STRING}
 STR_CONFIG_SETTING_SOUND_TICKER_HELPTEXT                        :Odtwarzaj dźwięk dla podsumowania wiadomości
@@ -2192,7 +2193,7 @@ STR_INTRO_TOOLTIP_TOYLAND_LANDSCAPE                             :{BLACK}Wybierz 
 
 STR_INTRO_TOOLTIP_GAME_OPTIONS                                  :{BLACK}Wyświetl opcje gry
 STR_INTRO_TOOLTIP_HIGHSCORE                                     :{BLACK}Wyświetl tabelę wyników
-STR_INTRO_TOOLTIP_CONFIG_SETTINGS_TREE                          :{BLACK}Ustawienia wyświetlania
+STR_INTRO_TOOLTIP_CONFIG_SETTINGS_TREE                          :{BLACK}Wyświetl ustawienia gry
 STR_INTRO_TOOLTIP_NEWGRF_SETTINGS                               :{BLACK}Wyświetl ustawienia NewGRF
 STR_INTRO_TOOLTIP_ONLINE_CONTENT                                :{BLACK}Poszukaj nowych lub zaktualizowanych dodatków do pobrania
 STR_INTRO_TOOLTIP_SCRIPT_SETTINGS                               :{BLACK}Pokaż ustawienia SI / Game Script
@@ -2215,7 +2216,7 @@ STR_ABANDON_SCENARIO_QUERY                                      :{YELLOW}Czy jes
 # Cheat window
 STR_CHEATS                                                      :{WHITE}Oszustwa
 STR_CHEATS_TOOLTIP                                              :{BLACK}Pole wyboru wskazuje, czy użyłeś już wcześniej tego oszustwa
-STR_CHEATS_WARNING                                              :{BLACK}Ostrzeżenie! Właśnie chcesz zdradzić swoich współzawodników. Miej na uwadze, że taka hańba będzie pamiętana na wieczność
+STR_CHEATS_NOTE                                                 :{BLACK}Uwaga: każde użycie tych ustawień zostanie zanotowane w pliku zapisu gry
 STR_CHEAT_MONEY                                                 :{LTBLUE}Zwiększ ilość pieniędzy o {CURRENCY_LONG}
 STR_CHEAT_CHANGE_COMPANY                                        :{LTBLUE}Grasz jako firma: {ORANGE}{COMMA}
 STR_CHEAT_EXTRA_DYNAMITE                                        :{LTBLUE}Magiczny buldożer (usuwanie przedsiębiorstw, nieprzesuwalnych obiektów): {ORANGE}{STRING}
@@ -2249,8 +2250,8 @@ STR_LIVERY_DIESEL                                               :Lokomotywa spal
 STR_LIVERY_ELECTRIC                                             :Lokomotywa elektryczna
 STR_LIVERY_MONORAIL                                             :Lokomotywa jednoszynowa
 STR_LIVERY_MAGLEV                                               :Lokomotywa Maglev
-STR_LIVERY_DMU                                                  :DMU
-STR_LIVERY_EMU                                                  :EMU
+STR_LIVERY_DMU                                                  :SZT
+STR_LIVERY_EMU                                                  :EZT
 STR_LIVERY_PASSENGER_WAGON_STEAM                                :Wagon pasażerski (parowóz)
 STR_LIVERY_PASSENGER_WAGON_DIESEL                               :Wagon pasażerski (spalinowy)
 STR_LIVERY_PASSENGER_WAGON_ELECTRIC                             :Wagon pasażerski (elektryczny)
@@ -2502,7 +2503,6 @@ STR_NETWORK_COMPANY_LIST_NEW_COMPANY                            :Nowa firma
 # Network client list
 STR_NETWORK_CLIENTLIST_KICK                                     :Wyrzuć
 STR_NETWORK_CLIENTLIST_BAN                                      :Banuj
-STR_NETWORK_CLIENTLIST_GIVE_MONEY                               :Przekazanie pieniędzy
 STR_NETWORK_CLIENTLIST_SPEAK_TO_ALL                             :Mów do wszystkich
 STR_NETWORK_CLIENTLIST_SPEAK_TO_COMPANY                         :Mów do firmy
 STR_NETWORK_CLIENTLIST_SPEAK_TO_CLIENT                          :Prywatna wiadomość
@@ -2510,8 +2510,6 @@ STR_NETWORK_CLIENTLIST_SPEAK_TO_CLIENT                          :Prywatna wiadom
 STR_NETWORK_SERVER                                              :Serwer
 STR_NETWORK_CLIENT                                              :Klient
 STR_NETWORK_SPECTATORS                                          :Widzowie
-
-STR_NETWORK_GIVE_MONEY_CAPTION                                  :{WHITE}Wprowadź ilość pieniędzy, które chcesz przekazać
 
 # Network set password
 STR_COMPANY_PASSWORD_CANCEL                                     :{BLACK}Nie zapisuj podanego hasła
@@ -2615,8 +2613,7 @@ STR_NETWORK_MESSAGE_CLIENT_COMPANY_SPECTATE                     :*** {STRING} do
 STR_NETWORK_MESSAGE_CLIENT_COMPANY_NEW                          :*** {STRING} założył nową firmę (#{2:NUM})
 STR_NETWORK_MESSAGE_CLIENT_LEFT                                 :*** {STRING} opuścił grę ({2:STRING})
 STR_NETWORK_MESSAGE_NAME_CHANGE                                 :*** {STRING} zmienił/zmieniła swoje imię na {STRING}
-STR_NETWORK_MESSAGE_GIVE_MONEY                                  :*** {STRING} dał/dała twojemu przedsiębiorstwu {2:CURRENCY_LONG}
-STR_NETWORK_MESSAGE_GAVE_MONEY_AWAY                             :*** Dałeś {1:STRING} {2:CURRENCY_LONG}
+STR_NETWORK_MESSAGE_GIVE_MONEY                                  :*** Firma {STRING} przekazała firmie {1:STRING} {2:CURRENCY_LONG}
 STR_NETWORK_MESSAGE_SERVER_SHUTDOWN                             :{WHITE}Serwer zamknął sesję
 STR_NETWORK_MESSAGE_SERVER_REBOOT                               :{WHITE}Restart serwera...{}Proszę czekać...
 STR_NETWORK_MESSAGE_KICKED                                      :*** {STRING} został wyrzucony. Powód: ({STRING})
@@ -2734,6 +2731,9 @@ STR_JOIN_STATION_CREATE_SPLITTED_STATION                        :{YELLOW}Zbuduj 
 
 STR_JOIN_WAYPOINT_CAPTION                                       :{WHITE}Połącz posterunki
 STR_JOIN_WAYPOINT_CREATE_SPLITTED_WAYPOINT                      :{YELLOW}Zbuduj oddzielny posterunek
+
+# Generic toolbar
+STR_TOOLBAR_DISABLED_NO_VEHICLE_AVAILABLE                       :{BLACK}Nieaktywne, ponieważ nie są dostępne pojazdy korzystające z takiej infrastruktury
 
 # Rail construction toolbar
 STR_RAIL_TOOLBAR_RAILROAD_CONSTRUCTION_CAPTION                  :Konstrukcja linii kolejowej
@@ -3011,6 +3011,7 @@ STR_INDUSTRY_CARGOES_SELECT_INDUSTRY_TOOLTIP                    :{BLACK}Wybierz 
 
 # Land area window
 STR_LAND_AREA_INFORMATION_CAPTION                               :{WHITE}Informacja o terenie
+STR_LAND_AREA_INFORMATION_LOCATION_TOOLTIP                      :{BLACK}Wyśrodkuj główny widok na lokalizacji kawałka terenu. Ctrl+Klik otworzy nowy podgląd na jego lokalizacji
 STR_LAND_AREA_INFORMATION_COST_TO_CLEAR_N_A                     :{BLACK}Koszt czyszczenia: {LTBLUE}N/D
 STR_LAND_AREA_INFORMATION_COST_TO_CLEAR                         :{BLACK}Koszt czyszczenia: {RED}{CURRENCY_LONG}
 STR_LAND_AREA_INFORMATION_REVENUE_WHEN_CLEARED                  :{BLACK}Zysk gdy czyszczone: {LTBLUE}{CURRENCY_LONG}
@@ -3051,23 +3052,23 @@ STR_LAI_RAIL_DESCRIPTION_TRACK                                  :{G=m}Tor kolejo
 STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_NORMAL_SIGNALS              :Tor kolejowy z semaforam blokowymi
 STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_PRESIGNALS                  :Tor kolejowy z semaforami wejściowymi
 STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_EXITSIGNALS                 :Tor kolejowy z semaforem wyjściowym
-STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_COMBOSIGNALS                :Tor kolejowy z semaforami złożonymi (combo)
+STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_COMBOSIGNALS                :Tor kolejowy z semaforami złożonymi
 STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_PBSSIGNALS                  :Tor kolejowy z semaforami trasy
 STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_NOENTRYSIGNALS              :Tor kolejowy z jednokierunkowymi semaforami trasy
 STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_NORMAL_PRESIGNALS           :Tor kolejowy z semaforami blokowymi i semaforami wejścia
 STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_NORMAL_EXITSIGNALS          :Tor kolejowy z semaforami blokowymi i semaforami wyjścia
-STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_NORMAL_COMBOSIGNALS         :Tor kolejowy z semaforami blokowymi i semaforami złożonymi (combo)
+STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_NORMAL_COMBOSIGNALS         :Tor kolejowy z semaforami blokowymi i semaforami złożonymi
 STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_NORMAL_PBSSIGNALS           :Tor kolejowy z semaforami blokowymi i semaforami trasy
 STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_NORMAL_NOENTRYSIGNALS       :Tor kolejowy z semaforami blokowymi i jednokierunkowymi semaforami trasy
 STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_PRE_EXITSIGNALS             :Tor kolejowy z semaforami wejścia i wyjścia
-STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_PRE_COMBOSIGNALS            :Tor kolejowy z semaforami wejścia i semaforami złożonymi (combo)
+STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_PRE_COMBOSIGNALS            :Tor kolejowy z semaforami wejścia i semaforami złożonymi
 STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_PRE_PBSSIGNALS              :Tor kolejowy z semaforami wejścia i semaforami trasy
 STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_PRE_NOENTRYSIGNALS          :Tor kolejowy z semaforami wejścia i jednokierunkowymi semaforami trasy
-STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_EXIT_COMBOSIGNALS           :Tor kolejowy z semaforami wyjścia i semaforami złożonymi (combo)
+STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_EXIT_COMBOSIGNALS           :Tor kolejowy z semaforami wyjścia i semaforami złożonymi
 STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_EXIT_PBSSIGNALS             :Tor kolejowy z semaforami wyjścia i semaforami trasy
 STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_EXIT_NOENTRYSIGNALS         :Tor kolejowy z semaforami wyjścia i jednokierunkowymi semaforami trasy
-STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_COMBO_PBSSIGNALS            :Tor kolejowy z semaforami złożonymi (combo) i semaforami trasy
-STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_COMBO_NOENTRYSIGNALS        :Tor kolejowy z semaforami złożonymi (combo) i jednokierunkowymi semaforami trasy
+STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_COMBO_PBSSIGNALS            :Tor kolejowy z semaforami złożonymi i semaforami trasy
+STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_COMBO_NOENTRYSIGNALS        :Tor kolejowy z semaforami złożonymi i jednokierunkowymi semaforami trasy
 STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_PBS_NOENTRYSIGNALS          :Tor kolejowy z semaforami trasy i jednokierunkowymi semaforami trasy
 STR_LAI_RAIL_DESCRIPTION_TRAIN_DEPOT                            :{G=f}Warsztaty kolejowe
 
@@ -3337,12 +3338,12 @@ STR_NEWGRF_SETTINGS_VERSION                                     :{BLACK}Wersja: 
 STR_NEWGRF_SETTINGS_MIN_VERSION                                 :{BLACK}Kompatybilność z wersją min.: {SILVER}{NUM}
 STR_NEWGRF_SETTINGS_MD5SUM                                      :{BLACK}Suma MD5: {SILVER}{STRING}
 STR_NEWGRF_SETTINGS_PALETTE                                     :{BLACK}Paleta: {SILVER}{STRING}
-STR_NEWGRF_SETTINGS_PALETTE_DEFAULT                             :Domyslny (D)
+STR_NEWGRF_SETTINGS_PALETTE_DEFAULT                             :Domyślna (D)
 STR_NEWGRF_SETTINGS_PALETTE_DEFAULT_32BPP                       :Domyślna (D) / 32 bpp
 STR_NEWGRF_SETTINGS_PALETTE_LEGACY                              :Dawna (W)
 STR_NEWGRF_SETTINGS_PALETTE_LEGACY_32BPP                        :Dawna (W) / 32 bpp
 STR_NEWGRF_SETTINGS_PARAMETER                                   :{BLACK}Parametry: {SILVER}{STRING}
-STR_NEWGRF_SETTINGS_PARAMETER_NONE                              :Żadne
+STR_NEWGRF_SETTINGS_PARAMETER_NONE                              :Brak
 
 STR_NEWGRF_SETTINGS_NO_INFO                                     :{BLACK}Brak dostępnych informacji
 STR_NEWGRF_SETTINGS_NOT_FOUND                                   :{RED}Nie znaleziono pasującego pliku
@@ -3450,7 +3451,7 @@ STR_NEWGRF_BROKEN                                               :{WHITE}Zachowan
 STR_NEWGRF_BROKEN_POWERED_WAGON                                 :{WHITE}Zmieniony stan wagonu silnikowego '{1:ENGINE}', gdy był poza halą warsztatów
 STR_NEWGRF_BROKEN_VEHICLE_LENGTH                                :{WHITE}Zmiana długości pojazdu '{1:ENGINE}' , który nie jest zatrzymany w hali
 STR_NEWGRF_BROKEN_CAPACITY                                      :{WHITE}Zmieniono ładowność pojazdu na '{1:ENGINE}', kiedy nie był w hali warsztatów lub w trakcie przebudowy
-STR_BROKEN_VEHICLE_LENGTH                                       :{WHITE}Pociąg '{VEHICLE}' należący do '{COMPANY}' ma niepoprawną długość. Prawdopodobnie spowodowane jest to problemami z NewGRF'ami. Gra może się odsychronizować lub się zawiesić
+STR_BROKEN_VEHICLE_LENGTH                                       :{WHITE}Pociąg '{VEHICLE}' należący do '{COMPANY}' ma niepoprawną długość. Prawdopodobnie spowodowane jest to problemami z NewGRF'ami. Gra może się odsychronizować lub zawiesić
 
 STR_NEWGRF_BUGGY                                                :{WHITE}NewGRF '{0:STRING}' dostarcza niepoprawnych danych
 STR_NEWGRF_BUGGY_ARTICULATED_CARGO                              :{WHITE}Informacje o ładunku/naprawie dla '{1:ENGINE}' różnią się od listy zakupu po zbudowaniu. Może to spowodować, że autoodnowienie/-zamiana nie wykona remontu poprawnie
@@ -3481,6 +3482,7 @@ STR_SIGN_LIST_MATCH_CASE_TOOLTIP                                :{BLACK}Przełą
 
 # Sign window
 STR_EDIT_SIGN_CAPTION                                           :{WHITE}Edycja tekstu napisu
+STR_EDIT_SIGN_LOCATION_TOOLTIP                                  :{BLACK}Wyśrodkuj główny widok na pozycji napisu. Ctrl+Klik otwiera nowy podgląd wyśrodkowany na niej
 STR_EDIT_SIGN_NEXT_SIGN_TOOLTIP                                 :{BLACK}Idź do następnego napisu
 STR_EDIT_SIGN_PREVIOUS_SIGN_TOOLTIP                             :{BLACK}Idź do poprzedniego napisu
 
@@ -3757,6 +3759,8 @@ STR_COMPANY_VIEW_RELOCATE_HQ                                    :{BLACK}Przenie�
 STR_COMPANY_VIEW_RELOCATE_COMPANY_HEADQUARTERS                  :{BLACK}Zbuduj siedzibę główną w innym miejscu za cenę 1% wartości firmy. Shift+klik pokazuje szacunkowy koszt bez przenoszenia siedziby
 STR_COMPANY_VIEW_INFRASTRUCTURE_BUTTON                          :{BLACK}Szczegóły
 STR_COMPANY_VIEW_INFRASTRUCTURE_TOOLTIP                         :{BLACK}Zobacz szczegółowe wartości infrastruktury
+STR_COMPANY_VIEW_GIVE_MONEY_BUTTON                              :{BLACK}Przekaż pieniądze
+STR_COMPANY_VIEW_GIVE_MONEY_TOOLTIP                             :{BLACK}Przekaż część pieniędzy tej firmie
 
 STR_COMPANY_VIEW_NEW_FACE_BUTTON                                :{BLACK}Nowa twarz
 STR_COMPANY_VIEW_NEW_FACE_TOOLTIP                               :{BLACK}Wybierz nową twarz prezesa
@@ -3774,6 +3778,7 @@ STR_COMPANY_VIEW_SELL_SHARE_TOOLTIP                             :{BLACK}Sprzedaj
 
 STR_COMPANY_VIEW_COMPANY_NAME_QUERY_CAPTION                     :Nazwa firmy
 STR_COMPANY_VIEW_PRESIDENT_S_NAME_QUERY_CAPTION                 :Nazwisko prezesa
+STR_COMPANY_VIEW_GIVE_MONEY_QUERY_CAPTION                       :Wpisz kwotę, jaką chcesz przekazać
 
 STR_BUY_COMPANY_MESSAGE                                         :{WHITE}Szukamy firmy transportowej, która przejęłaby naszą firmę.{}{}Chcesz zakupić {COMPANY} za {CURRENCY_LONG}?
 
@@ -4140,10 +4145,10 @@ STR_REPLACE_REMOVE_WAGON_HELP                                   :{BLACK}Autowymi
 # Vehicle view
 STR_VEHICLE_VIEW_CAPTION                                        :{WHITE}{VEHICLE}
 
-STR_VEHICLE_VIEW_TRAIN_LOCATION_TOOLTIP                         :{BLACK}Centruj główny widok na pozycji pociągu. Ctrl+klik by podążać za pociągiem w głównym oknie
-STR_VEHICLE_VIEW_ROAD_VEHICLE_LOCATION_TOOLTIP                  :{BLACK}Centruj główne okno na pozycji pojazdu. Ctrl+klik by podążać za pojazdem w głównym oknie
-STR_VEHICLE_VIEW_SHIP_LOCATION_TOOLTIP                          :{BLACK}Centruj główny widok na pozycji statku. Ctrl+klik by podążać za statkiem w głównym oknie
-STR_VEHICLE_VIEW_AIRCRAFT_LOCATION_TOOLTIP                      :{BLACK}Centruj główny widok na pozycji samolotu. Ctrl+klik by podążać za samolotem w głównym oknie
+STR_VEHICLE_VIEW_TRAIN_CENTER_TOOLTIP                           :{BLACK}Wyśrodkuj główny widok na lokalizacji pociągu. Podwójne kliknięcie włączy podążanie za pociągiem. Ctrl+Klik otworzy nowy podgląd na jego lokalizacji
+STR_VEHICLE_VIEW_ROAD_VEHICLE_CENTER_TOOLTIP                    :{BLACK}Wyśrodkuj główny widok na lokalizacji pojazdu. Podwójne kliknięcie włączy podążanie za pojazdem. Ctrl+Klik otworzy nowy podgląd na jego lokalizacji
+STR_VEHICLE_VIEW_SHIP_CENTER_TOOLTIP                            :{BLACK}Wyśrodkuj główny widok na lokalizacji statku. Podwójne kliknięcie włączy podążanie za statkiem. Ctrl+Klik otworzy nowy podgląd na jego lokalizacji
+STR_VEHICLE_VIEW_AIRCRAFT_CENTER_TOOLTIP                        :{BLACK}Wyśrodkuj główny widok na lokalizacji samolotu. Podwójne kliknięcie włączy podążanie za samolotem. Ctrl+Klik otworzy nowy podgląd na jego lokalizacji
 
 STR_VEHICLE_VIEW_TRAIN_SEND_TO_DEPOT_TOOLTIP                    :{BLACK}Wyślij pociąg do warsztatów. Ctrl - tylko serwis
 STR_VEHICLE_VIEW_ROAD_VEHICLE_SEND_TO_DEPOT_TOOLTIP             :{BLACK}Wyślij pojazd do zajezdni. Ctrl - tylko serwis
@@ -4175,10 +4180,12 @@ STR_VEHICLE_VIEW_ROAD_VEHICLE_SHOW_DETAILS_TOOLTIP              :{BLACK}Pokaż s
 STR_VEHICLE_VIEW_SHIP_SHOW_DETAILS_TOOLTIP                      :{BLACK}Pokaż szczegóły statku
 STR_VEHICLE_VIEW_AIRCRAFT_SHOW_DETAILS_TOOLTIP                  :{BLACK}Pokaż szczegóły samolotu
 
-STR_VEHICLE_VIEW_TRAIN_STATE_START_STOP_TOOLTIP                 :{BLACK}Obecny stan pociągu - kliknij aby zatrzymać/ruszyć pociąg. Ctrl+klik by przejść do punktu docelowego
-STR_VEHICLE_VIEW_ROAD_VEHICLE_STATE_START_STOP_TOOLTIP          :{BLACK}Obecny stan pojazdu - kliknij aby zatrzymać/ruszyć pojazd. Ctrl+klik by przejść do punktu docelowego
-STR_VEHICLE_VIEW_SHIP_STATE_START_STOP_TOOLTIP                  :{BLACK}Obecny stan statku - kliknij aby zatrzymać/ruszyć statek. Ctrl+klik by przejść do punktu docelowego
-STR_VEHICLE_VIEW_AIRCRAFT_STATE_START_STOP_TOOLTIP              :{BLACK}Obecny stan samolotu - kliknij aby zatrzymać/ruszyć samolot. Ctrl+klik by przejść do punktu docelowego
+STR_VEHICLE_VIEW_TRAIN_STATUS_START_STOP_TOOLTIP                :{BLACK}Obecny stan pociągu - kliknij, aby zatrzymać/ruszyć pociąg
+STR_VEHICLE_VIEW_ROAD_VEHICLE_STATUS_START_STOP_TOOLTIP         :{BLACK}Obecny stan pojazdu - kliknij, aby zatrzymać/ruszyć pojazd
+STR_VEHICLE_VIEW_SHIP_STATE_STATUS_STOP_TOOLTIP                 :{BLACK}Obecny stan statku - kliknij, aby zatrzymać/ruszyć statek
+STR_VEHICLE_VIEW_AIRCRAFT_STATUS_START_STOP_TOOLTIP             :{BLACK}Obecny stan samolotu - kliknij aby zatrzymać/ruszyć samolot
+
+STR_VEHICLE_VIEW_ORDER_LOCATION_TOOLTIP                         :{BLACK}Wyśrodkuj główny widok na celu polecenia. Ctrl+Klik otwiera nowy podgląd na celu
 
 # Messages in the start stop button in the vehicle view
 STR_VEHICLE_STATUS_LOADING_UNLOADING                            :{LTBLUE}Załadunek / Wyładunek
@@ -4406,6 +4413,7 @@ STR_ORDER_REFIT_STOP_ORDER                                      :(Przebuduj na {
 STR_ORDER_STOP_ORDER                                            :(Stop)
 
 STR_ORDER_GO_TO_STATION                                         :{STRING} {STATION} {STRING}
+STR_ORDER_GO_TO_STATION_CAN_T_USE_STATION                       :{PUSH_COLOUR}{RED}(Nie może korzystać ze stacji){POP_COLOUR} {STRING} {STATION} {STRING}
 
 STR_ORDER_IMPLICIT                                              :(sugerowany)
 
@@ -4731,6 +4739,7 @@ STR_ERROR_LOAN_ALREADY_REPAYED                                  :{WHITE}... poż
 STR_ERROR_CURRENCY_REQUIRED                                     :{WHITE}...{CURRENCY_LONG} wymagane
 STR_ERROR_CAN_T_REPAY_LOAN                                      :{WHITE}Nie można zwrócić pożyczki...
 STR_ERROR_INSUFFICIENT_FUNDS                                    :{WHITE}Nie możesz wydać pieniędzy, które są pożyczone z banku...
+STR_ERROR_CAN_T_GIVE_MONEY                                      :{WHITE}Nie możesz przekazać pieniędzy tej firmie...
 STR_ERROR_CAN_T_BUY_COMPANY                                     :{WHITE}Nie można kupić firmy...
 STR_ERROR_CAN_T_BUILD_COMPANY_HEADQUARTERS                      :{WHITE}Nie można zbudować siedziby firmy...
 STR_ERROR_CAN_T_BUY_25_SHARE_IN_THIS                            :{WHITE}Nie można kupić 25% udziałów w tej firmie...
@@ -4857,6 +4866,8 @@ STR_ERROR_DEPOT_WRONG_DEPOT_TYPE                                :Zły typ zajezd
 STR_ERROR_TRAIN_TOO_LONG_AFTER_REPLACEMENT                      :{WHITE}{VEHICLE} jest za długi po wymianie
 STR_ERROR_AUTOREPLACE_NOTHING_TO_DO                             :{WHITE}Brak reguł autozastępowania/odnawiania
 STR_ERROR_AUTOREPLACE_MONEY_LIMIT                               :(limit funduszy)
+STR_ERROR_AUTOREPLACE_INCOMPATIBLE_CARGO                        :{WHITE}{STRING} to ładunek nieobsługiwany przez ten pojazd.
+STR_ERROR_AUTOREPLACE_INCOMPATIBLE_REFIT                        :{WHITE}Nowy pojazd nie może być tak przebudowywany (polecenie {NUM})
 
 # Rail construction errors
 STR_ERROR_IMPOSSIBLE_TRACK_COMBINATION                          :{WHITE}Niemożliwa kombinacja torów

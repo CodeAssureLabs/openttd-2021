@@ -27,7 +27,6 @@
 #include <imm.h>
 #include <mutex>
 #include <condition_variable>
-#include <algorithm>
 
 #include "../safeguards.h"
 
@@ -39,9 +38,6 @@
 #ifndef PM_QS_INPUT
 #define PM_QS_INPUT 0x20000
 #endif
-
-typedef BOOL (WINAPI *PFNTRACKMOUSEEVENT)(LPTRACKMOUSEEVENT lpEventTrack);
-static PFNTRACKMOUSEEVENT _pTrackMouseEvent = nullptr;
 
 static struct {
 	HWND main_wnd;        ///< Handle to system window.
@@ -77,24 +73,24 @@ static Palette _local_palette;
 
 static void MakePalette()
 {
+	_cur_palette.first_dirty = 0;
+	_cur_palette.count_dirty = 256;
+	_local_palette = _cur_palette;
+
 	LOGPALETTE *pal = (LOGPALETTE*)alloca(sizeof(LOGPALETTE) + (256 - 1) * sizeof(PALETTEENTRY));
 
 	pal->palVersion = 0x300;
 	pal->palNumEntries = 256;
 
 	for (uint i = 0; i != 256; i++) {
-		pal->palPalEntry[i].peRed   = _cur_palette.palette[i].r;
-		pal->palPalEntry[i].peGreen = _cur_palette.palette[i].g;
-		pal->palPalEntry[i].peBlue  = _cur_palette.palette[i].b;
+		pal->palPalEntry[i].peRed   = _local_palette.palette[i].r;
+		pal->palPalEntry[i].peGreen = _local_palette.palette[i].g;
+		pal->palPalEntry[i].peBlue  = _local_palette.palette[i].b;
 		pal->palPalEntry[i].peFlags = 0;
 
 	}
 	_wnd.gdi_palette = CreatePalette(pal);
 	if (_wnd.gdi_palette == nullptr) usererror("CreatePalette failed!\n");
-
-	_cur_palette.first_dirty = 0;
-	_cur_palette.count_dirty = 256;
-	_local_palette = _cur_palette;
 }
 
 static void UpdatePalette(HDC dc, uint start, uint count)
@@ -229,31 +225,6 @@ int RedrawScreenDebug()
 	return _fooctr++;
 }
 #endif
-
-/* Windows 95 will not have a WM_MOUSELEAVE message, so define it if needed */
-#if !defined(WM_MOUSELEAVE)
-#define WM_MOUSELEAVE 0x02A3
-#endif
-#define TID_POLLMOUSE 1
-#define MOUSE_POLL_DELAY 75
-
-static void CALLBACK TrackMouseTimerProc(HWND hwnd, UINT msg, UINT_PTR event, DWORD time)
-{
-	RECT rc;
-	POINT pt;
-
-	/* Get the rectangle of our window and translate it to screen coordinates.
-	 * Compare this with the current screen coordinates of the mouse and if it
-	 * falls outside of the area or our window we have left the window. */
-	GetClientRect(hwnd, &rc);
-	MapWindowPoints(hwnd, HWND_DESKTOP, (LPPOINT)(LPRECT)&rc, 2);
-	GetCursorPos(&pt);
-
-	if (!PtInRect(&rc, pt) || (WindowFromPoint(pt) != hwnd)) {
-		KillTimer(hwnd, event);
-		PostMessage(hwnd, WM_MOUSELEAVE, 0, 0L);
-	}
-}
 
 /**
  * Instantiate a new window.
@@ -634,7 +605,7 @@ static LRESULT CALLBACK WndProcGdi(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
 
 	switch (msg) {
 		case WM_CREATE:
-			SetTimer(hwnd, TID_POLLMOUSE, MOUSE_POLL_DELAY, TrackMouseTimerProc);
+			_cursor.in_window = false; // Win32 has mouse tracking.
 			SetCompositionPos(hwnd);
 			_imm_props = ImmGetProperty(GetKeyboardLayout(0), IGP_PROPERTY);
 			break;
@@ -731,16 +702,12 @@ static LRESULT CALLBACK WndProcGdi(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
 			 * tracking the mouse for exiting the window */
 			if (!_cursor.in_window) {
 				_cursor.in_window = true;
-				if (_pTrackMouseEvent != nullptr) {
-					TRACKMOUSEEVENT tme;
-					tme.cbSize = sizeof(tme);
-					tme.dwFlags = TME_LEAVE;
-					tme.hwndTrack = hwnd;
+				TRACKMOUSEEVENT tme;
+				tme.cbSize = sizeof(tme);
+				tme.dwFlags = TME_LEAVE;
+				tme.hwndTrack = hwnd;
 
-					_pTrackMouseEvent(&tme);
-				} else {
-					SetTimer(hwnd, TID_POLLMOUSE, MOUSE_POLL_DELAY, TrackMouseTimerProc);
-				}
+				TrackMouseEvent(&tme);
 			}
 
 			if (_cursor.fix_at) {
@@ -903,8 +870,8 @@ static LRESULT CALLBACK WndProcGdi(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
 
 			w = r->right - r->left - (r2.right - r2.left);
 			h = r->bottom - r->top - (r2.bottom - r2.top);
-			w = max(w, 64);
-			h = max(h, 64);
+			w = std::max(w, 64);
+			h = std::max(h, 64);
 			SetRect(&r2, 0, 0, w, h);
 
 			AdjustWindowRect(&r2, GetWindowLong(hwnd, GWL_STYLE), FALSE);
@@ -1008,27 +975,24 @@ static void RegisterWndClass()
 {
 	static bool registered = false;
 
-	if (!registered) {
-		HINSTANCE hinst = GetModuleHandle(nullptr);
-		WNDCLASS wnd = {
-			CS_OWNDC,
-			WndProcGdi,
-			0,
-			0,
-			hinst,
-			LoadIcon(hinst, MAKEINTRESOURCE(100)),
-			LoadCursor(nullptr, IDC_ARROW),
-			0,
-			0,
-			_T("OTTD")
-		};
+	if (registered) return;
 
-		registered = true;
-		if (!RegisterClass(&wnd)) usererror("RegisterClass failed");
+	HINSTANCE hinst = GetModuleHandle(nullptr);
+	WNDCLASS wnd = {
+		CS_OWNDC,
+		WndProcGdi,
+		0,
+		0,
+		hinst,
+		LoadIcon(hinst, MAKEINTRESOURCE(100)),
+		LoadCursor(nullptr, IDC_ARROW),
+		0,
+		0,
+		_T("OTTD")
+	};
 
-		/* Dynamically load mouse tracking, as it doesn't exist on Windows 95. */
-		_pTrackMouseEvent = (PFNTRACKMOUSEEVENT)GetProcAddress(GetModuleHandle(_T("User32")), "TrackMouseEvent");
-	}
+	registered = true;
+	if (!RegisterClass(&wnd)) usererror("RegisterClass failed");
 }
 
 static bool AllocateDibSection(int w, int h, bool force)
@@ -1037,10 +1001,8 @@ static bool AllocateDibSection(int w, int h, bool force)
 	HDC dc;
 	uint bpp = BlitterFactory::GetCurrentBlitter()->GetScreenDepth();
 
-	w = max(w, 64);
-	h = max(h, 64);
-
-	if (bpp == 0) usererror("Can't use a blitter that blits 0 bpp for normal visuals");
+	w = std::max(w, 64);
+	h = std::max(h, 64);
 
 	if (!force && w == _screen.width && h == _screen.height) return false;
 
@@ -1052,7 +1014,7 @@ static bool AllocateDibSection(int w, int h, bool force)
 	bi->bmiHeader.biHeight = -(_wnd.height = h);
 
 	bi->bmiHeader.biPlanes = 1;
-	bi->bmiHeader.biBitCount = BlitterFactory::GetCurrentBlitter()->GetScreenDepth();
+	bi->bmiHeader.biBitCount = bpp;
 	bi->bmiHeader.biCompression = BI_RGB;
 
 	if (_wnd.dib_sect) DeleteObject(_wnd.dib_sect);
@@ -1115,6 +1077,10 @@ static FVideoDriver_Win32 iFVideoDriver_Win32;
 
 const char *VideoDriver_Win32::Start(const StringList &parm)
 {
+	if (BlitterFactory::GetCurrentBlitter()->GetScreenDepth() == 0) return "Only real blitters supported";
+
+	this->UpdateAutoResolution();
+
 	memset(&_wnd, 0, sizeof(_wnd));
 
 	RegisterWndClass();
@@ -1275,7 +1241,7 @@ void VideoDriver_Win32::MainLoop()
 
 			/* Release the thread while sleeping */
 			if (_draw_threaded) draw_lock.unlock();
-			Sleep(1);
+			CSleep(1);
 			if (_draw_threaded) draw_lock.lock();
 
 			NetworkDrawChatMessage();
@@ -1322,6 +1288,7 @@ bool VideoDriver_Win32::ToggleFullscreen(bool full_screen)
 
 bool VideoDriver_Win32::AfterBlitterChange()
 {
+	assert(BlitterFactory::GetCurrentBlitter()->GetScreenDepth() != 0);
 	return AllocateDibSection(_screen.width, _screen.height, true) && this->MakeWindow(_fullscreen);
 }
 
@@ -1343,4 +1310,9 @@ void VideoDriver_Win32::EditBoxLostFocus()
 	CancelIMEComposition(_wnd.main_wnd);
 	SetCompositionPos(_wnd.main_wnd);
 	SetCandidatePos(_wnd.main_wnd);
+}
+
+Dimension VideoDriver_Win32::GetScreenSize() const
+{
+	return { static_cast<uint>(GetSystemMetrics(SM_CXSCREEN)), static_cast<uint>(GetSystemMetrics(SM_CYSCREEN)) };
 }

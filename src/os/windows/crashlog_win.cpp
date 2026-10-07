@@ -20,6 +20,7 @@
 #include "../../video/video_driver.hpp"
 
 #include <windows.h>
+#include <mmsystem.h>
 #include <signal.h>
 
 #include "../../safeguards.h"
@@ -219,7 +220,7 @@ static char *PrintModuleInfo(char *output, const char *last, HMODULE mod)
 			res = EnumProcessModules(proc, modules, sizeof(modules), &needed);
 			CloseHandle(proc);
 			if (res) {
-				size_t count = min(needed / sizeof(HMODULE), lengthof(modules));
+				size_t count = std::min<DWORD>(needed / sizeof(HMODULE), lengthof(modules));
 
 				for (size_t i = 0; i != count; i++) output = PrintModuleInfo(output, last, modules[i]);
 				return output + seprintf(output, last, "\n");
@@ -540,6 +541,9 @@ void *_safe_esp = nullptr;
 
 static LONG WINAPI ExceptionHandler(EXCEPTION_POINTERS *ep)
 {
+	/* Restore system timer resolution. */
+	timeEndPeriod(1);
+
 	/* Disable our event loop. */
 	SetWindowLongPtr(GetActiveWindow(), GWLP_WNDPROC, (LONG_PTR)&DefWindowProc);
 
