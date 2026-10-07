@@ -85,6 +85,14 @@ public:
 	static bool IsValidTownEffect(TownEffect towneffect_type);
 
 	/**
+	 * Get the name of the cargo type.
+	 * @param cargo_type The cargo type to get the name of.
+	 * @pre IsValidCargo(cargo_type).
+	 * @return The name of the cargo type.
+	 */
+	static char *GetName(CargoID cargo_type);
+
+	/**
 	 * Gets the string representation of the cargo label.
 	 * @param cargo_type The cargo to get the string representation of.
 	 * @pre ScriptCargo::IsValidCargo(cargo_type).
@@ -134,10 +142,12 @@ public:
 	 * @param cargo_type The cargo to transport.
 	 * @pre ScriptCargo::IsValidCargo(cargo_type).
 	 * @param distance The distance the cargo travels from begin to end.
-	 * @param days_in_transit Amount of (game) days the cargo is in transit. The max value of this variable is 637. Any value higher returns the same as 637 would.
+	 *                 The value will be clamped to 0 .. MAX(uint32).
+	 * @param days_in_transit Amount of (game) days the cargo is in transit.
+	 *                        The max value of this variable is 637. Any value higher returns the same as 637 would.
 	 * @return The amount of money that would be earned by this trip.
 	 */
-	static Money GetCargoIncome(CargoID cargo_type, uint32 distance, uint32 days_in_transit);
+	static Money GetCargoIncome(CargoID cargo_type, SQInteger distance, SQInteger days_in_transit);
 
 	/**
 	 * Get the cargo distribution type for a cargo.
@@ -145,6 +155,17 @@ public:
 	 * @return The cargo distribution type for the given cargo.
 	 */
 	static DistributionType GetDistributionType(CargoID cargo_type);
+
+	/**
+	 * Get the weight in tonnes for the given amount of
+	 *   cargo for the specified type.
+	 * @param cargo_type The cargo to check on.
+	 * @param amount The quantity of cargo.
+	 *               The value will be clamped to 0 .. MAX(uint32).
+	 * @pre ScriptCargo::IsValidCargo(cargo_type).
+	 * @return The weight in tonnes for that quantity of cargo.
+	 */
+	static SQInteger GetWeight(CargoID cargo_type, SQInteger amount);
 };
 
 #endif /* SCRIPT_CARGO_HPP */

@@ -11,6 +11,7 @@
 #include "../settings_type.h"
 #include "../core/random_func.hpp"
 #include "script_info.hpp"
+#include "api/script_object.hpp"
 #include "../textfile_gui.h"
 #include "../string_func.h"
 
@@ -25,7 +26,7 @@ void ScriptConfig::Change(const char *name, int version, bool force_exact_match,
 	this->is_random = is_random;
 	if (this->config_list != nullptr) delete this->config_list;
 	this->config_list = (info == nullptr) ? nullptr : new ScriptConfigItemList();
-	if (this->config_list != nullptr) this->PushExtraConfigList();
+	this->to_load_data.reset();
 
 	this->ClearConfigList();
 
@@ -34,9 +35,10 @@ void ScriptConfig::Change(const char *name, int version, bool force_exact_match,
 		 *  for the Script that have the random flag to a random value. */
 		for (const auto &item : *this->info->GetConfigList()) {
 			if (item.flags & SCRIPTCONFIG_RANDOM) {
-				this->SetSetting(item.name, InteractiveRandomRange(item.max_value + 1 - item.min_value) + item.min_value);
+				this->SetSetting(item.name, ScriptObject::GetRandomizer(OWNER_NONE).Next(item.max_value + 1 - item.min_value) + item.min_value);
 			}
 		}
+
 		this->AddRandomDeviation();
 	}
 }
@@ -48,11 +50,14 @@ ScriptConfig::ScriptConfig(const ScriptConfig *config)
 	this->version = config->version;
 	this->config_list = nullptr;
 	this->is_random = config->is_random;
+	this->to_load_data.reset();
 
 	for (const auto &item : config->settings) {
 		this->settings[stredup(item.first)] = item.second;
 	}
-	this->AddRandomDeviation();
+
+	/* Virtual functions get called statically in constructors, so make it explicit to remove any confusion. */
+	this->ScriptConfig::AddRandomDeviation();
 }
 
 ScriptConfig::~ScriptConfig()
@@ -60,6 +65,7 @@ ScriptConfig::~ScriptConfig()
 	free(this->name);
 	this->ResetSettings();
 	if (this->config_list != nullptr) delete this->config_list;
+	this->to_load_data.reset();
 }
 
 ScriptInfo *ScriptConfig::GetInfo() const
@@ -72,7 +78,6 @@ const ScriptConfigItemList *ScriptConfig::GetConfigList()
 	if (this->info != nullptr) return this->info->GetConfigList();
 	if (this->config_list == nullptr) {
 		this->config_list = new ScriptConfigItemList();
-		this->PushExtraConfigList();
 	}
 	return this->config_list;
 }
@@ -151,7 +156,7 @@ void ScriptConfig::AddRandomDeviation()
 {
 	for (const auto &item : *this->GetConfigList()) {
 		if (item.random_deviation != 0) {
-			this->SetSetting(item.name, InteractiveRandomRange(item.random_deviation * 2 + 1) - item.random_deviation + this->GetSetting(item.name));
+			this->SetSetting(item.name, ScriptObject::GetRandomizer(OWNER_NONE).Next(item.random_deviation * 2 + 1) - item.random_deviation + this->GetSetting(item.name));
 		}
 	}
 }
@@ -176,9 +181,9 @@ int ScriptConfig::GetVersion() const
 	return this->version;
 }
 
-void ScriptConfig::StringToSettings(const char *value)
+void ScriptConfig::StringToSettings(const std::string &value)
 {
-	char *value_copy = stredup(value);
+	char *value_copy = stredup(value.c_str());
 	char *s = value_copy;
 
 	while (s != nullptr) {
@@ -202,18 +207,20 @@ void ScriptConfig::StringToSettings(const char *value)
 	free(value_copy);
 }
 
-void ScriptConfig::SettingsToString(char *string, const char *last) const
+std::string ScriptConfig::SettingsToString() const
 {
+	char string[1024];
+	char *last = lastof(string);
 	char *s = string;
 	*s = '\0';
 	for (const auto &item : this->settings) {
-		char no[10];
+		char no[INT32_DIGITS_WITH_SIGN_AND_TERMINATION];
 		seprintf(no, lastof(no), "%d", item.second);
 
 		/* Check if the string would fit in the destination */
 		size_t needed_size = strlen(item.first) + 1 + strlen(no);
 		/* If it doesn't fit, skip the next settings */
-		if (string + needed_size > last) break;
+		if (s + needed_size > last) break;
 
 		s = strecat(s, item.first, last);
 		s = strecat(s, "=", last);
@@ -223,11 +230,24 @@ void ScriptConfig::SettingsToString(char *string, const char *last) const
 
 	/* Remove the last ',', but only if at least one setting was saved. */
 	if (s != string) s[-1] = '\0';
+
+	return string;
 }
 
-const char *ScriptConfig::GetTextfile(TextfileType type, CompanyID slot) const
+std::optional<std::string> ScriptConfig::GetTextfile(TextfileType type, CompanyID slot) const
 {
-	if (slot == INVALID_COMPANY || this->GetInfo() == nullptr) return nullptr;
+	if (slot == INVALID_COMPANY || this->GetInfo() == nullptr) return std::nullopt;
 
 	return ::GetTextfile(type, (slot == OWNER_DEITY) ? GAME_DIR : AI_DIR, this->GetInfo()->GetMainScript());
 }
+
+void ScriptConfig::SetToLoadData(ScriptInstance::ScriptData *data)
+{
+	this->to_load_data.reset(data);
+}
+
+ScriptInstance::ScriptData *ScriptConfig::GetToLoadData()
+{
+	return this->to_load_data.get();
+}
+

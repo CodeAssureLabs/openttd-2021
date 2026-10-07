@@ -13,33 +13,12 @@
 #include "core/enum_type.hpp"
 #include "fileio_type.h"
 #include <string>
-
-void FioSeekTo(size_t pos, int mode);
-void FioSeekToFile(uint8 slot, size_t pos);
-size_t FioGetPos();
-const char *FioGetFilename(uint8 slot);
-byte FioReadByte();
-uint16 FioReadWord();
-uint32 FioReadDword();
-void FioCloseAll();
-void FioOpenFile(int slot, const std::string &filename, Subdirectory subdir);
-void FioReadBlock(void *ptr, size_t size);
-void FioSkipBytes(int n);
-
-/**
- * Checks whether the given search path is a valid search path
- * @param sp the search path to check
- * @return true if the search path is valid
- */
-bool IsValidSearchPath(Searchpath sp);
-
-/** Iterator for all the search paths */
-#define FOR_ALL_SEARCHPATHS(sp) for (sp = SP_FIRST_DIR; sp < NUM_SEARCHPATHS; sp++) if (IsValidSearchPath(sp))
+#include <vector>
 
 void FioFCloseFile(FILE *f);
 FILE *FioFOpenFile(const std::string &filename, const char *mode, Subdirectory subdir, size_t *filesize = nullptr);
 bool FioCheckFileExists(const std::string &filename, Subdirectory subdir);
-std::string FioFindFullPath(Subdirectory subdir, const char *filename);
+std::string FioFindFullPath(Subdirectory subdir, const std::string &filename);
 std::string FioGetDirectory(Searchpath sp, Subdirectory subdir);
 std::string FioFindDirectory(Subdirectory subdir);
 void FioCreateDirectory(const std::string &name);
@@ -48,12 +27,13 @@ const char *FiosGetScreenshotDir();
 
 void SanitizeFilename(char *filename);
 void AppendPathSeparator(std::string &buf);
-void DeterminePaths(const char *exe);
-std::unique_ptr<char> ReadFileToMem(const std::string &filename, size_t &lenp, size_t maxsize);
+void DeterminePaths(const char *exe, bool only_local_path);
+std::unique_ptr<char[]> ReadFileToMem(const std::string &filename, size_t &lenp, size_t maxsize);
 bool FileExists(const std::string &filename);
 bool ExtractTar(const std::string &tar_filename, Subdirectory subdir);
 
 extern std::string _personal_dir; ///< custom directory for personal settings, saves, newgrf, etc.
+extern std::vector<Searchpath> _valid_searchpaths;
 
 /** Helper for scanning for files with a given name */
 class FileScanner {
@@ -107,14 +87,14 @@ DECLARE_ENUM_AS_BIT_SET(TarScanner::Mode)
 struct DIR;
 
 struct dirent { // XXX - only d_name implemented
-	TCHAR *d_name; // name of found file
+	wchar_t *d_name; // name of found file
 	/* little hack which will point to parent DIR struct which will
 	 * save us a call to GetFileAttributes if we want information
 	 * about the file (for example in function fio_bla) */
 	DIR *dir;
 };
 
-DIR *opendir(const TCHAR *path);
+DIR *opendir(const wchar_t *path);
 struct dirent *readdir(DIR *d);
 int closedir(DIR *d);
 #else
@@ -132,7 +112,7 @@ int closedir(DIR *d);
  */
 static inline DIR *ttd_opendir(const char *path)
 {
-	return opendir(OTTD2FS(path));
+	return opendir(OTTD2FS(path).c_str());
 }
 
 

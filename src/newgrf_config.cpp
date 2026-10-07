@@ -17,6 +17,7 @@
 #include "window_func.h"
 #include "progress.h"
 #include "video/video_driver.hpp"
+#include "string_func.h"
 #include "strings_func.h"
 #include "textfile_gui.h"
 #include "thread.h"
@@ -31,13 +32,11 @@
 
 /**
  * Create a new GRFConfig.
- * @param filename Set the filename of this GRFConfig to filename. The argument
- *   is copied so the original string isn't needed after the constructor.
+ * @param filename Set the filename of this GRFConfig to filename.
  */
-GRFConfig::GRFConfig(const char *filename) :
-	num_valid_params(lengthof(param))
+GRFConfig::GRFConfig(const std::string &filename) :
+	filename(filename), num_valid_params(lengthof(param))
 {
-	if (filename != nullptr) this->filename = stredup(filename);
 }
 
 /**
@@ -47,6 +46,7 @@ GRFConfig::GRFConfig(const char *filename) :
 GRFConfig::GRFConfig(const GRFConfig &config) :
 	ZeroedMemoryAllocator(),
 	ident(config.ident),
+	filename(config.filename),
 	name(config.name),
 	info(config.info),
 	url(config.url),
@@ -62,8 +62,7 @@ GRFConfig::GRFConfig(const GRFConfig &config) :
 {
 	MemCpyT<uint8>(this->original_md5sum, config.original_md5sum, lengthof(this->original_md5sum));
 	MemCpyT<uint32>(this->param, config.param, lengthof(this->param));
-	if (config.filename != nullptr) this->filename = stredup(config.filename);
-	if (config.error != nullptr) this->error = new GRFError(*config.error);
+	if (config.error != nullptr) this->error = std::make_unique<GRFError>(*config.error);
 	for (uint i = 0; i < config.param_info.size(); i++) {
 		if (config.param_info[i] == nullptr) {
 			this->param_info.push_back(nullptr);
@@ -76,12 +75,6 @@ GRFConfig::GRFConfig(const GRFConfig &config) :
 /** Cleanup a GRFConfig object. */
 GRFConfig::~GRFConfig()
 {
-	/* GCF_COPY as in NOT stredupped/alloced the filename */
-	if (!HasBit(this->flags, GCF_COPY)) {
-		free(this->filename);
-		delete this->error;
-	}
-
 	for (uint i = 0; i < this->param_info.size(); i++) delete this->param_info[i];
 }
 
@@ -104,7 +97,7 @@ void GRFConfig::CopyParams(const GRFConfig &src)
 const char *GRFConfig::GetName() const
 {
 	const char *name = GetGRFStringFromGRFText(this->name);
-	return StrEmpty(name) ? this->filename : name;
+	return StrEmpty(name) ? this->filename.c_str() : name;
 }
 
 /**
@@ -260,7 +253,7 @@ void GRFParameterInfo::SetValue(struct GRFConfig *config, uint32 value)
 	} else {
 		SB(config->param[this->param_nr], this->first_bit, this->num_bit, value);
 	}
-	config->num_params = max<uint>(config->num_params, this->param_nr + 1);
+	config->num_params = std::max<uint>(config->num_params, this->param_nr + 1);
 	SetWindowDirty(WC_GAME_OPTIONS, WN_GAME_OPTIONS_NEWGRF_STATE);
 }
 
@@ -281,15 +274,13 @@ void GRFParameterInfo::Finalize()
 /**
  * Update the palettes of the graphics from the config file.
  * Called when changing the default palette in advanced settings.
- * @param p1 Unused.
- * @return Always true.
+ * @param new_value Unused.
  */
-bool UpdateNewGRFConfigPalette(int32 p1)
+void UpdateNewGRFConfigPalette(int32 new_value)
 {
 	for (GRFConfig *c = _grfconfig_newgame; c != nullptr; c = c->next) c->SetSuitablePalette();
 	for (GRFConfig *c = _grfconfig_static;  c != nullptr; c = c->next) c->SetSuitablePalette();
 	for (GRFConfig *c = _all_grfs;          c != nullptr; c = c->next) c->SetSuitablePalette();
-	return true;
 }
 
 /**
@@ -308,7 +299,7 @@ size_t GRFGetSizeOfDataSection(FILE *f)
 			/* Valid container version 2, get data section size. */
 			size_t offset = ((size_t)data[13] << 24) | ((size_t)data[12] << 16) | ((size_t)data[11] << 8) | (size_t)data[10];
 			if (offset >= 1 * 1024 * 1024 * 1024) {
-				DEBUG(grf, 0, "Unexpectedly large offset for NewGRF");
+				Debug(grf, 0, "Unexpectedly large offset for NewGRF");
 				/* Having more than 1 GiB of data is very implausible. Mostly because then
 				 * all pools in OpenTTD are flooded already. Or it's just Action C all over.
 				 * In any case, the offsets to graphics will likely not work either. */
@@ -339,7 +330,7 @@ static bool CalcGRFMD5Sum(GRFConfig *config, Subdirectory subdir)
 	if (f == nullptr) return false;
 
 	long start = ftell(f);
-	size = min(size, GRFGetSizeOfDataSection(f));
+	size = std::min(size, GRFGetSizeOfDataSection(f));
 
 	if (start < 0 || fseek(f, start, SEEK_SET) < 0) {
 		FioFCloseFile(f);
@@ -374,7 +365,7 @@ bool FillGRFDetails(GRFConfig *config, bool is_static, Subdirectory subdir)
 	}
 
 	/* Find and load the Action 8 information */
-	LoadNewGRFFile(config, CONFIG_SLOT, GLS_FILESCAN, subdir);
+	LoadNewGRFFile(config, GLS_FILESCAN, subdir, true);
 	config->SetSuitablePalette();
 	config->FinalizeParameterInfo();
 
@@ -383,7 +374,7 @@ bool FillGRFDetails(GRFConfig *config, bool is_static, Subdirectory subdir)
 
 	if (is_static) {
 		/* Perform a 'safety scan' for static GRFs */
-		LoadNewGRFFile(config, CONFIG_SLOT, GLS_SAFETYSCAN, subdir);
+		LoadNewGRFFile(config, GLS_SAFETYSCAN, subdir, true);
 
 		/* GCF_UNSAFE is set if GLS_SAFETYSCAN finds unsafe actions */
 		if (HasBit(config->flags, GCF_UNSAFE)) return false;
@@ -518,14 +509,11 @@ GRFListCompatibility IsGoodGRFConfigList(GRFConfig *grfconfig)
 	for (GRFConfig *c = grfconfig; c != nullptr; c = c->next) {
 		const GRFConfig *f = FindGRFConfig(c->ident.grfid, FGCM_EXACT, c->ident.md5sum);
 		if (f == nullptr || HasBit(f->flags, GCF_INVALID)) {
-			char buf[256];
-
 			/* If we have not found the exactly matching GRF try to find one with the
 			 * same grfid, as it most likely is compatible */
 			f = FindGRFConfig(c->ident.grfid, FGCM_COMPATIBLE, nullptr, c->version);
 			if (f != nullptr) {
-				md5sumToString(buf, lastof(buf), c->ident.md5sum);
-				DEBUG(grf, 1, "NewGRF %08X (%s) not found; checksum %s. Compatibility mode on", BSWAP32(c->ident.grfid), c->filename, buf);
+				Debug(grf, 1, "NewGRF {:08X} ({}) not found; checksum {}. Compatibility mode on", BSWAP32(c->ident.grfid), c->filename, MD5SumToString(c->ident.md5sum));
 				if (!HasBit(c->flags, GCF_COMPATIBLE)) {
 					/* Preserve original_md5sum after it has been assigned */
 					SetBit(c->flags, GCF_COMPATIBLE);
@@ -538,22 +526,20 @@ GRFListCompatibility IsGoodGRFConfigList(GRFConfig *grfconfig)
 			}
 
 			/* No compatible grf was found, mark it as disabled */
-			md5sumToString(buf, lastof(buf), c->ident.md5sum);
-			DEBUG(grf, 0, "NewGRF %08X (%s) not found; checksum %s", BSWAP32(c->ident.grfid), c->filename, buf);
+			Debug(grf, 0, "NewGRF {:08X} ({}) not found; checksum {}", BSWAP32(c->ident.grfid), c->filename, MD5SumToString(c->ident.md5sum));
 
 			c->status = GCS_NOT_FOUND;
 			res = GLC_NOT_FOUND;
 		} else {
 compatible_grf:
-			DEBUG(grf, 1, "Loading GRF %08X from %s", BSWAP32(f->ident.grfid), f->filename);
+			Debug(grf, 1, "Loading GRF {:08X} from {}", BSWAP32(f->ident.grfid), f->filename);
 			/* The filename could be the filename as in the savegame. As we need
 			 * to load the GRF here, we need the correct filename, so overwrite that
 			 * in any case and set the name and info when it is not set already.
 			 * When the GCF_COPY flag is set, it is certain that the filename is
 			 * already a local one, so there is no need to replace it. */
 			if (!HasBit(c->flags, GCF_COPY)) {
-				free(c->filename);
-				c->filename = stredup(f->filename);
+				c->filename = f->filename;
 				memcpy(c->ident.md5sum, f->ident.md5sum, sizeof(c->ident.md5sum));
 				c->name = f->name;
 				c->info = f->name;
@@ -576,14 +562,19 @@ compatible_grf:
 	return res;
 }
 
+
+/** Set this flag to prevent any NewGRF scanning from being done. */
+int _skip_all_newgrf_scanning = 0;
+
 /** Helper for scanning for files with GRF as extension */
 class GRFFileScanner : FileScanner {
-	uint next_update; ///< The next (realtime tick) we do update the screen.
+	std::chrono::steady_clock::time_point next_update; ///< The next moment we do update the screen.
 	uint num_scanned; ///< The number of GRFs we have scanned.
 
 public:
-	GRFFileScanner() : next_update(_realtime_tick), num_scanned(0)
+	GRFFileScanner() : num_scanned(0)
 	{
+		this->next_update = std::chrono::steady_clock::now();
 	}
 
 	bool AddFile(const std::string &filename, size_t basepath_length, const std::string &tar_filename) override;
@@ -591,6 +582,11 @@ public:
 	/** Do the scan for GRFs. */
 	static uint DoScan()
 	{
+		if (_skip_all_newgrf_scanning > 0) {
+			if (_skip_all_newgrf_scanning == 1) _skip_all_newgrf_scanning = 0;
+			return 0;
+		}
+
 		GRFFileScanner fs;
 		int ret = fs.Scan(".grf", NEWGRF_DIR);
 		/* The number scanned and the number returned may not be the same;
@@ -602,6 +598,9 @@ public:
 
 bool GRFFileScanner::AddFile(const std::string &filename, size_t basepath_length, const std::string &tar_filename)
 {
+	/* Abort if the user stopped the game during a scan. */
+	if (_exit_game) return false;
+
 	GRFConfig *c = new GRFConfig(filename.c_str() + basepath_length);
 
 	bool added = true;
@@ -618,7 +617,7 @@ bool GRFFileScanner::AddFile(const std::string &filename, size_t basepath_length
 				/* Because there can be multiple grfs with the same name, make sure we checked all grfs with the same name,
 				 *  before inserting the entry. So insert a new grf at the end of all grfs with the same name, instead of
 				 *  just after the first with the same name. Avoids doubles in the list. */
-				if (strcasecmp(c->GetName(), d->GetName()) <= 0) {
+				if (StrCompareIgnoreCase(c->GetName(), d->GetName()) <= 0) {
 					stop = true;
 				} else if (stop) {
 					break;
@@ -634,20 +633,12 @@ bool GRFFileScanner::AddFile(const std::string &filename, size_t basepath_length
 	}
 
 	this->num_scanned++;
-	if (this->next_update <= _realtime_tick) {
-		_modal_progress_work_mutex.unlock();
-		_modal_progress_paint_mutex.lock();
 
-		const char *name = nullptr;
-		if (c->name != nullptr) name = GetGRFStringFromGRFText(c->name);
-		if (name == nullptr) name = c->filename;
-		UpdateNewGRFScanStatus(this->num_scanned, name);
-
-		_modal_progress_work_mutex.lock();
-		_modal_progress_paint_mutex.unlock();
-
-		this->next_update = _realtime_tick + MODAL_PROGRESS_REDRAW_TIMEOUT;
-	}
+	const char *name = nullptr;
+	if (c->name != nullptr) name = GetGRFStringFromGRFText(c->name);
+	if (name == nullptr) name = c->filename.c_str();
+	UpdateNewGRFScanStatus(this->num_scanned, name);
+	VideoDriver::GetInstance()->GameLoopPause();
 
 	if (!added) {
 		/* File couldn't be opened, or is either not a NewGRF or is a
@@ -666,7 +657,7 @@ bool GRFFileScanner::AddFile(const std::string &filename, size_t basepath_length
  */
 static bool GRFSorter(GRFConfig * const &c1, GRFConfig * const &c2)
 {
-	return strnatcmp(c1->GetName(), c2->GetName()) < 0;
+	return StrNaturalCompare(c1->GetName(), c2->GetName()) < 0;
 }
 
 /**
@@ -675,15 +666,13 @@ static bool GRFSorter(GRFConfig * const &c1, GRFConfig * const &c2)
  */
 void DoScanNewGRFFiles(NewGRFScanCallback *callback)
 {
-	std::unique_lock<std::mutex> lock_work(_modal_progress_work_mutex);
-
 	ClearGRFConfigList(&_all_grfs);
 	TarScanner::DoScan(TarScanner::NEWGRF);
 
-	DEBUG(grf, 1, "Scanning for NewGRFs");
+	Debug(grf, 1, "Scanning for NewGRFs");
 	uint num = GRFFileScanner::DoScan();
 
-	DEBUG(grf, 1, "Scan complete, found %d files", num);
+	Debug(grf, 1, "Scan complete, found {} files", num);
 	if (num != 0 && _all_grfs != nullptr) {
 		/* Sort the linked list using quicksort.
 		 * For that we first have to make an array, then sort and
@@ -708,15 +697,12 @@ void DoScanNewGRFFiles(NewGRFScanCallback *callback)
 		NetworkAfterNewGRFScan();
 	}
 
-	lock_work.unlock();
-	std::lock_guard<std::mutex> lock_paint(_modal_progress_paint_mutex);
-
 	/* Yes... these are the NewGRF windows */
 	InvalidateWindowClassesData(WC_SAVELOAD, 0, true);
 	InvalidateWindowData(WC_GAME_OPTIONS, WN_GAME_OPTIONS_NEWGRF_STATE, GOID_NEWGRF_RESCANNED, true);
-	if (callback != nullptr) callback->OnNewGRFsScanned();
+	if (!_exit_game && callback != nullptr) callback->OnNewGRFsScanned();
 
-	DeleteWindowByClass(WC_MODAL_PROGRESS);
+	CloseWindowByClass(WC_MODAL_PROGRESS);
 	SetModalProgress(false);
 	MarkWholeScreenDirty();
 }
@@ -732,15 +718,7 @@ void ScanNewGRFFiles(NewGRFScanCallback *callback)
 	/* Only then can we really start, especially by marking the whole screen dirty. Get those other windows hidden!. */
 	MarkWholeScreenDirty();
 
-	if (!UseThreadedModelProgress() || !VideoDriver::GetInstance()->HasGUI() || !StartNewThread(nullptr, "ottd:newgrf-scan", &DoScanNewGRFFiles, (NewGRFScanCallback *)callback)) { // Without the seemingly superfluous cast, strange compiler errors ensue.
-		_modal_progress_work_mutex.unlock();
-		_modal_progress_paint_mutex.unlock();
-		DoScanNewGRFFiles(callback);
-		_modal_progress_paint_mutex.lock();
-		_modal_progress_work_mutex.lock();
-	} else {
-		UpdateNewGRFScanStatus(0, nullptr);
-	}
+	DoScanNewGRFFiles(callback);
 }
 
 /**
@@ -769,53 +747,6 @@ const GRFConfig *FindGRFConfig(uint32 grfid, FindGRFConfigMode mode, const uint8
 	}
 
 	return best;
-}
-
-/** Structure for UnknownGRFs; this is a lightweight variant of GRFConfig */
-struct UnknownGRF : public GRFIdentifier {
-	GRFTextWrapper name; ///< Name of the GRF.
-
-	UnknownGRF() = default;
-	UnknownGRF(const UnknownGRF &other) = default;
-	UnknownGRF(UnknownGRF &&other) = default;
-	UnknownGRF(uint32 grfid, const uint8 *_md5sum) : GRFIdentifier(grfid, _md5sum), name(new GRFTextList) {}
-};
-
-/**
- * Finds the name of a NewGRF in the list of names for unknown GRFs. An
- * unknown GRF is a GRF where the .grf is not found during scanning.
- *
- * The names are resolved via UDP calls to servers that should know the name,
- * though the replies may not come. This leaves "<Unknown>" as name, though
- * that shouldn't matter _very_ much as they need GRF crawler or so to look
- * up the GRF anyway and that works better with the GRF ID.
- *
- * @param grfid  the GRF ID part of the 'unique' GRF identifier
- * @param md5sum the MD5 checksum part of the 'unique' GRF identifier
- * @param create whether to create a new GRFConfig if the GRFConfig did not
- *               exist in the fake list of GRFConfigs.
- * @return The GRFTextWrapper of the name of the GRFConfig with the given GRF ID
- *         and MD5 checksum or nullptr when it does not exist and create is false.
- *         This value must NEVER be freed by the caller.
- */
-GRFTextWrapper FindUnknownGRFName(uint32 grfid, uint8 *md5sum, bool create)
-{
-	static std::vector<UnknownGRF> unknown_grfs;
-
-	for (const auto &grf : unknown_grfs) {
-		if (grf.grfid == grfid) {
-			if (memcmp(md5sum, grf.md5sum, sizeof(grf.md5sum)) == 0) return grf.name;
-		}
-	}
-
-	if (!create) return nullptr;
-
-	unknown_grfs.emplace_back(grfid, md5sum);
-	UnknownGRF &grf = unknown_grfs.back();
-
-	AddGRFTextToList(grf.name, UNKNOWN_GRF_NAME_PLACEHOLDER);
-
-	return grf.name;
 }
 
 /**
@@ -851,15 +782,12 @@ char *GRFBuildParamList(char *dst, const GRFConfig *c, const char *last)
 	return dst;
 }
 
-/** Base GRF ID for OpenTTD's base graphics GRFs. */
-static const uint32 OPENTTD_GRAPHICS_BASE_GRF_ID = BSWAP32(0xFF4F5400);
-
 /**
  * Search a textfile file next to this NewGRF.
  * @param type The type of the textfile to search for.
- * @return The filename for the textfile, \c nullptr otherwise.
+ * @return The filename for the textfile.
  */
-const char *GRFConfig::GetTextfile(TextfileType type) const
+std::optional<std::string> GRFConfig::GetTextfile(TextfileType type) const
 {
 	return ::GetTextfile(type, NEWGRF_DIR, this->filename);
 }

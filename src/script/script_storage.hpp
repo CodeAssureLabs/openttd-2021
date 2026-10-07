@@ -17,6 +17,8 @@
 #include "../goal_type.h"
 #include "../story_type.h"
 
+#include "script_log_types.hpp"
+
 #include "table/strings.h"
 #include <vector>
 
@@ -44,17 +46,9 @@ private:
 	uint last_error;                 ///< The last error of the command.
 	bool last_command_res;           ///< The last result of the command.
 
-	TileIndex last_tile;             ///< The last tile passed to a command.
-	uint32 last_p1;                  ///< The last p1 passed to a command.
-	uint32 last_p2;                  ///< The last p2 passed to a command.
-	uint32 last_cmd;                 ///< The last cmd passed to a command.
-
-	VehicleID new_vehicle_id;        ///< The ID of the new Vehicle.
-	SignID new_sign_id;              ///< The ID of the new Sign.
-	GroupID new_group_id;            ///< The ID of the new Group.
-	GoalID new_goal_id;              ///< The ID of the new Goal.
-	StoryPageID new_story_page_id;   ///< The ID of the new StoryPage.
-	StoryPageID new_story_page_element_id; ///< The ID of the new StoryPageElement.
+	CommandDataBuffer last_data;     ///< The last data passed to a command.
+	Commands last_cmd;               ///< The last cmd passed to a command.
+	CommandDataBuffer last_cmd_ret;  ///< The extra data returned by the last command.
 
 	std::vector<int> callback_value; ///< The values which need to survive a callback.
 
@@ -62,7 +56,7 @@ private:
 	RailType rail_type;              ///< The current railtype we build.
 
 	void *event_data;                ///< Pointer to the event data storage.
-	void *log_data;                  ///< Pointer to the log data storage.
+	ScriptLogTypes::LogData log_data;///< Log data storage.
 
 public:
 	ScriptStorage() :
@@ -76,21 +70,11 @@ public:
 		last_cost         (0),
 		last_error        (STR_NULL),
 		last_command_res  (true),
-		last_tile         (INVALID_TILE),
-		last_p1           (0),
-		last_p2           (0),
 		last_cmd          (CMD_END),
-		new_vehicle_id    (0),
-		new_sign_id       (0),
-		new_group_id      (0),
-		new_goal_id       (0),
-		new_story_page_id (0),
-		new_story_page_element_id(0),
 		/* calback_value (can't be set) */
 		road_type         (INVALID_ROADTYPE),
 		rail_type         (INVALID_RAILTYPE),
-		event_data        (nullptr),
-		log_data          (nullptr)
+		event_data        (nullptr)
 	{ }
 
 	~ScriptStorage();

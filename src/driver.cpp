@@ -9,10 +9,13 @@
 
 #include "stdafx.h"
 #include "debug.h"
+#include "error.h"
+#include "error_func.h"
 #include "sound/sound_driver.hpp"
 #include "music/music_driver.hpp"
 #include "video/video_driver.hpp"
 #include "string_func.h"
+#include "table/strings.h"
 #include <string>
 #include <sstream>
 
@@ -84,8 +87,8 @@ void DriverFactoryBase::SelectDriver(const std::string &name, Driver::Type type)
 {
 	if (!DriverFactoryBase::SelectDriverImpl(name, type)) {
 		name.empty() ?
-			usererror("Failed to autoprobe %s driver", GetDriverTypeName(type)) :
-			usererror("Failed to select requested %s driver '%s'", GetDriverTypeName(type), name.c_str());
+			UserError("Failed to autoprobe {} driver", GetDriverTypeName(type)) :
+			UserError("Failed to select requested {} driver '{}'", GetDriverTypeName(type), name.c_str());
 	}
 }
 
@@ -111,23 +114,31 @@ bool DriverFactoryBase::SelectDriverImpl(const std::string &name, Driver::Type t
 				if (d->type != type) continue;
 				if (d->priority != priority) continue;
 
+				if (type == Driver::DT_VIDEO && !_video_hw_accel && d->UsesHardwareAcceleration()) continue;
+
 				Driver *oldd = *GetActiveDriver(type);
 				Driver *newd = d->CreateInstance();
 				*GetActiveDriver(type) = newd;
 
 				const char *err = newd->Start({});
 				if (err == nullptr) {
-					DEBUG(driver, 1, "Successfully probed %s driver '%s'", GetDriverTypeName(type), d->name);
+					Debug(driver, 1, "Successfully probed {} driver '{}'", GetDriverTypeName(type), d->name);
 					delete oldd;
 					return true;
 				}
 
 				*GetActiveDriver(type) = oldd;
-				DEBUG(driver, 1, "Probing %s driver '%s' failed with error: %s", GetDriverTypeName(type), d->name, err);
+				Debug(driver, 1, "Probing {} driver '{}' failed with error: {}", GetDriverTypeName(type), d->name, err);
 				delete newd;
+
+				if (type == Driver::DT_VIDEO && _video_hw_accel && d->UsesHardwareAcceleration()) {
+					_video_hw_accel = false;
+					ErrorMessageData msg(STR_VIDEO_DRIVER_ERROR, STR_VIDEO_DRIVER_ERROR_NO_HARDWARE_ACCELERATION);
+					ScheduleErrorMessage(msg);
+				}
 			}
 		}
-		usererror("Couldn't find any suitable %s driver", GetDriverTypeName(type));
+		UserError("Couldn't find any suitable {} driver", GetDriverTypeName(type));
 	} else {
 		/* Extract the driver name and put parameter list in parm */
 		std::istringstream buffer(name);
@@ -149,7 +160,7 @@ bool DriverFactoryBase::SelectDriverImpl(const std::string &name, Driver::Type t
 			if (d->type != type) continue;
 
 			/* Check driver name */
-			if (strcasecmp(dname.c_str(), d->name) != 0) continue;
+			if (!StrEqualsIgnoreCase(dname, d->name)) continue;
 
 			/* Found our driver, let's try it */
 			Driver *newd = d->CreateInstance();
@@ -157,15 +168,15 @@ bool DriverFactoryBase::SelectDriverImpl(const std::string &name, Driver::Type t
 			const char *err = newd->Start(parms);
 			if (err != nullptr) {
 				delete newd;
-				usererror("Unable to load driver '%s'. The error was: %s", d->name, err);
+				UserError("Unable to load driver '{}'. The error was: {}", d->name, err);
 			}
 
-			DEBUG(driver, 1, "Successfully loaded %s driver '%s'", GetDriverTypeName(type), d->name);
+			Debug(driver, 1, "Successfully loaded {} driver '{}'", GetDriverTypeName(type), d->name);
 			delete *GetActiveDriver(type);
 			*GetActiveDriver(type) = newd;
 			return true;
 		}
-		usererror("No such %s driver: %s\n", GetDriverTypeName(type), dname.c_str());
+		UserError("No such {} driver: {}\n", GetDriverTypeName(type), dname);
 	}
 }
 
@@ -211,8 +222,9 @@ DriverFactoryBase::DriverFactoryBase(Driver::Type type, int priority, const char
 	strecpy(buf, GetDriverTypeName(type), lastof(buf));
 	strecpy(buf + 5, name, lastof(buf));
 
-	std::pair<Drivers::iterator, bool> P = GetDrivers().insert(Drivers::value_type(buf, this));
-	assert(P.second);
+	Drivers &drivers = GetDrivers();
+	assert(drivers.find(buf) == drivers.end());
+	drivers.insert(Drivers::value_type(buf, this));
 }
 
 /**

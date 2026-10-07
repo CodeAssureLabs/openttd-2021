@@ -10,7 +10,7 @@
 #include "stdafx.h"
 #include "crashlog.h"
 #include "gamelog.h"
-#include "date_func.h"
+#include "timer/timer_game_calendar.h"
 #include "map_func.h"
 #include "rev.h"
 #include "strings_func.h"
@@ -32,8 +32,7 @@
 #include "game/game_info.hpp"
 #include "company_base.h"
 #include "company_func.h"
-
-#include <time.h>
+#include "walltime_func.h"
 
 #ifdef WITH_ALLEGRO
 #	include <allegro.h>
@@ -50,9 +49,12 @@
 #	include <ft2build.h>
 #	include FT_FREETYPE_H
 #endif /* WITH_FREETYPE */
-#if defined(WITH_ICU_LX) || defined(WITH_ICU_I18N)
+#ifdef WITH_HARFBUZZ
+#	include <hb.h>
+#endif /* WITH_HARFBUZZ */
+#ifdef WITH_ICU_I18N
 #	include <unicode/uversion.h>
-#endif /* WITH_ICU_LX || WITH_ICU_I18N */
+#endif /* WITH_ICU_I18N */
 #ifdef WITH_LIBLZMA
 #	include <lzma.h>
 #endif
@@ -65,12 +67,13 @@
 #ifdef WITH_ZLIB
 # include <zlib.h>
 #endif
+#ifdef WITH_CURL
+# include <curl/curl.h>
+#endif
 
 #include "safeguards.h"
 
-/* static */ const char *CrashLog::message = nullptr;
-/* static */ char *CrashLog::gamelog_buffer = nullptr;
-/* static */ const char *CrashLog::gamelog_last = nullptr;
+/* static */ std::string CrashLog::message{ "<none>" };
 
 char *CrashLog::LogCompiler(char *buffer, const char *last) const
 {
@@ -127,7 +130,7 @@ char *CrashLog::LogOpenTTDVersion(char *buffer, const char *last) const
 			_openttd_revision,
 			_openttd_revision_modified,
 			_openttd_newgrf_version,
-#ifdef _SQ64
+#ifdef POINTER_IS_64BIT
 			64,
 #else
 			32,
@@ -177,7 +180,7 @@ char *CrashLog::LogConfiguration(char *buffer, const char *last) const
 			SoundDriver::GetInstance() == nullptr ? "none" : SoundDriver::GetInstance()->GetName(),
 			BaseSounds::GetUsedSet() == nullptr ? "none" : BaseSounds::GetUsedSet()->name.c_str(),
 			BaseSounds::GetUsedSet() == nullptr ? UINT32_MAX : BaseSounds::GetUsedSet()->version,
-			VideoDriver::GetInstance() == nullptr ? "none" : VideoDriver::GetInstance()->GetName()
+			VideoDriver::GetInstance() == nullptr ? "none" : VideoDriver::GetInstance()->GetInfoString()
 	);
 
 	buffer += seprintf(buffer, last,
@@ -237,19 +240,18 @@ char *CrashLog::LogLibraries(char *buffer, const char *last) const
 	buffer += seprintf(buffer, last, " FreeType:   %d.%d.%d\n", major, minor, patch);
 #endif /* WITH_FREETYPE */
 
-#if defined(WITH_ICU_LX) || defined(WITH_ICU_I18N)
+#if defined(WITH_HARFBUZZ)
+	buffer += seprintf(buffer, last, " HarfBuzz:   %s\n", hb_version_string());
+#endif /* WITH_HARFBUZZ */
+
+#if defined(WITH_ICU_I18N)
 	/* 4 times 0-255, separated by dots (.) and a trailing '\0' */
 	char buf[4 * 3 + 3 + 1];
 	UVersionInfo ver;
 	u_getVersion(ver);
 	u_versionToString(ver, buf);
-#ifdef WITH_ICU_I18N
 	buffer += seprintf(buffer, last, " ICU i18n:   %s\n", buf);
-#endif
-#ifdef WITH_ICU_LX
-	buffer += seprintf(buffer, last, " ICU lx:     %s\n", buf);
-#endif
-#endif /* WITH_ICU_LX || WITH_ICU_I18N */
+#endif /* WITH_ICU_I18N */
 
 #ifdef WITH_LIBLZMA
 	buffer += seprintf(buffer, last, " LZMA:       %s\n", lzma_version_string());
@@ -276,17 +278,18 @@ char *CrashLog::LogLibraries(char *buffer, const char *last) const
 	buffer += seprintf(buffer, last, " Zlib:       %s\n", zlibVersion());
 #endif
 
+#ifdef WITH_CURL
+	auto *curl_v = curl_version_info(CURLVERSION_NOW);
+	buffer += seprintf(buffer, last, " Curl:       %s\n", curl_v->version);
+	if (curl_v->ssl_version != nullptr) {
+		buffer += seprintf(buffer, last, " Curl SSL:   %s\n", curl_v->ssl_version);
+	} else {
+		buffer += seprintf(buffer, last, " Curl SSL:   none\n");
+	}
+#endif
+
 	buffer += seprintf(buffer, last, "\n");
 	return buffer;
-}
-
-/**
- * Helper function for printing the gamelog.
- * @param s the string to print.
- */
-/* static */ void CrashLog::GamelogFillCrashLog(const char *s)
-{
-	CrashLog::gamelog_buffer += seprintf(CrashLog::gamelog_buffer, CrashLog::gamelog_last, "%s\n", s);
 }
 
 /**
@@ -297,10 +300,10 @@ char *CrashLog::LogLibraries(char *buffer, const char *last) const
  */
 char *CrashLog::LogGamelog(char *buffer, const char *last) const
 {
-	CrashLog::gamelog_buffer = buffer;
-	CrashLog::gamelog_last = last;
-	GamelogPrint(&CrashLog::GamelogFillCrashLog);
-	return CrashLog::gamelog_buffer + seprintf(CrashLog::gamelog_buffer, last, "\n");
+	_gamelog.Print([&buffer, last](const std::string &s) {
+		buffer += seprintf(buffer, last, "%s\n", s.c_str());
+	});
+	return buffer + seprintf(buffer, last, "\n");
 }
 
 /**
@@ -315,14 +318,33 @@ char *CrashLog::LogRecentNews(char *buffer, const char *last) const
 
 	int i = 0;
 	for (NewsItem *news = _latest_news; i < 32 && news != nullptr; news = news->prev, i++) {
-		YearMonthDay ymd;
-		ConvertDateToYMD(news->date, &ymd);
+		TimerGameCalendar::YearMonthDay ymd;
+		TimerGameCalendar::ConvertDateToYMD(news->date, &ymd);
 		buffer += seprintf(buffer, last, "(%i-%02i-%02i) StringID: %u, Type: %u, Ref1: %u, %u, Ref2: %u, %u\n",
 		                   ymd.year, ymd.month + 1, ymd.day, news->string_id, news->type,
 		                   news->reftype1, news->ref1, news->reftype2, news->ref2);
 	}
 	buffer += seprintf(buffer, last, "\n");
 	return buffer;
+}
+
+/**
+ * Create a timestamped filename.
+ * @param filename      The begin where to write at.
+ * @param filename_last The last position in the buffer to write to.
+ * @param ext           The extension for the filename.
+ * @param with_dir      Whether to prepend the filename with the personal directory.
+ * @return the number of added characters.
+ */
+int CrashLog::CreateFileName(char *filename, const char *filename_last, const char *ext, bool with_dir) const
+{
+	static std::string crashname;
+
+	if (crashname.empty()) {
+		UTCTime::Format(filename, filename_last, "crash%Y%m%d%H%M%S");
+		crashname = filename;
+	}
+	return seprintf(filename, filename_last, "%s%s%s", with_dir ? _personal_dir.c_str() : "", crashname.c_str(), ext);
 }
 
 /**
@@ -333,15 +355,14 @@ char *CrashLog::LogRecentNews(char *buffer, const char *last) const
  */
 char *CrashLog::FillCrashLog(char *buffer, const char *last) const
 {
-	time_t cur_time = time(nullptr);
 	buffer += seprintf(buffer, last, "*** OpenTTD Crash Report ***\n\n");
-	buffer += seprintf(buffer, last, "Crash at: %s", asctime(gmtime(&cur_time)));
+	buffer += UTCTime::Format(buffer, last, "Crash at: %Y-%m-%d %H:%M:%S (UTC)\n");
 
-	YearMonthDay ymd;
-	ConvertDateToYMD(_date, &ymd);
-	buffer += seprintf(buffer, last, "In game date: %i-%02i-%02i (%i)\n\n", ymd.year, ymd.month + 1, ymd.day, _date_fract);
+	TimerGameCalendar::YearMonthDay ymd;
+	TimerGameCalendar::ConvertDateToYMD(TimerGameCalendar::date, &ymd);
+	buffer += seprintf(buffer, last, "In game date: %i-%02i-%02i (%i)\n\n", ymd.year, ymd.month + 1, ymd.day, TimerGameCalendar::date_fract);
 
-	buffer = this->LogError(buffer, last, CrashLog::message);
+	buffer = this->LogError(buffer, last, CrashLog::message.c_str());
 	buffer = this->LogOpenTTDVersion(buffer, last);
 	buffer = this->LogRegisters(buffer, last);
 	buffer = this->LogStacktrace(buffer, last);
@@ -368,7 +389,7 @@ char *CrashLog::FillCrashLog(char *buffer, const char *last) const
  */
 bool CrashLog::WriteCrashLog(const char *buffer, char *filename, const char *filename_last) const
 {
-	seprintf(filename, filename_last, "%scrash.log", _personal_dir.c_str());
+	this->CreateFileName(filename, filename_last, ".log");
 
 	FILE *file = FioFOpenFile(filename, "w", NO_DIRECTORY);
 	if (file == nullptr) return false;
@@ -396,14 +417,14 @@ bool CrashLog::WriteCrashLog(const char *buffer, char *filename, const char *fil
  */
 bool CrashLog::WriteSavegame(char *filename, const char *filename_last) const
 {
-	/* If the map array doesn't exist, saving will fail too. If the map got
+	/* If the map doesn't exist, saving will fail too. If the map got
 	 * initialised, there is a big chance the rest is initialised too. */
-	if (_m == nullptr) return false;
+	if (!Map::IsInitialized()) return false;
 
 	try {
-		GamelogEmergency();
+		_gamelog.Emergency();
 
-		seprintf(filename, filename_last, "%scrash.sav", _personal_dir.c_str());
+		this->CreateFileName(filename, filename_last, ".sav");
 
 		/* Don't do a threaded saveload. */
 		return SaveOrLoad(filename, SLO_SAVE, DFT_GAME_FILE, NO_DIRECTORY, false) == SL_OK;
@@ -425,7 +446,9 @@ bool CrashLog::WriteScreenshot(char *filename, const char *filename_last) const
 	/* Don't draw when we have invalid screen size */
 	if (_screen.width < 1 || _screen.height < 1 || _screen.dst_ptr == nullptr) return false;
 
-	bool res = MakeScreenshot(SC_CRASHLOG, "crash");
+	this->CreateFileName(filename, filename_last, "", false);
+	bool res = MakeScreenshot(SC_CRASHLOG, filename);
+	filename[0] = '\0';
 	if (res) strecpy(filename, _full_screenshot_name, filename_last);
 	return res;
 }
@@ -495,7 +518,7 @@ bool CrashLog::MakeCrashLog() const
  * Sets a message for the error message handler.
  * @param message The error message of the error.
  */
-/* static */ void CrashLog::SetErrorMessage(const char *message)
+/* static */ void CrashLog::SetErrorMessage(const std::string &message)
 {
 	CrashLog::message = message;
 }

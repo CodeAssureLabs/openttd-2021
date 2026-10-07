@@ -39,7 +39,7 @@
  *   data from the loaded game.
  * - Finally, #Start is called to start execution of the script.
  *
- * See also http://wiki.openttd.org/AI:Save/Load for more details.
+ * See also https://wiki.openttd.org/en/Development/Script/Save%20and%20Load for more details.
  *
  * @api ai game
  */
@@ -48,6 +48,7 @@ class ScriptController {
 	friend class ScriptInstance;
 
 public:
+#ifndef DOXYGEN_API
 	/**
 	 * Initializer of the ScriptController.
 	 * @param company The company this Script is normally serving.
@@ -59,6 +60,7 @@ public:
 	 */
 	~ScriptController();
 
+#else
 	/**
 	 * This function is called to start your script. Your script starts here. If you
 	 *   return from this function, your script dies, so make sure that doesn't
@@ -67,7 +69,6 @@ public:
 	 */
 	void Start();
 
-#ifdef DOXYGEN_API
 	/**
 	 * Save the state of the script.
 	 *
@@ -91,7 +92,7 @@ public:
 	 *   notified of the call. To avoid race-conditions between #Save and the
 	 *   other script code, change variables directly after a #Sleep, it is
 	 *   very unlikely, to get interrupted at that point in the execution.
-	 * See also http://wiki.openttd.org/AI:Save/Load for more details.
+	 * See also https://wiki.openttd.org/en/Development/Script/Save%20and%20Load for more details.
 	 *
 	 * @note No other information is saved than the table returned by #Save.
 	 *   For example all pending events are lost as soon as the game is loaded.
@@ -135,11 +136,20 @@ public:
 	/**
 	 * Get the OpenTTD version of this executable. The version is formatted
 	 * with the bits having the following meaning:
-	 * 28-31 major version
-	 * 24-27 minor version
-	 * 20-23 build
+	 * 24-31 major version + 16.
+	 * 20-23 minor version.
 	 *    19 1 if it is a release, 0 if it is not.
 	 *  0-18 revision number; 0 when the revision is unknown.
+	 * You have to subtract 16 from the major version to get the correct
+	 * value.
+	 *
+	 * Prior to OpenTTD 12, the bits have the following meaning:
+	 * 28-31 major version.
+	 * 24-27 minor version.
+	 * 20-23 build.
+	 *    19 1 if it is a release, 0 if it is not.
+	 *  0-18 revision number; 0 when the revision is unknown.
+	 *
 	 * @return The version in newgrf format.
 	 */
 	static uint GetVersion();

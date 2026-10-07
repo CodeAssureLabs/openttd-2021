@@ -12,8 +12,6 @@
 #include "../../gui.h"
 #include "../../fileio_func.h"
 #include "../../fios.h"
-#include "../../openttd.h"
-#include "../../core/random_func.hpp"
 #include "../../string_func.h"
 #include "../../textbuf_gui.h"
 #include "../../thread.h"
@@ -78,11 +76,12 @@ void FiosGetDrives(FileList &file_list)
 			fios->type = FIOS_TYPE_DRIVE;
 			fios->mtime = 0;
 #ifndef __INNOTEK_LIBC__
-			snprintf(fios->name, lengthof(fios->name),  "%c:", 'A' + disk - 1);
+			fios->name += 'A' + disk - 1;
 #else
-			snprintf(fios->name, lengthof(fios->name),  "%c:", disk);
+			fios->name += (char)disk;
 #endif
-			strecpy(fios->title, fios->name, lastof(fios->title));
+			fios->name += ':';
+			fios->title = fios->name;
 		}
 	}
 
@@ -135,7 +134,7 @@ bool FiosIsHiddenFile(const struct dirent *ent)
 	return ent->d_name[0] == '.';
 }
 
-void ShowInfo(const char *str)
+void ShowInfoI(const std::string &str)
 {
 	HAB hab;
 	HMQ hmq;
@@ -145,7 +144,7 @@ void ShowInfo(const char *str)
 	hmq = WinCreateMsgQueue((hab = WinInitialize(0)), 0);
 
 	/* display the box */
-	rc = WinMessageBox(HWND_DESKTOP, HWND_DESKTOP, (const unsigned char *)str, (const unsigned char *)"OpenTTD", 0, MB_OK | MB_MOVEABLE | MB_INFORMATION);
+	rc = WinMessageBox(HWND_DESKTOP, HWND_DESKTOP, (const unsigned char *)str.c_str(), (const unsigned char *)"OpenTTD", 0, MB_OK | MB_MOVEABLE | MB_INFORMATION);
 
 	/* terminate PM env. */
 	WinDestroyMsgQueue(hmq);
@@ -167,16 +166,6 @@ void ShowOSErrorBox(const char *buf, bool system)
 	/* terminate PM env. */
 	WinDestroyMsgQueue(hmq);
 	WinTerminate(hab);
-}
-
-int CDECL main(int argc, char *argv[])
-{
-	SetRandomSeed(time(nullptr));
-
-	/* Make sure our arguments contain only valid UTF-8 characters. */
-	for (int i = 0; i < argc; i++) ValidateString(argv[i]);
-
-	return openttd_main(argc, argv);
 }
 
 bool GetClipboardContents(char *buffer, const char *last)
@@ -203,13 +192,10 @@ bool GetClipboardContents(char *buffer, const char *last)
 }
 
 
-const char *FS2OTTD(const char *name) {return name;}
-const char *OTTD2FS(const char *name) {return name;}
-
 void OSOpenBrowser(const char *url)
 {
 	// stub only
-	DEBUG(misc, 0, "Failed to open url: %s", url);
+	Debug(misc, 0, "Failed to open url: {}", url);
 }
 
 void SetCurrentThreadName(const char *)
