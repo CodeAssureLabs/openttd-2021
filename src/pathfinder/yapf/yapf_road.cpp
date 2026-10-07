@@ -35,17 +35,17 @@ protected:
 		return *static_cast<Tpf *>(this);
 	}
 
-	int SlopeCost(TileIndex tile, TileIndex next_tile, Trackdir trackdir)
+	int SlopeCost(TileIndex tile, TileIndex next_tile, Trackdir)
 	{
 		/* height of the center of the current tile */
 		int x1 = TileX(tile) * TILE_SIZE;
 		int y1 = TileY(tile) * TILE_SIZE;
-		int z1 = GetSlopePixelZ(x1 + TILE_SIZE / 2, y1 + TILE_SIZE / 2);
+		int z1 = GetSlopePixelZ(x1 + TILE_SIZE / 2, y1 + TILE_SIZE / 2, true);
 
 		/* height of the center of the next tile */
 		int x2 = TileX(next_tile) * TILE_SIZE;
 		int y2 = TileY(next_tile) * TILE_SIZE;
-		int z2 = GetSlopePixelZ(x2 + TILE_SIZE / 2, y2 + TILE_SIZE / 2);
+		int z2 = GetSlopePixelZ(x2 + TILE_SIZE / 2, y2 + TILE_SIZE / 2, true);
 
 		if (z2 - z1 > 1) {
 			/* Slope up */
@@ -109,7 +109,7 @@ public:
 	 *  Calculates only the cost of given node, adds it to the parent node cost
 	 *  and stores the result into Node::m_cost member
 	 */
-	inline bool PfCalcCost(Node &n, const TrackFollower *tf)
+	inline bool PfCalcCost(Node &n, const TrackFollower *)
 	{
 		int segment_cost = 0;
 		uint tiles = 0;
@@ -159,10 +159,10 @@ public:
 
 			/* add min/max speed penalties */
 			int min_speed = 0;
-			int max_veh_speed = v->GetDisplayMaxSpeed();
+			int max_veh_speed = std::min<int>(v->GetDisplayMaxSpeed(), v->current_order.GetMaxSpeed() * 2);
 			int max_speed = F.GetSpeedLimit(&min_speed);
-			if (max_speed < max_veh_speed) segment_cost += 1 * (max_veh_speed - max_speed);
-			if (min_speed > max_veh_speed) segment_cost += 10 * (min_speed - max_veh_speed);
+			if (max_speed < max_veh_speed) segment_cost += YAPF_TILE_LENGTH * (max_veh_speed - max_speed) * (4 + F.m_tiles_skipped) / max_veh_speed;
+			if (min_speed > max_veh_speed) segment_cost += YAPF_TILE_LENGTH * (min_speed - max_veh_speed);
 
 			/* move to the next tile */
 			tile = F.m_new_tile;
@@ -202,7 +202,7 @@ public:
 		return IsRoadDepotTile(n.m_segment_last_tile);
 	}
 
-	inline bool PfDetectDestinationTile(TileIndex tile, Trackdir trackdir)
+	inline bool PfDetectDestinationTile(TileIndex tile, Trackdir)
 	{
 		return IsRoadDepotTile(tile);
 	}
@@ -303,7 +303,7 @@ public:
 		int y2 = 2 * TileY(m_destTile);
 		int dx = abs(x1 - x2);
 		int dy = abs(y1 - y2);
-		int dmin = min(dx, dy);
+		int dmin = std::min(dx, dy);
 		int dxy = abs(dx - dy);
 		int d = dmin * YAPF_TILE_CORNER_LENGTH + (dxy - 1) * (YAPF_TILE_LENGTH / 2);
 		n.m_estimate = n.m_cost + d;
@@ -370,7 +370,7 @@ public:
 		/* our source tile will be the next vehicle tile (should be the given one) */
 		TileIndex src_tile = tile;
 		/* get available trackdirs on the start tile */
-		TrackdirBits src_trackdirs = TrackStatusToTrackdirBits(GetTileTrackStatus(tile, TRANSPORT_ROAD, GetRoadTramType(v->roadtype)));
+		TrackdirBits src_trackdirs = GetTrackdirBitsForRoad(tile, GetRoadTramType(v->roadtype));
 		/* select reachable trackdirs only */
 		src_trackdirs &= DiagdirReachesTrackdirs(enterdir);
 
@@ -427,12 +427,6 @@ public:
 		return next_trackdir;
 	}
 
-	static uint stDistanceToTile(const RoadVehicle *v, TileIndex tile)
-	{
-		Tpf pf;
-		return pf.DistanceToTile(v, tile);
-	}
-
 	inline uint DistanceToTile(const RoadVehicle *v, TileIndex dst_tile)
 	{
 		/* handle special case - when current tile is the destination tile */
@@ -468,7 +462,7 @@ public:
 		/* set origin (tile, trackdir) */
 		TileIndex src_tile = v->tile;
 		Trackdir src_td = v->GetVehicleTrackdir();
-		if (!HasTrackdir(TrackStatusToTrackdirBits(GetTileTrackStatus(src_tile, TRANSPORT_ROAD, this->IsTram() ? RTT_TRAM : RTT_ROAD)), src_td)) {
+		if (!HasTrackdir(GetTrackdirBitsForRoad(src_tile, this->IsTram() ? RTT_TRAM : RTT_ROAD), src_td)) {
 			/* sometimes the roadveh is not on the road (it resides on non-existing track)
 			 * how should we handle that situation? */
 			return false;
@@ -548,7 +542,8 @@ FindDepotData YapfRoadVehicleFindNearestDepot(const RoadVehicle *v, int max_dist
 {
 	TileIndex tile = v->tile;
 	Trackdir trackdir = v->GetVehicleTrackdir();
-	if (!HasTrackdir(TrackStatusToTrackdirBits(GetTileTrackStatus(tile, TRANSPORT_ROAD, GetRoadTramType(v->roadtype))), trackdir)) {
+
+	if (!HasTrackdir(GetTrackdirBitsForRoad(tile, GetRoadTramType(v->roadtype)), trackdir)) {
 		return FindDepotData();
 	}
 

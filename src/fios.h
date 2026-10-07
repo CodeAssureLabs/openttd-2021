@@ -13,7 +13,9 @@
 #include "gfx_type.h"
 #include "company_base.h"
 #include "newgrf_config.h"
-#include "network/core/tcp_content.h"
+#include "gamelog.h"
+#include "network/core/tcp_content_type.h"
+#include "timer/timer_game_calendar.h"
 
 
 /** Special values for save-load window for the data parameter of #InvalidateWindowData. */
@@ -23,7 +25,7 @@ enum SaveLoadInvalidateWindowData {
 	SLIWD_FILTER_CHANGES,        ///< The filename filter has changed (via the editbox)
 };
 
-typedef SmallMap<uint, CompanyProperties *> CompanyPropertiesMap;
+using CompanyPropertiesMap = std::map<uint, std::unique_ptr<CompanyProperties>>;
 
 /**
  * Container for loading in mode SL_LOAD_CHECK.
@@ -31,10 +33,10 @@ typedef SmallMap<uint, CompanyProperties *> CompanyPropertiesMap;
 struct LoadCheckData {
 	bool checkable;     ///< True if the savegame could be checked by SL_LOAD_CHECK. (Old savegames are not checkable.)
 	StringID error;     ///< Error message from loading. INVALID_STRING_ID if no error.
-	char *error_data;   ///< Data to pass to SetDParamStr when displaying #error.
+	std::string error_msg; ///< Data to pass to SetDParamStr when displaying #error.
 
-	uint32 map_size_x, map_size_y;
-	Date current_date;
+	uint32_t map_size_x, map_size_y;
+	TimerGameCalendar::Date current_date;
 
 	GameSettings settings;
 
@@ -43,21 +45,11 @@ struct LoadCheckData {
 	GRFConfig *grfconfig;                         ///< NewGrf configuration from save.
 	GRFListCompatibility grf_compatibility;       ///< Summary state of NewGrfs, whether missing files or only compatible found.
 
-	struct LoggedAction *gamelog_action;          ///< Gamelog actions
-	uint gamelog_actions;                         ///< Number of gamelog actions
+	Gamelog gamelog; ///< Gamelog actions
 
-	LoadCheckData() : error_data(nullptr), grfconfig(nullptr),
-			grf_compatibility(GLC_NOT_FOUND), gamelog_action(nullptr), gamelog_actions(0)
+	LoadCheckData() : grfconfig(nullptr),
+			grf_compatibility(GLC_NOT_FOUND)
 	{
-		this->Clear();
-	}
-
-	/**
-	 * Don't leak memory at program exit
-	 */
-	~LoadCheckData()
-	{
-		this->Clear();
 	}
 
 	/**
@@ -83,120 +75,20 @@ struct LoadCheckData {
 
 extern LoadCheckData _load_check_data;
 
-
-enum FileSlots {
-	/**
-	 * Slot used for the GRF scanning and such.
-	 * This slot is used for all temporary accesses to files when scanning/testing files,
-	 * and thus cannot be used for files, which are continuously accessed during a game.
-	 */
-	CONFIG_SLOT    =  0,
-	/** Slot for the sound. */
-	SOUND_SLOT     =  1,
-	/** First slot usable for (New)GRFs used during the game. */
-	FIRST_GRF_SLOT =  2,
-	/** Maximum number of slots. */
-	MAX_FILE_SLOTS = 128,
-};
-
 /** Deals with finding savegames */
 struct FiosItem {
 	FiosType type;
-	uint64 mtime;
-	char title[64];
-	char name[MAX_PATH];
+	uint64_t mtime;
+	std::string title;
+	std::string name;
 	bool operator< (const FiosItem &other) const;
 };
 
 /** List of file information. */
-class FileList {
+class FileList : public std::vector<FiosItem> {
 public:
-	~FileList();
-
-	/**
-	 * Construct a new entry in the file list.
-	 * @return Pointer to the new items to be initialized.
-	 */
-	inline FiosItem *Append()
-	{
-		return &this->files.emplace_back();
-	}
-
-	/**
-	 * Get the number of files in the list.
-	 * @return The number of files stored in the list.
-	 */
-	inline size_t Length() const
-	{
-		return this->files.size();
-	}
-
-	/**
-	 * Get a pointer to the first file information.
-	 * @return Address of the first file information.
-	 */
-	inline const FiosItem *Begin() const
-	{
-		return this->files.data();
-	}
-
-	/**
-	 * Get a pointer behind the last file information.
-	 * @return Address behind the last file information.
-	 */
-	inline const FiosItem *End() const
-	{
-		return this->Begin() + this->Length();
-	}
-
-	/**
-	 * Get a pointer to the indicated file information. File information must exist.
-	 * @return Address of the indicated existing file information.
-	 */
-	inline const FiosItem *Get(size_t index) const
-	{
-		return this->files.data() + index;
-	}
-
-	/**
-	 * Get a pointer to the indicated file information. File information must exist.
-	 * @return Address of the indicated existing file information.
-	 */
-	inline FiosItem *Get(size_t index)
-	{
-		return this->files.data() + index;
-	}
-
-	inline const FiosItem &operator[](size_t index) const
-	{
-		return this->files[index];
-	}
-
-	/**
-	 * Get a reference to the indicated file information. File information must exist.
-	 * @return The requested file information.
-	 */
-	inline FiosItem &operator[](size_t index)
-	{
-		return this->files[index];
-	}
-
-	/** Remove all items from the list. */
-	inline void Clear()
-	{
-		this->files.clear();
-	}
-
-	/** Compact the list down to the smallest block size boundary. */
-	inline void Compact()
-	{
-		this->files.shrink_to_fit();
-	}
-
 	void BuildFileList(AbstractFileType abstract_filetype, SaveLoadOperation fop);
-	const FiosItem *FindItem(const char *file);
-
-	std::vector<FiosItem> files; ///< The list of files.
+	const FiosItem *FindItem(const std::string_view file);
 };
 
 enum SortingBits {
@@ -216,13 +108,29 @@ void FiosGetSavegameList(SaveLoadOperation fop, FileList &file_list);
 void FiosGetScenarioList(SaveLoadOperation fop, FileList &file_list);
 void FiosGetHeightmapList(SaveLoadOperation fop, FileList &file_list);
 
-const char *FiosBrowseTo(const FiosItem *item);
+bool FiosBrowseTo(const FiosItem *item);
 
-StringID FiosGetDescText(const char **path, uint64 *total_free);
+std::string FiosGetCurrentPath();
+std::optional<uint64_t> FiosGetDiskFreeSpace(const std::string &path);
 bool FiosDelete(const char *name);
 std::string FiosMakeHeightmapName(const char *name);
 std::string FiosMakeSavegameName(const char *name);
 
-FiosType FiosGetSavegameListCallback(SaveLoadOperation fop, const std::string &file, const char *ext, char *title, const char *last);
+std::tuple<FiosType, std::string> FiosGetSavegameListCallback(SaveLoadOperation fop, const std::string &file, const std::string_view ext);
+
+void ScanScenarios();
+const char *FindScenario(const ContentInfo *ci, bool md5sum);
+
+/**
+ * A savegame name automatically numbered.
+ */
+struct FiosNumberedSaveName {
+	FiosNumberedSaveName(const std::string &prefix);
+	std::string Filename();
+	std::string Extension();
+private:
+	std::string prefix;
+	int number;
+};
 
 #endif /* FIOS_H */

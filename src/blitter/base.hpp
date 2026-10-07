@@ -25,7 +25,7 @@ enum BlitterMode {
 /**
  * How all blitters should look like. Extend this class to make your own.
  */
-class Blitter {
+class Blitter : public SpriteEncoder {
 public:
 	/** Parameters related to blitting. */
 	struct BlitterParams {
@@ -56,7 +56,12 @@ public:
 	 * Get the screen depth this blitter works for.
 	 *  This is either: 8, 16, 24 or 32.
 	 */
-	virtual uint8 GetScreenDepth() = 0;
+	virtual uint8_t GetScreenDepth() = 0;
+
+	bool Is32BppSupported() override
+	{
+		return this->GetScreenDepth() > 8;
+	}
 
 	/**
 	 * Draw an image to the screen, given an amount of params defined above.
@@ -75,11 +80,6 @@ public:
 	virtual void DrawColourMappingRect(void *dst, int width, int height, PaletteID pal) = 0;
 
 	/**
-	 * Convert a sprite from the loader to our own format.
-	 */
-	virtual Sprite *Encode(const SpriteLoader::Sprite *sprite, AllocatorProc *allocator) = 0;
-
-	/**
 	 * Move the destination pointer the requested amount x and y, keeping in mind
 	 *  any pitch and bpp of the renderer.
 	 * @param video The destination pointer (video-buffer) to scroll.
@@ -96,7 +96,7 @@ public:
 	 * @param y The y position within video-buffer.
 	 * @param colour A 8bpp mapping colour.
 	 */
-	virtual void SetPixel(void *video, int x, int y, uint8 colour) = 0;
+	virtual void SetPixel(void *video, int x, int y, uint8_t colour) = 0;
 
 	/**
 	 * Make a single horizontal line in a single colour on the video-buffer.
@@ -105,7 +105,7 @@ public:
 	 * @param height The height of the line.
 	 * @param colour A 8bpp mapping colour.
 	 */
-	virtual void DrawRect(void *video, int width, int height, uint8 colour) = 0;
+	virtual void DrawRect(void *video, int width, int height, uint8_t colour) = 0;
 
 	/**
 	 * Draw a line with a given colour.
@@ -120,7 +120,7 @@ public:
 	 * @param width Line width.
 	 * @param dash Length of dashes for dashed lines. 0 means solid line.
 	 */
-	virtual void DrawLine(void *video, int x, int y, int x2, int y2, int screen_width, int screen_height, uint8 colour, int width, int dash = 0) = 0;
+	virtual void DrawLine(void *video, int x, int y, int x2, int y2, int screen_width, int screen_height, uint8_t colour, int width, int dash = 0) = 0;
 
 	/**
 	 * Copy from a buffer to the screen.
@@ -170,7 +170,7 @@ public:
 	 * @param height The height of the buffer-to-be.
 	 * @return The size needed for the buffer.
 	 */
-	virtual int BufferSize(int width, int height) = 0;
+	virtual size_t BufferSize(uint width, uint height) = 0;
 
 	/**
 	 * Called when the 8bpp palette is changed; you should redraw all pixels on the screen that
@@ -186,21 +186,24 @@ public:
 	virtual Blitter::PaletteAnimation UsePaletteAnimation() = 0;
 
 	/**
+	 * Does this blitter require a separate animation buffer from the video backend?
+	 */
+	virtual bool NeedsAnimationBuffer()
+	{
+		return false;
+	}
+
+	/**
 	 * Get the name of the blitter, the same as the Factory-instance returns.
 	 */
 	virtual const char *GetName() = 0;
-
-	/**
-	 * Get how many bytes are needed to store a pixel.
-	 */
-	virtual int GetBytesPerPixel() = 0;
 
 	/**
 	 * Post resize event
 	 */
 	virtual void PostResize() { };
 
-	virtual ~Blitter() { }
+	virtual ~Blitter() = default;
 
 	template <typename SetPixelT> void DrawLineGeneric(int x, int y, int x2, int y2, int screen_width, int screen_height, int width, int dash, SetPixelT set_pixel);
 };

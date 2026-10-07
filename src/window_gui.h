@@ -10,13 +10,12 @@
 #ifndef WINDOW_GUI_H
 #define WINDOW_GUI_H
 
+#include "vehiclelist.h"
 #include "vehicle_type.h"
 #include "viewport_type.h"
 #include "company_type.h"
 #include "tile_type.h"
 #include "widget_type.h"
-#include "core/smallvec_type.hpp"
-#include "core/smallmap_type.hpp"
 #include "string_type.h"
 
 /**
@@ -32,119 +31,55 @@ enum FrameFlags {
 
 DECLARE_ENUM_AS_BIT_SET(FrameFlags)
 
-/** Distances used in drawing widgets. */
-enum WidgetDrawDistances {
-	/* WWT_IMGBTN(_2) */
-	WD_IMGBTN_LEFT    = 1,      ///< Left offset of the image in the button.
-	WD_IMGBTN_RIGHT   = 2,      ///< Right offset of the image in the button.
-	WD_IMGBTN_TOP     = 1,      ///< Top offset of image in the button.
-	WD_IMGBTN_BOTTOM  = 2,      ///< Bottom offset of image in the button.
+struct WidgetDimensions {
+	RectPadding imgbtn;
+	RectPadding inset;
+	RectPadding vscrollbar;
+	RectPadding hscrollbar;
+	RectPadding bevel;        ///< Widths of bevel border.
+	RectPadding fullbevel;    ///< Always-scaled bevel border.
+	RectPadding framerect;    ///< Offsets within frame area.
+	RectPadding frametext;    ///< Offsets within a text frame area.
+	RectPadding matrix;       ///< Offsets within a matrix cell.
+	RectPadding shadebox;
+	RectPadding stickybox;
+	RectPadding debugbox;
+	RectPadding defsizebox;
+	RectPadding resizebox;
+	RectPadding closebox;
+	RectPadding captiontext;  ///< Offsets of text within a caption.
+	RectPadding dropdowntext; ///< Offsets of text within a dropdown widget.
+	RectPadding dropdownlist; ///< Offsets used by a dropdown list itself.
+	RectPadding modalpopup;   ///< Padding for a modal popup.
+	RectPadding picker;       ///< Padding for a picker (dock, station, etc) window.
+	RectPadding sparse;       ///< Padding used for 'sparse' widget window, usually containing multiple frames.
+	RectPadding sparse_resize; ///< Padding used for a resizeable 'sparse' widget window, usually containing multiple frames.
 
-	/* WWT_INSET */
-	WD_INSET_LEFT  = 2,         ///< Left offset of string.
-	WD_INSET_RIGHT = 2,         ///< Right offset of string.
-	WD_INSET_TOP   = 1,         ///< Top offset of string.
+	int vsep_picker;          ///< Vertical spacing of picker-window widgets.
+	int vsep_normal;          ///< Normal vertical spacing.
+	int vsep_sparse;          ///< Normal vertical spacing for 'sparse' widget window.
+	int vsep_wide;            ///< Wide vertical spacing.
+	int hsep_normal;          ///< Normal horizontal spacing.
+	int hsep_wide;            ///< Wide horizontal spacing.
+	int hsep_indent;          ///< Width of identation for tree layouts.
 
-	WD_SCROLLBAR_LEFT   = 2,    ///< Left offset of scrollbar.
-	WD_SCROLLBAR_RIGHT  = 2,    ///< Right offset of scrollbar.
-	WD_SCROLLBAR_TOP    = 2,    ///< Top offset of scrollbar.
-	WD_SCROLLBAR_BOTTOM = 2,    ///< Bottom offset of scrollbar.
-
-	/* Size of the pure frame bevel without any padding. */
-	WD_BEVEL_LEFT       = 1,    ///< Width of left bevel border.
-	WD_BEVEL_RIGHT      = 1,    ///< Width of right bevel border.
-	WD_BEVEL_TOP        = 1,    ///< Height of top bevel border.
-	WD_BEVEL_BOTTOM     = 1,    ///< Height of bottom bevel border.
-
-	/* FrameRect widgets, all text buttons, panel, editbox */
-	WD_FRAMERECT_LEFT   = 2,    ///< Offset at left to draw the frame rectangular area
-	WD_FRAMERECT_RIGHT  = 2,    ///< Offset at right to draw the frame rectangular area
-	WD_FRAMERECT_TOP    = 1,    ///< Offset at top to draw the frame rectangular area
-	WD_FRAMERECT_BOTTOM = 1,    ///< Offset at bottom to draw the frame rectangular area
-
-	/* Extra space at top/bottom of text panels */
-	WD_TEXTPANEL_TOP    = 6,    ///< Offset at top to draw above the text
-	WD_TEXTPANEL_BOTTOM = 6,    ///< Offset at bottom to draw below the text
-
-	/* WWT_FRAME */
-	WD_FRAMETEXT_LEFT   = 6,    ///< Left offset of the text of the frame.
-	WD_FRAMETEXT_RIGHT  = 6,    ///< Right offset of the text of the frame.
-	WD_FRAMETEXT_TOP    = 6,    ///< Top offset of the text of the frame
-	WD_FRAMETEXT_BOTTOM = 6,    ///< Bottom offset of the text of the frame
-
-	/* WWT_MATRIX */
-	WD_MATRIX_LEFT   = 2,       ///< Offset at left of a matrix cell.
-	WD_MATRIX_RIGHT  = 2,       ///< Offset at right of a matrix cell.
-	WD_MATRIX_TOP    = 3,       ///< Offset at top of a matrix cell.
-	WD_MATRIX_BOTTOM = 1,       ///< Offset at bottom of a matrix cell.
-
-	/* WWT_SHADEBOX */
-	WD_SHADEBOX_WIDTH  = 12,    ///< Width of a standard shade box widget.
-	WD_SHADEBOX_LEFT   = 2,     ///< Left offset of shade sprite.
-	WD_SHADEBOX_RIGHT  = 2,     ///< Right offset of shade sprite.
-	WD_SHADEBOX_TOP    = 3,     ///< Top offset of shade sprite.
-	WD_SHADEBOX_BOTTOM = 3,     ///< Bottom offset of shade sprite.
-
-	/* WWT_STICKYBOX */
-	WD_STICKYBOX_WIDTH  = 12,   ///< Width of a standard sticky box widget.
-	WD_STICKYBOX_LEFT   = 2,    ///< Left offset of sticky sprite.
-	WD_STICKYBOX_RIGHT  = 2,    ///< Right offset of sticky sprite.
-	WD_STICKYBOX_TOP    = 3,    ///< Top offset of sticky sprite.
-	WD_STICKYBOX_BOTTOM = 3,    ///< Bottom offset of sticky sprite.
-
-	/* WWT_DEBUGBOX */
-	WD_DEBUGBOX_WIDTH  = 12,    ///< Width of a standard debug box widget.
-	WD_DEBUGBOX_LEFT   = 2,     ///< Left offset of debug sprite.
-	WD_DEBUGBOX_RIGHT  = 2,     ///< Right offset of debug sprite.
-	WD_DEBUGBOX_TOP    = 3,     ///< Top offset of debug sprite.
-	WD_DEBUGBOX_BOTTOM = 3,     ///< Bottom offset of debug sprite.
-
-	/* WWT_DEFSIZEBOX */
-	WD_DEFSIZEBOX_WIDTH  = 12,  ///< Width of a standard defsize box widget.
-	WD_DEFSIZEBOX_LEFT   = 2,   ///< Left offset of defsize sprite.
-	WD_DEFSIZEBOX_RIGHT  = 2,   ///< Right offset of defsize sprite.
-	WD_DEFSIZEBOX_TOP    = 3,   ///< Top offset of defsize sprite.
-	WD_DEFSIZEBOX_BOTTOM = 3,   ///< Bottom offset of defsize sprite.
-
-	/* WWT_RESIZEBOX */
-	WD_RESIZEBOX_WIDTH  = 12,   ///< Width of a resize box widget.
-	WD_RESIZEBOX_LEFT   = 3,    ///< Left offset of resize sprite.
-	WD_RESIZEBOX_RIGHT  = 2,    ///< Right offset of resize sprite.
-	WD_RESIZEBOX_TOP    = 3,    ///< Top offset of resize sprite.
-	WD_RESIZEBOX_BOTTOM = 2,    ///< Bottom offset of resize sprite.
-
-	/* WWT_CLOSEBOX */
-	WD_CLOSEBOX_WIDTH  = 11,    ///< Width of a close box widget.
-	WD_CLOSEBOX_LEFT   = 2,     ///< Left offset of closebox string.
-	WD_CLOSEBOX_RIGHT  = 1,     ///< Right offset of closebox string.
-	WD_CLOSEBOX_TOP    = 2,     ///< Top offset of closebox string.
-	WD_CLOSEBOX_BOTTOM = 2,     ///< Bottom offset of closebox string.
-
-	/* WWT_CAPTION */
-	WD_CAPTION_HEIGHT     = 14, ///< Height of a title bar.
-	WD_CAPTIONTEXT_LEFT   = 2,  ///< Offset of the caption text at the left.
-	WD_CAPTIONTEXT_RIGHT  = 2,  ///< Offset of the caption text at the right.
-	WD_CAPTIONTEXT_TOP    = 2,  ///< Offset of the caption text at the top.
-	WD_CAPTIONTEXT_BOTTOM = 2,  ///< Offset of the caption text at the bottom.
-
-	/* Dropdown widget. */
-	WD_DROPDOWN_HEIGHT     = 12, ///< Height of a drop down widget.
-	WD_DROPDOWNTEXT_LEFT   = 2,  ///< Left offset of the dropdown widget string.
-	WD_DROPDOWNTEXT_RIGHT  = 2,  ///< Right offset of the dropdown widget string.
-	WD_DROPDOWNTEXT_TOP    = 1,  ///< Top offset of the dropdown widget string.
-	WD_DROPDOWNTEXT_BOTTOM = 1,  ///< Bottom offset of the dropdown widget string.
-
-	WD_PAR_VSEP_NORMAL = 2,      ///< Normal amount of vertical space between two paragraphs of text.
-	WD_PAR_VSEP_WIDE   = 8,      ///< Large amount of vertical space between two paragraphs of text.
+	static const WidgetDimensions unscaled; ///< Unscaled widget dimensions.
+	static WidgetDimensions scaled;         ///< Widget dimensions scaled for current zoom level.
 };
 
 /* widget.cpp */
 void DrawFrameRect(int left, int top, int right, int bottom, Colours colour, FrameFlags flags);
-void DrawCaption(const Rect &r, Colours colour, Owner owner, StringID str);
+
+static inline void DrawFrameRect(const Rect &r, Colours colour, FrameFlags flags)
+{
+	DrawFrameRect(r.left, r.top, r.right, r.bottom, colour, flags);
+}
+
+void DrawCaption(const Rect &r, Colours colour, Owner owner, TextColour text_colour, StringID str, StringAlignment align, FontSize fs);
 
 /* window.cpp */
-extern Window *_z_front_window;
-extern Window *_z_back_window;
+using WindowList = std::list<Window *>;
+extern WindowList _z_windows;
 extern Window *_focused_window;
 
 
@@ -165,34 +100,36 @@ struct HotkeyList;
  */
 struct WindowDesc : ZeroedMemoryAllocator {
 
-	WindowDesc(WindowPosition default_pos, const char *ini_key, int16 def_width_trad, int16 def_height_trad,
-			WindowClass window_class, WindowClass parent_class, uint32 flags,
-			const NWidgetPart *nwid_parts, int16 nwid_length, HotkeyList *hotkeys = nullptr);
+	WindowDesc(const char * const file, const int line, WindowPosition default_pos, const char *ini_key, int16_t def_width_trad, int16_t def_height_trad,
+			WindowClass window_class, WindowClass parent_class, uint32_t flags,
+			const NWidgetPart *nwid_begin, const NWidgetPart *nwid_end, HotkeyList *hotkeys = nullptr);
 
 	~WindowDesc();
 
+	const char * const file; ///< Source file of this definition
+	const int line; ///< Source line of this definition
 	WindowPosition default_pos;    ///< Preferred position of the window. @see WindowPosition()
 	WindowClass cls;               ///< Class of the window, @see WindowClass.
 	WindowClass parent_cls;        ///< Class of the parent window. @see WindowClass
 	const char *ini_key;           ///< Key to store window defaults in openttd.cfg. \c nullptr if nothing shall be stored.
-	uint32 flags;                  ///< Flags. @see WindowDefaultFlag
-	const NWidgetPart *nwid_parts; ///< Nested widget parts describing the window.
-	int16 nwid_length;             ///< Length of the #nwid_parts array.
+	uint32_t flags;                  ///< Flags. @see WindowDefaultFlag
+	const NWidgetPart *nwid_begin; ///< Beginning of nested widget parts describing the window.
+	const NWidgetPart *nwid_end; ///< Ending of nested widget parts describing the window.
 	HotkeyList *hotkeys;           ///< Hotkeys for the window.
 
 	bool pref_sticky;              ///< Preferred stickyness.
-	int16 pref_width;              ///< User-preferred width of the window. Zero if unset.
-	int16 pref_height;             ///< User-preferred height of the window. Zero if unset.
+	int16_t pref_width;              ///< User-preferred width of the window. Zero if unset.
+	int16_t pref_height;             ///< User-preferred height of the window. Zero if unset.
 
-	int16 GetDefaultWidth() const;
-	int16 GetDefaultHeight() const;
+	int16_t GetDefaultWidth() const;
+	int16_t GetDefaultHeight() const;
 
 	static void LoadFromConfig();
 	static void SaveToConfig();
 
 private:
-	int16 default_width_trad;      ///< Preferred initial width of the window (pixels at 1x zoom).
-	int16 default_height_trad;     ///< Preferred initial height of the window (pixels at 1x zoom).
+	int16_t default_width_trad;      ///< Preferred initial width of the window (pixels at 1x zoom).
+	int16_t default_height_trad;     ///< Preferred initial height of the window (pixels at 1x zoom).
 
 	/**
 	 * Dummy private copy constructor to prevent compilers from
@@ -208,6 +145,7 @@ enum WindowDefaultFlag {
 	WDF_CONSTRUCTION    =   1 << 0, ///< This window is used for construction; close it whenever changing company.
 	WDF_MODAL           =   1 << 1, ///< The window is a modal child of some other window, meaning the parent is 'inactive'
 	WDF_NO_FOCUS        =   1 << 2, ///< This window won't get focus/make any other window lose focus when click
+	WDF_NO_CLOSE        =   1 << 3, ///< This window can't be interactively closed
 };
 
 /**
@@ -255,10 +193,10 @@ static const int WHITE_BORDER_DURATION = 3; ///< The initial timeout value for W
  */
 struct ViewportData : Viewport {
 	VehicleID follow_vehicle; ///< VehicleID to follow if following a vehicle, #INVALID_VEHICLE otherwise.
-	int32 scrollpos_x;        ///< Currently shown x coordinate (virtual screen coordinate of topleft corner of the viewport).
-	int32 scrollpos_y;        ///< Currently shown y coordinate (virtual screen coordinate of topleft corner of the viewport).
-	int32 dest_scrollpos_x;   ///< Current destination x coordinate to display (virtual screen coordinate of topleft corner of the viewport).
-	int32 dest_scrollpos_y;   ///< Current destination y coordinate to display (virtual screen coordinate of topleft corner of the viewport).
+	int32_t scrollpos_x;        ///< Currently shown x coordinate (virtual screen coordinate of topleft corner of the viewport).
+	int32_t scrollpos_y;        ///< Currently shown y coordinate (virtual screen coordinate of topleft corner of the viewport).
+	int32_t dest_scrollpos_x;   ///< Current destination x coordinate to display (virtual screen coordinate of topleft corner of the viewport).
+	int32_t dest_scrollpos_y;   ///< Current destination y coordinate to display (virtual screen coordinate of topleft corner of the viewport).
 };
 
 struct QueryString;
@@ -268,12 +206,16 @@ enum TooltipCloseCondition {
 	TCC_RIGHT_CLICK,
 	TCC_HOVER,
 	TCC_NONE,
+	TCC_EXIT_VIEWPORT,
 };
 
 /**
  * Data structure for an opened window
  */
 struct Window : ZeroedMemoryAllocator {
+private:
+	static std::vector<Window *> closed_windows;
+
 protected:
 	void InitializeData(WindowNumber window_number);
 	void InitializePositionSize(int x, int y, int min_width, int min_height);
@@ -281,10 +223,11 @@ protected:
 
 	std::vector<int> scheduled_invalidation_data;  ///< Data of scheduled OnInvalidateData() calls.
 
+	/* Protected to prevent deletion anywhere outside Window::DeleteClosedWindows(). */
+	virtual ~Window();
+
 public:
 	Window(WindowDesc *desc);
-
-	virtual ~Window();
 
 	/**
 	 * Helper allocation function to disallow something.
@@ -292,27 +235,17 @@ public:
 	 * to destruct them all at the same time too, which is kinda hard.
 	 * @param size the amount of space not to allocate
 	 */
-	inline void *operator new[](size_t size)
-	{
-		NOT_REACHED();
-	}
-
-	/**
-	 * Helper allocation function to disallow something.
-	 * Don't free the window directly; it corrupts the linked list when iterating
-	 * @param ptr the pointer not to free
-	 */
-	inline void operator delete(void *ptr)
-	{
-	}
+	inline void *operator new[](size_t size) = delete;
 
 	WindowDesc *window_desc;    ///< Window description
 	WindowFlags flags;          ///< Window flags
 	WindowClass window_class;   ///< Window class
 	WindowNumber window_number; ///< Window number within the window class
 
-	uint8 timeout_timer;      ///< Timer value of the WF_TIMEOUT for flags.
-	uint8 white_border_timer; ///< Timer value of the WF_WHITE_BORDER for flags.
+	int scale; ///< Scale of this window -- used to determine how to resize.
+
+	uint8_t timeout_timer;      ///< Timer value of the WF_TIMEOUT for flags.
+	uint8_t white_border_timer; ///< Timer value of the WF_WHITE_BORDER for flags.
 
 	int left;   ///< x position of left edge of the window
 	int top;    ///< y position of top edge of the window
@@ -325,7 +258,7 @@ public:
 
 	ViewportData *viewport;          ///< Pointer to viewport data, if present.
 	const NWidgetCore *nested_focus; ///< Currently focused nested widget, or \c nullptr if no nested widget has focus.
-	SmallMap<int, QueryString*> querystrings; ///< QueryString associated to WWT_EDITBOX widgets.
+	std::map<int, QueryString*> querystrings; ///< QueryString associated to WWT_EDITBOX widgets.
 	NWidgetBase *nested_root;        ///< Root of the nested tree.
 	NWidgetBase **nested_array;      ///< Array of pointers into the tree. Do not access directly, use #Window::GetWidget() instead.
 	uint nested_array_size;          ///< Size of the nested array.
@@ -335,8 +268,7 @@ public:
 	int mouse_capture_widget;        ///< Widgetindex of current mouse capture widget (e.g. dragged scrollbar). -1 if no widget has mouse capture.
 
 	Window *parent;                  ///< Parent window.
-	Window *z_front;                 ///< The window in front of us in z-order.
-	Window *z_back;                  ///< The window behind us in z-order.
+	WindowList::iterator z_position;
 
 	template <class NWID>
 	inline const NWID *GetWidget(uint widnum) const;
@@ -348,17 +280,22 @@ public:
 
 	const QueryString *GetQueryString(uint widnum) const;
 	QueryString *GetQueryString(uint widnum);
+	void UpdateQueryStringSize();
 
-	virtual const char *GetFocusedText() const;
-	virtual const char *GetCaret() const;
-	virtual const char *GetMarkedText(size_t *length) const;
+	virtual const struct Textbuf *GetFocusedTextbuf() const;
 	virtual Point GetCaretPosition() const;
 	virtual Rect GetTextBoundingRect(const char *from, const char *to) const;
-	virtual const char *GetTextCharacterAtPosition(const Point &pt) const;
+	virtual ptrdiff_t GetTextCharacterAtPosition(const Point &pt) const;
 
 	void InitNested(WindowNumber number = 0);
 	void CreateNestedTree(bool fill_nested = true);
 	void FinishInitNested(WindowNumber window_number = 0);
+
+	template<typename T, std::enable_if_t<std::is_base_of<StrongTypedefBase, T>::value, int> = 0>
+	void FinishInitNested(T number)
+	{
+		this->FinishInitNested(number.base());
+	}
 
 	/**
 	 * Set the timeout flag of the window and initiate the timer.
@@ -486,6 +423,18 @@ public:
 	}
 
 	/**
+	 * Marks a widget as raised and dirty (redraw), when it is marked as lowered.
+	 * @param widget_index index of this widget in the window
+	 */
+	inline void RaiseWidgetWhenLowered(byte widget_index)
+	{
+		if (this->IsWidgetLowered(widget_index)) {
+			this->RaiseWidget(widget_index);
+			this->SetWidgetDirty(widget_index);
+		}
+	}
+
+	/**
 	 * Gets the lowered state of a widget.
 	 * @param widget_index index of this widget in the window
 	 * @return status of the widget ie: lowered = true, raised= false
@@ -499,15 +448,48 @@ public:
 	void UnfocusFocusedWidget();
 	bool SetFocusedWidget(int widget_index);
 
-	EventState HandleEditBoxKey(int wid, WChar key, uint16 keycode);
+	EventState HandleEditBoxKey(int wid, char32_t key, uint16_t keycode);
 	virtual void InsertTextString(int wid, const char *str, bool marked, const char *caret, const char *insert_location, const char *replacement_end);
 
 	void HandleButtonClick(byte widget);
 	int GetRowFromWidget(int clickpos, int widget, int padding, int line_height = -1) const;
 
 	void RaiseButtons(bool autoraise = false);
-	void CDECL SetWidgetsDisabledState(bool disab_stat, int widgets, ...);
-	void CDECL SetWidgetsLoweredState(bool lowered_stat, int widgets, ...);
+
+	/**
+	 * Sets the enabled/disabled status of a list of widgets.
+	 * By default, widgets are enabled.
+	 * On certain conditions, they have to be disabled.
+	 * @param disab_stat status to use ie: disabled = true, enabled = false
+	 * @param widgets list of widgets
+	 */
+	template<typename... Args>
+	void SetWidgetsDisabledState(bool disab_stat, Args... widgets)
+	{
+		(SetWidgetDisabledState(widgets, disab_stat), ...);
+	}
+
+	/**
+	 * Sets the lowered/raised status of a list of widgets.
+	 * @param lowered_stat status to use ie: lowered = true, raised = false
+	 * @param widgets list of widgets
+	 */
+	template<typename... Args>
+	void SetWidgetsLoweredState(bool lowered_stat, Args... widgets)
+	{
+		(SetWidgetLoweredState(widgets, lowered_stat), ...);
+	}
+
+	/**
+	 * Raises the widgets and sets widgets dirty that are lowered.
+	 * @param widgets list of widgets
+	 */
+	template<typename... Args>
+	void RaiseWidgetsWhenLowered(Args... widgets)
+	{
+		(this->RaiseWidgetWhenLowered(widgets), ...);
+	}
+
 	void SetWidgetDirty(byte widget_index) const;
 
 	void DrawWidgets() const;
@@ -515,10 +497,12 @@ public:
 	void DrawSortButtonState(int widget, SortButtonState state) const;
 	static int SortButtonWidth();
 
-	void DeleteChildWindows(WindowClass wc = WC_INVALID) const;
+	void CloseChildWindows(WindowClass wc = WC_INVALID) const;
+	virtual void Close(int data = 0);
+	static void DeleteClosedWindows();
 
 	void SetDirty() const;
-	void ReInit(int rx = 0, int ry = 0);
+	void ReInit(int rx = 0, int ry = 0, bool reposition = false);
 
 	/** Is window shaded currently? */
 	inline bool IsShaded() const
@@ -549,7 +533,7 @@ public:
 	 * @param window_number The window number of the new window.
 	 * @return Initial position of the top-left corner of the window.
 	 */
-	virtual Point OnInitialPosition(int16 sm_width, int16 sm_height, int window_number);
+	virtual Point OnInitialPosition(int16_t sm_width, int16_t sm_height, int window_number);
 
 	/**
 	 * The window must be repainted.
@@ -566,7 +550,7 @@ public:
 	 * @param widget Number of the widget to draw.
 	 * @note This method may not change any state, it may only use drawing functions.
 	 */
-	virtual void DrawWidget(const Rect &r, int widget) const {}
+	virtual void DrawWidget([[maybe_unused]] const Rect &r, [[maybe_unused]] int widget) const {}
 
 	/**
 	 * Update size and resize step of a widget in the window.
@@ -580,7 +564,7 @@ public:
 	 * @param fill    Fill step of the widget.
 	 * @param resize  Resize step of the widget.
 	 */
-	virtual void UpdateWidgetSize(int widget, Dimension *size, const Dimension &padding, Dimension *fill, Dimension *resize) {}
+	virtual void UpdateWidgetSize([[maybe_unused]] int widget, [[maybe_unused]] Dimension *size, [[maybe_unused]] const Dimension &padding, [[maybe_unused]] Dimension *fill, [[maybe_unused]] Dimension *resize) {}
 
 	/**
 	 * Initialize string parameters for a widget.
@@ -588,11 +572,18 @@ public:
 	 * and while re-initializing the window. Only for widgets that render text initializing is requested.
 	 * @param widget  Widget number.
 	 */
-	virtual void SetStringParameters(int widget) const {}
+	virtual void SetStringParameters([[maybe_unused]] int widget) const {}
 
+	/**
+	 * The window has gained focus.
+	 */
 	virtual void OnFocus();
 
-	virtual void OnFocusLost();
+	/**
+	 * The window has lost focus.
+	 * @param closing True iff the window has lost focus in the process of closing.
+	 */
+	virtual void OnFocusLost(bool closing);
 
 	/**
 	 * A key has been pressed.
@@ -601,7 +592,7 @@ public:
 	 * @return #ES_HANDLED if the key press has been handled and no other
 	 *         window should receive the event.
 	 */
-	virtual EventState OnKeyPress(WChar key, uint16 keycode) { return ES_NOT_HANDLED; }
+	virtual EventState OnKeyPress([[maybe_unused]] char32_t key, [[maybe_unused]] uint16_t keycode) { return ES_NOT_HANDLED; }
 
 	virtual EventState OnHotkey(int hotkey);
 
@@ -619,7 +610,7 @@ public:
 	 * @param widget the clicked widget.
 	 * @param click_count Number of fast consecutive clicks at same position
 	 */
-	virtual void OnClick(Point pt, int widget, int click_count) {}
+	virtual void OnClick([[maybe_unused]] Point pt, [[maybe_unused]] int widget, [[maybe_unused]] int click_count) {}
 
 	/**
 	 * A click with the right mouse button has been made on the window.
@@ -628,14 +619,14 @@ public:
 	 * @return true if the click was actually handled, i.e. do not show a
 	 *         tooltip if tooltip-on-right-click is enabled.
 	 */
-	virtual bool OnRightClick(Point pt, int widget) { return false; }
+	virtual bool OnRightClick([[maybe_unused]] Point pt, [[maybe_unused]] int widget) { return false; }
 
 	/**
 	 * The mouse is hovering over a widget in the window, perform an action for it.
 	 * @param pt     The point where the mouse is hovering.
 	 * @param widget The widget where the mouse is hovering.
 	 */
-	virtual void OnHover(Point pt, int widget) {}
+	virtual void OnHover([[maybe_unused]] Point pt, [[maybe_unused]] int widget) {}
 
 	/**
 	 * Event to display a custom tooltip.
@@ -643,27 +634,27 @@ public:
 	 * @param widget The widget where the mouse is located.
 	 * @return True if the event is handled, false if it is ignored.
 	 */
-	virtual bool OnTooltip(Point pt, int widget, TooltipCloseCondition close_cond) { return false; }
+	virtual bool OnTooltip([[maybe_unused]] Point pt, [[maybe_unused]] int widget, [[maybe_unused]] TooltipCloseCondition close_cond) { return false; }
 
 	/**
 	 * An 'object' is being dragged at the provided position, highlight the target if possible.
 	 * @param pt     The point inside the window that the mouse hovers over.
 	 * @param widget The widget the mouse hovers over.
 	 */
-	virtual void OnMouseDrag(Point pt, int widget) {}
+	virtual void OnMouseDrag([[maybe_unused]] Point pt, [[maybe_unused]] int widget) {}
 
 	/**
 	 * A dragged 'object' has been released.
 	 * @param pt     the point inside the window where the release took place.
 	 * @param widget the widget where the release took place.
 	 */
-	virtual void OnDragDrop(Point pt, int widget) {}
+	virtual void OnDragDrop([[maybe_unused]] Point pt, [[maybe_unused]] int widget) {}
 
 	/**
 	 * Handle the request for (viewport) scrolling.
 	 * @param delta the amount the viewport must be scrolled.
 	 */
-	virtual void OnScroll(Point delta) {}
+	virtual void OnScroll([[maybe_unused]] Point delta) {}
 
 	/**
 	 * The mouse is currently moving over the window or has just moved outside
@@ -671,13 +662,13 @@ public:
 	 * @param pt     the point inside the window that the mouse hovers over.
 	 * @param widget the widget the mouse hovers over.
 	 */
-	virtual void OnMouseOver(Point pt, int widget) {}
+	virtual void OnMouseOver([[maybe_unused]] Point pt, [[maybe_unused]] int widget) {}
 
 	/**
 	 * The mouse wheel has been turned.
 	 * @param wheel the amount of movement of the mouse wheel.
 	 */
-	virtual void OnMouseWheel(int wheel) {}
+	virtual void OnMouseWheel([[maybe_unused]] int wheel) {}
 
 
 	/**
@@ -691,14 +682,9 @@ public:
 	virtual void OnGameTick() {}
 
 	/**
-	 * Called once every 100 (game) ticks.
-	 */
-	virtual void OnHundredthTick() {}
-
-	/**
 	 * Called periodically.
 	 */
-	virtual void OnRealtimeTick(uint delta_ms) {}
+	virtual void OnRealtimeTick([[maybe_unused]] uint delta_ms) {}
 
 	/**
 	 * Called when this window's timeout has been reached.
@@ -717,7 +703,7 @@ public:
 	 * @param widget the widget (button) that the dropdown is associated with.
 	 * @param index  the element in the dropdown that is selected.
 	 */
-	virtual void OnDropdownSelect(int widget, int index) {}
+	virtual void OnDropdownSelect([[maybe_unused]] int widget, [[maybe_unused]] int index) {}
 
 	virtual void OnDropdownClose(Point pt, int widget, int index, bool instant_close);
 
@@ -725,7 +711,7 @@ public:
 	 * The text in an editbox has been edited.
 	 * @param widget The widget of the editbox.
 	 */
-	virtual void OnEditboxChanged(int widget) {}
+	virtual void OnEditboxChanged([[maybe_unused]] int widget) {}
 
 	/**
 	 * The query window opened from this window has closed.
@@ -733,14 +719,14 @@ public:
 	 *            was cancelled or an empty string when the default
 	 *            button was pressed, i.e. StrEmpty(str).
 	 */
-	virtual void OnQueryTextFinished(char *str) {}
+	virtual void OnQueryTextFinished([[maybe_unused]] char *str) {}
 
 	/**
 	 * Some data on this window has become invalid.
 	 * @param data information about the changed data.
 	 * @param gui_scope Whether the call is done from GUI scope. You may not do everything when not in GUI scope. See #InvalidateWindowData() for details.
 	 */
-	virtual void OnInvalidateData(int data = 0, bool gui_scope = true) {}
+	virtual void OnInvalidateData([[maybe_unused]] int data = 0, [[maybe_unused]] bool gui_scope = true) {}
 
 	/**
 	 * The user clicked some place on the map when a tile highlight mode
@@ -748,14 +734,23 @@ public:
 	 * @param pt   the exact point on the map that has been clicked.
 	 * @param tile the tile on the map that has been clicked.
 	 */
-	virtual void OnPlaceObject(Point pt, TileIndex tile) {}
+	virtual void OnPlaceObject([[maybe_unused]] Point pt, [[maybe_unused]] TileIndex tile) {}
 
 	/**
 	 * The user clicked on a vehicle while HT_VEHICLE has been set.
-	 * @param v clicked vehicle. It is guaranteed to be v->IsPrimaryVehicle() == true
-	 * @return True if the click is handled, false if it is ignored.
+	 * @param v clicked vehicle
+	 * @return true if the click is handled, false if it is ignored
+	 * @pre v->IsPrimaryVehicle() == true
 	 */
-	virtual bool OnVehicleSelect(const struct Vehicle *v) { return false; }
+	virtual bool OnVehicleSelect([[maybe_unused]] const struct Vehicle *v) { return false; }
+
+	/**
+	 * The user clicked on a vehicle while HT_VEHICLE has been set.
+	 * @param v clicked vehicle
+	 * @return True if the click is handled, false if it is ignored
+	 * @pre v->IsPrimaryVehicle() == true
+	 */
+	virtual bool OnVehicleSelect([[maybe_unused]] VehicleList::const_iterator begin, [[maybe_unused]] VehicleList::const_iterator end) { return false; }
 
 	/**
 	 * The user cancelled a tile highlight mode that has been set.
@@ -770,7 +765,7 @@ public:
 	 * @param select_proc   what will be created when the drag is over.
 	 * @param pt            the exact point on the map where the mouse is.
 	 */
-	virtual void OnPlaceDrag(ViewportPlaceMethod select_method, ViewportDragDropSelectionProcess select_proc, Point pt) {}
+	virtual void OnPlaceDrag([[maybe_unused]] ViewportPlaceMethod select_method, [[maybe_unused]] ViewportDragDropSelectionProcess select_proc, [[maybe_unused]] Point pt) {}
 
 	/**
 	 * The user has dragged over the map when the tile highlight mode
@@ -781,7 +776,7 @@ public:
 	 * @param start_tile    the begin tile of the drag.
 	 * @param end_tile      the end tile of the drag.
 	 */
-	virtual void OnPlaceMouseUp(ViewportPlaceMethod select_method, ViewportDragDropSelectionProcess select_proc, Point pt, TileIndex start_tile, TileIndex end_tile) {}
+	virtual void OnPlaceMouseUp([[maybe_unused]] ViewportPlaceMethod select_method, [[maybe_unused]] ViewportDragDropSelectionProcess select_proc, [[maybe_unused]] Point pt, [[maybe_unused]] TileIndex start_tile, [[maybe_unused]] TileIndex end_tile) {}
 
 	/**
 	 * The user moves over the map when a tile highlight mode has been set
@@ -790,7 +785,7 @@ public:
 	 * @param pt   the exact point on the map where the mouse is.
 	 * @param tile the tile on the map where the mouse is.
 	 */
-	virtual void OnPlacePresize(Point pt, TileIndex tile) {}
+	virtual void OnPlacePresize([[maybe_unused]] Point pt, [[maybe_unused]] TileIndex tile) {}
 
 	/*** End of the event handling ***/
 
@@ -807,7 +802,88 @@ public:
 	 * @pre this->IsNewGRFInspectable()
 	 */
 	virtual void ShowNewGRFInspectWindow() const { NOT_REACHED(); }
+
+	/**
+	 * Iterator to iterate all valid Windows
+	 * @tparam TtoBack whether we iterate towards the back.
+	 */
+	template <bool TtoBack>
+	struct WindowIterator {
+		typedef Window *value_type;
+		typedef value_type *pointer;
+		typedef value_type &reference;
+		typedef size_t difference_type;
+		typedef std::forward_iterator_tag iterator_category;
+
+		explicit WindowIterator(WindowList::iterator start) : it(start)
+		{
+			this->Validate();
+		}
+		explicit WindowIterator(const Window *w) : it(w->z_position) {}
+
+		bool operator==(const WindowIterator &other) const { return this->it == other.it; }
+		bool operator!=(const WindowIterator &other) const { return !(*this == other); }
+		Window * operator*() const { return *this->it; }
+		WindowIterator & operator++() { this->Next(); this->Validate(); return *this; }
+
+		bool IsEnd() const { return this->it == _z_windows.end(); }
+
+	private:
+		WindowList::iterator it;
+		void Validate()
+		{
+			while (!this->IsEnd() && *this->it == nullptr) this->Next();
+		}
+		void Next()
+		{
+			if constexpr (!TtoBack) {
+				++this->it;
+			} else if (this->it == _z_windows.begin()) {
+				this->it = _z_windows.end();
+			} else {
+				--this->it;
+			}
+		}
+	};
+	using IteratorToFront = WindowIterator<false>; //!< Iterate in Z order towards front.
+	using IteratorToBack = WindowIterator<true>; //!< Iterate in Z order towards back.
+
+	/**
+	 * Iterable ensemble of all valid Windows
+	 * @tparam Tfront Wether we iterate from front
+	 */
+	template <bool Tfront>
+	struct AllWindows {
+		AllWindows() {}
+		WindowIterator<Tfront> begin()
+		{
+			if constexpr (Tfront) {
+				auto back = _z_windows.end();
+				if (back != _z_windows.begin()) --back;
+				return WindowIterator<Tfront>(back);
+			} else {
+				return WindowIterator<Tfront>(_z_windows.begin());
+			}
+		}
+		WindowIterator<Tfront> end() { return WindowIterator<Tfront>(_z_windows.end()); }
+	};
+	using Iterate = AllWindows<false>; //!< Iterate all windows in whatever order is easiest.
+	using IterateFromBack = AllWindows<false>; //!< Iterate all windows in Z order from back to front.
+	using IterateFromFront = AllWindows<true>; //!< Iterate all windows in Z order from front to back.
 };
+
+/**
+ * Generic helper function that checks if all elements of the range are equal with respect to the given predicate.
+ * @param begin The start of the range.
+ * @param end The end of the range.
+ * @param pred The predicate to use.
+ * @return True if all elements are equal, false otherwise.
+ */
+template <class It, class Pred>
+inline bool AllEqual(It begin, It end, Pred pred)
+{
+	return std::adjacent_find(begin, end, std::not_fn(pred)) == end;
+}
 
 /**
  * Get the nested widget with number \a widnum from the nested widget tree.
@@ -856,11 +932,17 @@ public:
 		this->parent = parent;
 	}
 
-	virtual ~PickerWindowBase();
+	void Close([[maybe_unused]] int data = 0) override;
 };
 
 Window *BringWindowToFrontById(WindowClass cls, WindowNumber number);
 Window *FindWindowFromPt(int x, int y);
+
+template<typename T, std::enable_if_t<std::is_base_of<StrongTypedefBase, T>::value, int> = 0>
+Window *BringWindowToFrontById(WindowClass cls, T number)
+{
+	return BringWindowToFrontById(cls, number.base());
+}
 
 /**
  * Open a new window.
@@ -880,16 +962,10 @@ Wcls *AllocateWindowDescFront(WindowDesc *desc, int window_number, bool return_e
 
 void RelocateAllWindows(int neww, int newh);
 
-void GuiShowTooltips(Window *parent, StringID str, uint paramcount = 0, const uint64 params[] = nullptr, TooltipCloseCondition close_tooltip = TCC_HOVER);
+void GuiShowTooltips(Window *parent, StringID str, TooltipCloseCondition close_tooltip, uint paramcount = 0);
 
 /* widget.cpp */
 int GetWidgetFromPos(const Window *w, int x, int y);
-
-/** Iterate over all windows */
-#define FOR_ALL_WINDOWS_FROM_BACK_FROM(w, start)  for (w = start; w != nullptr; w = w->z_front) if (w->window_class != WC_INVALID)
-#define FOR_ALL_WINDOWS_FROM_FRONT_FROM(w, start) for (w = start; w != nullptr; w = w->z_back) if (w->window_class != WC_INVALID)
-#define FOR_ALL_WINDOWS_FROM_BACK(w)  FOR_ALL_WINDOWS_FROM_BACK_FROM(w, _z_back_window)
-#define FOR_ALL_WINDOWS_FROM_FRONT(w) FOR_ALL_WINDOWS_FROM_FRONT_FROM(w, _z_front_window)
 
 extern Point _cursorpos_drag_start;
 
