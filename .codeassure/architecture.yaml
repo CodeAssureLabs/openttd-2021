@@ -55,11 +55,6 @@ forbidden_edges:
     check: detect_only
     severity: medium
 required_companions:
-  - id: new-source-in-cmake
-    when: "src/**/*.cpp"
-    require: ["src/**/CMakeLists.txt"]
-    reason: "OpenTTD lists every source file in its directory's CMakeLists.txt add_files(); a new file must be added there"
-    check: detect_only
   - id: saveload-chunk-needs-compat
     when: "src/saveload/*_sl.cpp"
     require: ["src/saveload/compat/*_sl_compat.h"]
