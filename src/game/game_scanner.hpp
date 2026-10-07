@@ -18,18 +18,18 @@ public:
 
 	/**
 	 * Check if we have a game by name and version available in our list.
-	 * @param nameParam The name of the game script.
-	 * @param versionParam The version of the game script, or -1 if you want the latest.
+	 * @param name The name of the game script.
+	 * @param version The version of the game script, or -1 if you want the latest.
 	 * @param force_exact_match Only match name+version, never latest.
 	 * @return nullptr if no match found, otherwise the game script that matched.
 	 */
-	class GameInfo *FindInfo(const char *nameParam, int versionParam, bool force_exact_match);
+	class GameInfo *FindInfo(const std::string &name, int version, bool force_exact_match);
 
 protected:
-	void GetScriptName(ScriptInfo *info, char *name, const char *last) override;
-	const char *GetFileName() const override { return PATHSEP "info.nut"; }
+	std::string GetScriptName(ScriptInfo *info) override;
+	std::string_view GetFileName() const override { return PATHSEP "info.nut"; }
 	Subdirectory GetDirectory() const override { return GAME_DIR; }
-	const char *GetScannerName() const override { return "Game Scripts"; }
+	std::string_view GetScannerName() const override { return "Game Scripts"; }
 	void RegisterAPI(class Squirrel *engine) override;
 };
 
@@ -44,13 +44,13 @@ public:
 	 * @param version The version the library should have.
 	 * @return The library if found, nullptr otherwise.
 	 */
-	class GameLibrary *FindLibrary(const char *library, int version);
+	class GameLibrary *FindLibrary(const std::string &library, int version);
 
 protected:
-	void GetScriptName(ScriptInfo *info, char *name, const char *last) override;
-	const char *GetFileName() const override { return PATHSEP "library.nut"; }
+	std::string GetScriptName(ScriptInfo *info) override;
+	std::string_view GetFileName() const override { return PATHSEP "library.nut"; }
 	Subdirectory GetDirectory() const override { return GAME_LIBRARY_DIR; }
-	const char *GetScannerName() const override { return "GS Libraries"; }
+	std::string_view GetScannerName() const override { return "GS Libraries"; }
 	void RegisterAPI(class Squirrel *engine) override;
 };
 

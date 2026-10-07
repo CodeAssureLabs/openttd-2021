@@ -10,11 +10,10 @@
 #ifndef SCRIPT_SCANNER_HPP
 #define SCRIPT_SCANNER_HPP
 
-#include <map>
 #include "../fileio_func.h"
-#include "../core/string_compare_type.hpp"
+#include "../string_func.h"
 
-typedef std::map<const char *, class ScriptInfo *, StringCompare> ScriptInfoList; ///< Type for the list of scripts.
+typedef std::map<std::string, class ScriptInfo *, CaseInsensitiveComparator> ScriptInfoList; ///< Type for the list of scripts.
 
 /** Scanner to help finding scripts. */
 class ScriptScanner : public FileScanner {
@@ -56,8 +55,10 @@ public:
 
 	/**
 	 * Get the list of registered scripts to print on the console.
+	 * @param output_iterator The iterator to write the output to.
+	 * @param newest_only Whether to only show the newest scripts.
 	 */
-	char *GetConsoleList(char *p, const char *last, bool newest_only) const;
+	void GetConsoleList(std::back_insert_iterator<std::string> &output_iterator, bool newest_only) const;
 
 	/**
 	 * Check whether we have a script with the exact characteristics as ci.
@@ -65,7 +66,7 @@ public:
 	 * @param md5sum Whether to check the MD5 checksum.
 	 * @return True iff we have a script matching.
 	 */
-	bool HasScript(const struct ContentInfo *ci, bool md5sum);
+	bool HasScript(const struct ContentInfo &ci, bool md5sum);
 
 	/**
 	 * Find a script of a #ContentInfo
@@ -73,7 +74,7 @@ public:
 	 * @param md5sum Whether to check the MD5 checksum.
 	 * @return A filename of a file of the content, else \c nullptr.
 	 */
-	const char *FindMainScript(const ContentInfo *ci, bool md5sum);
+	const char *FindMainScript(const ContentInfo &ci, bool md5sum);
 
 	bool AddFile(const std::string &filename, size_t basepath_length, const std::string &tar_filename) override;
 
@@ -94,17 +95,17 @@ protected:
 	 * Initialize the scanner.
 	 * @param name The name of the scanner ("AIScanner", "GSScanner", ..).
 	 */
-	void Initialize(const char *name);
+	void Initialize(std::string_view name);
 
 	/**
 	 * Get the script name how to store the script in memory.
 	 */
-	virtual void GetScriptName(ScriptInfo *info, char *name, const char *last) = 0;
+	virtual std::string GetScriptName(ScriptInfo *info) = 0;
 
 	/**
 	 * Get the filename to scan for this type of script.
 	 */
-	virtual const char *GetFileName() const = 0;
+	virtual std::string_view GetFileName() const = 0;
 
 	/**
 	 * Get the directory to scan in.
@@ -119,7 +120,7 @@ protected:
 	/**
 	 * Get the type of the script, in plural.
 	 */
-	virtual const char *GetScannerName() const = 0;
+	virtual std::string_view GetScannerName() const = 0;
 
 	/**
 	 * Reset all allocated lists.
