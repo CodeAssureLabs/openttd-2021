@@ -9,12 +9,14 @@
 
 #include "../../stdafx.h"
 #include "script_industrytype.hpp"
+#include "script_base.hpp"
 #include "script_map.hpp"
 #include "script_error.hpp"
 #include "../../strings_func.h"
 #include "../../industry.h"
 #include "../../newgrf_industries.h"
 #include "../../core/random_func.hpp"
+#include "../../industry_cmd.h"
 
 #include "../../safeguards.h"
 
@@ -120,17 +122,17 @@
 	EnforcePrecondition(false, CanBuildIndustry(industry_type));
 	EnforcePrecondition(false, ScriptMap::IsValidTile(tile));
 
-	uint32 seed = ::InteractiveRandom();
-	uint32 layout_index = ::InteractiveRandomRange((uint32)::GetIndustrySpec(industry_type)->layouts.size());
-	return ScriptObject::DoCommand(tile, (1 << 16) | (layout_index << 8) | industry_type, seed, CMD_BUILD_INDUSTRY);
+	uint32 seed = ScriptBase::Rand();
+	uint32 layout_index = ScriptBase::RandRange((uint32)::GetIndustrySpec(industry_type)->layouts.size());
+	return ScriptObject::Command<CMD_BUILD_INDUSTRY>::Do(tile, industry_type, layout_index, true, seed);
 }
 
 /* static */ bool ScriptIndustryType::ProspectIndustry(IndustryType industry_type)
 {
 	EnforcePrecondition(false, CanProspectIndustry(industry_type));
 
-	uint32 seed = ::InteractiveRandom();
-	return ScriptObject::DoCommand(0, industry_type, seed, CMD_BUILD_INDUSTRY);
+	uint32 seed = ScriptBase::Rand();
+	return ScriptObject::Command<CMD_BUILD_INDUSTRY>::Do(0, industry_type, 0, false, seed);
 }
 
 /* static */ bool ScriptIndustryType::IsBuiltOnWater(IndustryType industry_type)
@@ -152,4 +154,12 @@
 	if (!IsValidIndustryType(industry_type)) return false;
 
 	return (::GetIndustrySpec(industry_type)->behaviour & INDUSTRYBEH_AI_AIRSHIP_ROUTES) != 0;
+}
+
+/* static */ IndustryType ScriptIndustryType::ResolveNewGRFID(uint32 grfid, uint16 grf_local_id)
+{
+	EnforcePrecondition(INVALID_INDUSTRYTYPE, IsInsideBS(grf_local_id, 0x00, NUM_INDUSTRYTYPES_PER_GRF));
+
+	grfid = BSWAP32(grfid); // Match people's expectations.
+	return _industry_mngr.GetID(grf_local_id, grfid);
 }

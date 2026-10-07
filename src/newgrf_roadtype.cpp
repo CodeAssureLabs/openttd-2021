@@ -18,7 +18,7 @@
 
 /* virtual */ uint32 RoadTypeScopeResolver::GetRandomBits() const
 {
-	uint tmp = CountBits(this->tile + (TileX(this->tile) + TileY(this->tile)) * TILE_SIZE);
+	uint tmp = CountBits(static_cast<uint32>(this->tile + (TileX(this->tile) + TileY(this->tile)) * TILE_SIZE));
 	return GB(tmp, 0, 2);
 }
 
@@ -52,17 +52,10 @@
 		}
 	}
 
-	DEBUG(grf, 1, "Unhandled road type tile variable 0x%X", variable);
+	Debug(grf, 1, "Unhandled road type tile variable 0x{:X}", variable);
 
 	*available = false;
 	return UINT_MAX;
-}
-
-/* virtual */ const SpriteGroup *RoadTypeResolverObject::ResolveReal(const RealSpriteGroup *group) const
-{
-	if (group->num_loading > 0) return group->loading[0];
-	if (group->num_loaded  > 0) return group->loaded[0];
-	return nullptr;
 }
 
 GrfSpecFeature RoadTypeResolverObject::GetFeature() const
@@ -78,19 +71,6 @@ GrfSpecFeature RoadTypeResolverObject::GetFeature() const
 uint32 RoadTypeResolverObject::GetDebugID() const
 {
 	return this->roadtype_scope.rti->label;
-}
-
-/**
- * Constructor of the roadtype scope resolvers.
- * @param ro Surrounding resolver.
- * @param tile %Tile containing the track. For track on a bridge this is the southern bridgehead.
- * @param context Are we resolving sprites for the upper halftile, or on a bridge?
- */
-RoadTypeScopeResolver::RoadTypeScopeResolver(ResolverObject &ro, const RoadTypeInfo *rti, TileIndex tile, TileContext context) : ScopeResolver(ro)
-{
-	this->tile = tile;
-	this->context = context;
-	this->rti = rti;
 }
 
 /**
@@ -130,6 +110,37 @@ SpriteID GetCustomRoadSprite(const RoadTypeInfo *rti, TileIndex tile, RoadTypeSp
 	if (num_results) *num_results = group->GetNumResults();
 
 	return group->GetResult();
+}
+
+/**
+ * Translate an index to the GRF-local road/tramtype-translation table into a RoadType.
+ * @param rtt       Whether to index the road- or tramtype-table.
+ * @param tracktype Index into GRF-local translation table.
+ * @param grffile   Originating GRF file.
+ * @return RoadType or INVALID_ROADTYPE if the roadtype is unknown.
+ */
+RoadType GetRoadTypeTranslation(RoadTramType rtt, uint8 tracktype, const GRFFile *grffile)
+{
+	/* Because OpenTTD mixes RoadTypes and TramTypes into the same type,
+	 * the mapping of the original road- and tramtypes does not match the default GRF-local mapping.
+	 * So, this function cannot provide any similar behavior to GetCargoTranslation() and GetRailTypeTranslation()
+	 * when the GRF defines no translation table.
+	 * But since there is only one default road/tram-type, this makes little sense anyway.
+	 * So for GRF without translation table, we always return INVALID_ROADTYPE.
+	 */
+
+	if (grffile == nullptr) return INVALID_ROADTYPE;
+
+	const auto &list = rtt == RTT_TRAM ? grffile->tramtype_list : grffile->roadtype_list;
+	if (tracktype >= list.size()) return INVALID_ROADTYPE;
+
+	/* Look up roadtype including alternate labels. */
+	RoadType result = GetRoadTypeByLabel(list[tracktype]);
+
+	/* Check whether the result is actually the wanted road/tram-type */
+	if (result != INVALID_ROADTYPE && GetRoadTramType(result) != rtt) return INVALID_ROADTYPE;
+
+	return result;
 }
 
 /**

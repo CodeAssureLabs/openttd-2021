@@ -13,6 +13,8 @@
 #include "../../station_base.h"
 #include "../../string_func.h"
 #include "../../strings_func.h"
+#include "../../station_cmd.h"
+#include "../../waypoint_cmd.h"
 #include "table/strings.h"
 
 #include "../../safeguards.h"
@@ -38,11 +40,15 @@
 	EnforcePrecondition(false, ScriptObject::GetCompany() != OWNER_DEITY);
 	EnforcePrecondition(false, IsValidBaseStation(station_id));
 	EnforcePrecondition(false, name != nullptr);
-	const char *text = name->GetDecodedText();
+	const std::string &text = name->GetDecodedText();
 	EnforcePreconditionEncodedText(false, text);
 	EnforcePreconditionCustomError(false, ::Utf8StringLength(text) < MAX_LENGTH_STATION_NAME_CHARS, ScriptError::ERR_PRECONDITION_STRING_TOO_LONG);
 
-	return ScriptObject::DoCommand(0, station_id, 0, ::Station::IsValidID(station_id) ? CMD_RENAME_STATION : CMD_RENAME_WAYPOINT, text);
+	if (::Station::IsValidID(station_id)) {
+		return ScriptObject::Command<CMD_RENAME_STATION>::Do(station_id, text);
+	} else {
+		return ScriptObject::Command<CMD_RENAME_WAYPOINT>::Do(station_id, text);
+	}
 }
 
 /* static */ TileIndex ScriptBaseStation::GetLocation(StationID station_id)

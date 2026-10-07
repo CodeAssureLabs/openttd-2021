@@ -10,7 +10,6 @@
 #ifndef INDUSTRY_H
 #define INDUSTRY_H
 
-#include <algorithm>
 #include "newgrf_storage.h"
 #include "subsidy_type.h"
 #include "industry_map.h"
@@ -92,6 +91,7 @@ struct Industry : IndustryPool::PoolItem<&_industry_pool> {
 	byte selected_layout;          ///< Which tile layout was used when creating the industry
 	Owner exclusive_supplier;      ///< Which company has exclusive rights to deliver cargo (INVALID_OWNER = anyone)
 	Owner exclusive_consumer;      ///< Which company has exclusive rights to take cargo (INVALID_OWNER = anyone)
+	std::string text;              ///< General text with additional information.
 
 	uint16 random;                 ///< Random value used for randomisation of all kinds of things
 

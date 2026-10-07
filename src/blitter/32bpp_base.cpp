@@ -140,9 +140,9 @@ void Blitter_32bppBase::ScrollBuffer(void *video, int &left, int &top, int &widt
 	}
 }
 
-int Blitter_32bppBase::BufferSize(int width, int height)
+size_t Blitter_32bppBase::BufferSize(uint width, uint height)
 {
-	return width * height * sizeof(uint32);
+	return sizeof(uint32) * width * height;
 }
 
 void Blitter_32bppBase::PaletteAnimate(const Palette &palette)
@@ -174,9 +174,9 @@ Colour Blitter_32bppBase::ReallyAdjustBrightness(Colour colour, uint8 brightness
 	/* Reduce overbright strength */
 	ob /= 2;
 	return Colour(
-		r >= 255 ? 255 : min(r + ob * (255 - r) / 256, 255),
-		g >= 255 ? 255 : min(g + ob * (255 - g) / 256, 255),
-		b >= 255 ? 255 : min(b + ob * (255 - b) / 256, 255),
+		r >= 255 ? 255 : std::min(r + ob * (255 - r) / 256, 255),
+		g >= 255 ? 255 : std::min(g + ob * (255 - g) / 256, 255),
+		b >= 255 ? 255 : std::min(b + ob * (255 - b) / 256, 255),
 		colour.a);
 }
 

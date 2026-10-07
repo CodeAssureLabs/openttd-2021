@@ -58,7 +58,7 @@ ObjectSpec _object_specs[NUM_OBJECTS];
  */
 bool ObjectSpec::IsEverAvailable() const
 {
-	return this->enabled && HasBit(this->climate, _settings_game.game_creation.landscape) &&
+	return this->IsEnabled() && HasBit(this->climate, _settings_game.game_creation.landscape) &&
 			(this->flags & ((_game_mode != GM_EDITOR && !_generating_world) ? OBJECT_FLAG_ONLY_IN_SCENEDIT : OBJECT_FLAG_ONLY_IN_GAME)) == 0;
 }
 
@@ -189,7 +189,7 @@ static uint32 GetClosestObject(TileIndex tile, ObjectType type, const Object *cu
 	for (const Object *o : Object::Iterate()) {
 		if (o->type != type || o == current) continue;
 
-		best_dist = min(best_dist, DistanceManhattan(tile, o->location.tile));
+		best_dist = std::min(best_dist, DistanceManhattan(tile, o->location.tile));
 	}
 
 	return best_dist;
@@ -226,7 +226,7 @@ static uint32 GetCountAndDistanceOfClosestInstance(byte local_id, uint32 grfid, 
 	/* If the object type is invalid, there is none and the closest is far away. */
 	if (idx >= NUM_OBJECTS) return 0 | 0xFFFF;
 
-	return Object::GetTypeCount(idx) << 16 | min(GetClosestObject(tile, idx, current), 0xFFFF);
+	return Object::GetTypeCount(idx) << 16 | std::min(GetClosestObject(tile, idx, current), 0xFFFFu);
 }
 
 /** Used by the resolver to get values for feature 0F deterministic spritegroups. */
@@ -301,10 +301,10 @@ static uint32 GetCountAndDistanceOfClosestInstance(byte local_id, uint32 grfid, 
 		case 0x44: return GetTileOwner(this->tile);
 
 		/* Get town zone and Manhattan distance of closest town */
-		case 0x45: return GetTownRadiusGroup(t, this->tile) << 16 | min(DistanceManhattan(this->tile, t->xy), 0xFFFF);
+		case 0x45: return GetTownRadiusGroup(t, this->tile) << 16 | std::min(DistanceManhattan(this->tile, t->xy), 0xFFFFu);
 
-		/* Get square of Euclidian distance of closes town */
-		case 0x46: return GetTownRadiusGroup(t, this->tile) << 16 | min(DistanceSquare(this->tile, t->xy), 0xFFFF);
+		/* Get square of Euclidian distance of closest town */
+		case 0x46: return DistanceSquare(this->tile, t->xy);
 
 		/* Object colour */
 		case 0x47: return this->obj->colour;
@@ -335,7 +335,7 @@ static uint32 GetCountAndDistanceOfClosestInstance(byte local_id, uint32 grfid, 
 	}
 
 unhandled:
-	DEBUG(grf, 1, "Unhandled object variable 0x%X", variable);
+	Debug(grf, 1, "Unhandled object variable 0x{:X}", variable);
 
 	*available = false;
 	return UINT_MAX;
@@ -510,7 +510,7 @@ uint16 StubGetObjectCallback(CallbackID callback, uint32 param1, uint32 param2, 
 }
 
 /** Helper class for animation control. */
-struct ObjectAnimationBase : public AnimationBase<ObjectAnimationBase, ObjectSpec, Object, int, StubGetObjectCallback> {
+struct ObjectAnimationBase : public AnimationBase<ObjectAnimationBase, ObjectSpec, Object, int, StubGetObjectCallback, TileAnimationFrameAnimationHelper<Object> > {
 	static const CallbackID cb_animation_speed      = CBID_OBJECT_ANIMATION_SPEED;
 	static const CallbackID cb_animation_next_frame = CBID_OBJECT_ANIMATION_NEXT_FRAME;
 
@@ -554,7 +554,7 @@ void TriggerObjectAnimation(Object *o, ObjectAnimationTrigger trigger, const Obj
 {
 	if (!HasBit(spec->animation.triggers, trigger)) return;
 
-	TILE_AREA_LOOP(tile, o->location) {
+	for (TileIndex tile : o->location) {
 		TriggerObjectTileAnimation(o, tile, trigger, spec);
 	}
 }

@@ -112,11 +112,12 @@ bool VerifyTownName(uint32 r, const TownNameParams *par, TownNames *town_names)
 
 /**
  * Generates valid town name.
+ * @param randomizer the source of random data for generating the name
  * @param townnameparts if a name is generated, it's stored there
  * @param town_names if a name is generated, check its uniqueness with the set
  * @return true iff a name was generated
  */
-bool GenerateTownName(uint32 *townnameparts, TownNames *town_names)
+bool GenerateTownName(Randomizer &randomizer, uint32 *townnameparts, TownNames *town_names)
 {
 	TownNameParams par(_settings_game.game_creation.town_name);
 
@@ -130,7 +131,7 @@ bool GenerateTownName(uint32 *townnameparts, TownNames *town_names)
 	 * the other towns may take considerable amount of time (10000 is
 	 * too much). */
 	for (int i = 1000; i != 0; i--) {
-		uint32 r = _generating_world ? Random() : InteractiveRandom();
+		uint32 r = randomizer.Next();
 		if (!VerifyTownName(r, &par, town_names)) continue;
 
 		*townnameparts = r;
@@ -600,7 +601,7 @@ static char *MakeCzechTownName(char *buf, const char *last, uint32 seed)
 		return strecpy(buf, _name_czech_real[SeedModChance(4, lengthof(_name_czech_real), seed)], last);
 	}
 
-	const char *orig = buf;
+	[[maybe_unused]] const char *orig = buf;
 
 	/* Probability of prefixes/suffixes
 	 * 0..11 prefix, 12..13 prefix+suffix, 14..17 suffix, 18..31 nothing */

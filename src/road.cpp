@@ -141,7 +141,7 @@ bool HasAnyRoadTypesAvail(CompanyID company, RoadTramType rtt)
  */
 bool ValParamRoadType(RoadType roadtype)
 {
-	return roadtype != INVALID_ROADTYPE && HasRoadTypeAvail(_current_company, roadtype);
+	return roadtype < ROADTYPE_END && HasRoadTypeAvail(_current_company, roadtype);
 }
 
 /**
@@ -294,40 +294,4 @@ RoadTypes ExistingRoadTypes(CompanyID c)
 	known_roadtypes = AddDateIntroducedRoadTypes(known_roadtypes, MAX_DAY);
 
 	return known_roadtypes;
-}
-
-/**
- * Check whether we can build infrastructure for the given RoadType. This to disable building stations etc. when
- * you are not allowed/able to have the RoadType yet.
- * @param roadtype the roadtype to check this for
- * @param company the company id to check this for
- * @param any_date to check only existing vehicles or if it is possible to build them in the future
- * @return true if there is any reason why you may build the infrastructure for the given roadtype
- */
-bool CanBuildRoadTypeInfrastructure(RoadType roadtype, CompanyID company)
-{
-	if (_game_mode != GM_EDITOR && !Company::IsValidID(company)) return false;
-	if (!_settings_client.gui.disable_unsuitable_building) return true;
-	if (!HasAnyRoadTypesAvail(company, GetRoadTramType(roadtype))) return false;
-
-	RoadTypes roadtypes = ExistingRoadTypes(company);
-
-	/* Check if the filtered roadtypes does have the roadtype we are checking for
-	 * and if we can build new ones */
-	if (_settings_game.vehicle.max_roadveh > 0 && HasBit(roadtypes, roadtype)) {
-		/* Can we actually build the vehicle type? */
-		for (const Engine *e : Engine::IterateType(VEH_ROAD)) {
-			if (!HasBit(e->company_avail, company)) continue;
-			if (HasPowerOnRoad(e->u.road.roadtype, roadtype) || HasPowerOnRoad(roadtype, e->u.road.roadtype)) return true;
-		}
-		return false;
-	}
-
-	/* We should be able to build infrastructure when we have the actual vehicle type */
-	for (const Vehicle *v : Vehicle::Iterate()) {
-		if (v->type == VEH_ROAD && (company == OWNER_DEITY || v->owner == company) &&
-			HasBit(roadtypes, RoadVehicle::From(v)->roadtype) && HasPowerOnRoad(RoadVehicle::From(v)->roadtype, roadtype)) return true;
-	}
-
-	return false;
 }

@@ -11,19 +11,15 @@
 #include "../../string_func.h"
 #include "../../strings_func.h"
 #include "script_text.hpp"
+#include "../script_fatalerror.hpp"
 #include "../../table/control_codes.h"
 
 #include "table/strings.h"
 
 #include "../../safeguards.h"
 
-RawText::RawText(const char *text) : text(stredup(text))
+RawText::RawText(const char *text) : text(text)
 {
-}
-
-RawText::~RawText()
-{
-	free(this->text);
 }
 
 
@@ -82,7 +78,7 @@ SQInteger ScriptText::_SetParam(int parameter, HSQUIRRELVM vm)
 			sq_getstring(vm, -1, &value);
 
 			this->params[parameter] = stredup(value);
-			ValidateString(this->params[parameter]);
+			StrMakeValidInPlace(this->params[parameter]);
 			break;
 		}
 
@@ -109,7 +105,7 @@ SQInteger ScriptText::_SetParam(int parameter, HSQUIRRELVM vm)
 			sq_pop(vm, 3);
 
 			/* Get the 'real' instance of this class */
-			sq_getinstanceup(vm, -1, &real_instance, 0);
+			sq_getinstanceup(vm, -1, &real_instance, nullptr);
 			if (real_instance == nullptr) return SQ_ERROR;
 
 			ScriptText *value = static_cast<ScriptText *>(real_instance);
@@ -157,7 +153,7 @@ SQInteger ScriptText::_set(HSQUIRRELVM vm)
 	if (sq_gettype(vm, 2) == OT_STRING) {
 		const SQChar *key_string;
 		sq_getstring(vm, 2, &key_string);
-		ValidateString(key_string);
+		StrMakeValidInPlace(const_cast<char *>(key_string));
 
 		if (strncmp(key_string, "param_", 6) != 0 || strlen(key_string) > 8) return SQ_ERROR;
 		k = atoi(key_string + 6);
@@ -176,12 +172,13 @@ SQInteger ScriptText::_set(HSQUIRRELVM vm)
 	return this->_SetParam(k, vm);
 }
 
-const char *ScriptText::GetEncodedText()
+const std::string ScriptText::GetEncodedText()
 {
 	static char buf[1024];
 	int param_count = 0;
 	this->_GetEncodedText(buf, lastof(buf), param_count);
-	return (param_count > SCRIPT_TEXT_MAX_PARAMETERS) ? nullptr : buf;
+	if (param_count > SCRIPT_TEXT_MAX_PARAMETERS) throw Script_FatalError("A string had too many parameters");
+	return buf;
 }
 
 char *ScriptText::_GetEncodedText(char *p, char *lastofp, int &param_count)
@@ -206,10 +203,9 @@ char *ScriptText::_GetEncodedText(char *p, char *lastofp, int &param_count)
 	return p;
 }
 
-const char *Text::GetDecodedText()
+const std::string Text::GetDecodedText()
 {
-	const char *encoded_text = this->GetEncodedText();
-	if (encoded_text == nullptr) return nullptr;
+	const std::string &encoded_text = this->GetEncodedText();
 
 	static char buf[1024];
 	::SetDParamStr(0, encoded_text);

@@ -61,6 +61,7 @@ public:
 
 	/**
 	 * Check if an items is already included in the queue.
+	 * @param item The item to check whether it's already in this queue.
 	 * @return true if the items is already in the queue.
 	 * @note Performance is O(n), use only when absolutely required.
 	 */
@@ -76,7 +77,7 @@ public:
 	SQInteger Peek(HSQUIRRELVM vm);
 	SQInteger Exists(HSQUIRRELVM vm);
 	SQInteger Clear(HSQUIRRELVM vm);
-#endif
+#endif /* DOXYGEN_API */
 
 	/**
 	 * Check if the queue is empty.
