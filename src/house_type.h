@@ -10,9 +10,21 @@
 #ifndef HOUSE_TYPE_H
 #define HOUSE_TYPE_H
 
-typedef uint16 HouseID; ///< OpenTTD ID of house types.
-typedef uint16 HouseClassID; ///< Classes of houses.
+typedef uint16_t HouseID; ///< OpenTTD ID of house types.
+typedef uint16_t HouseClassID; ///< Classes of houses.
 
 struct HouseSpec;
+
+/** Randomisation triggers for houses */
+enum class HouseRandomTrigger : uint8_t {
+	/* The tile of the house has been triggered during the tileloop. */
+	TileLoop,
+	/*
+	 * The top tile of a (multitile) building has been triggered during and all
+	 * the tileloop other tiles of the same building get the same random value.
+	 */
+	TileLoopNorth,
+};
+using HouseRandomTriggers = EnumBitSet<HouseRandomTrigger, uint8_t>;
 
 #endif /* HOUSE_TYPE_H */

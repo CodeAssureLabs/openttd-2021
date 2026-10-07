@@ -11,10 +11,9 @@
 #define ECONOMY_BASE_H
 
 #include "cargopacket.h"
-#include "company_type.h"
 
 /** Type of pool to store cargo payments in; little over 1 million. */
-typedef Pool<CargoPayment, CargoPaymentID, 512, 0xFF000> CargoPaymentPool;
+using CargoPaymentPool = Pool<CargoPayment, CargoPaymentID, 512>;
 /** The actual pool to store cargo payments in. */
 extern CargoPaymentPool _cargo_payment_pool;
 
@@ -22,29 +21,21 @@ extern CargoPaymentPool _cargo_payment_pool;
  * Helper class to perform the cargo payment.
  */
 struct CargoPayment : CargoPaymentPool::PoolItem<&_cargo_payment_pool> {
-	Vehicle *front;        ///< The front vehicle to do the payment of
-	Money route_profit;    ///< The amount of money to add/remove from the bank account
-	Money visual_profit;   ///< The visual profit to show
-	Money visual_transfer; ///< The transfer credits to be shown
+	/* CargoPaymentID index member of CargoPaymentPool is 4 bytes. */
+	StationID current_station = StationID::Invalid(); ///< NOSAVE: The current station
 
-	/* Unsaved variables */
-	Company *owner;            ///< The owner of the vehicle
-	StationID current_station; ///< The current station
-	CargoID ct;                ///< The currently handled cargo type
+	Vehicle *front = nullptr; ///< The front vehicle to do the payment of
+	Money route_profit = 0; ///< The amount of money to add/remove from the bank account
+	Money visual_profit = 0; ///< The visual profit to show
+	Money visual_transfer = 0; ///< The transfer credits to be shown
 
 	/** Constructor for pool saveload */
 	CargoPayment() {}
 	CargoPayment(Vehicle *front);
 	~CargoPayment();
 
-	Money PayTransfer(const CargoPacket *cp, uint count);
-	void PayFinalDelivery(const CargoPacket *cp, uint count);
-
-	/**
-	 * Sets the currently handled cargo type.
-	 * @param ct the cargo type to handle from now on.
-	 */
-	void SetCargo(CargoID ct) { this->ct = ct; }
+	Money PayTransfer(CargoType cargo, const CargoPacket *cp, uint count, TileIndex current_tile);
+	void PayFinalDelivery(CargoType cargo, const CargoPacket *cp, uint count, TileIndex current_tile);
 };
 
 #endif /* ECONOMY_BASE_H */

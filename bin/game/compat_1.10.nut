@@ -5,4 +5,10 @@
  * See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with OpenTTD. If not, see <http://www.gnu.org/licenses/>.
  */
 
-GSLog.Info("1.10 API compatibility in effect.");
+/* This file contains code to downgrade the API from 1.11 to 1.10. */
+
+GSCompany.ChangeBankBalanceCompat1_10 <- GSCompany.ChangeBankBalance;
+GSCompany.ChangeBankBalance <- function(company, delta, expenses_type)
+{
+	return GSCompany.ChangeBankBalanceCompat1_10(company, delta, expenses_type, GSMap.TILE_INVALID);
+}
