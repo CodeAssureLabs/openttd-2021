@@ -12,11 +12,8 @@
 
 #include "string_type.h"
 #include "strings_type.h"
-#include "core/smallvec_type.hpp"
 #include "table/control_codes.h"
 #include <utility>
-#include <vector>
-#include <string>
 
 /** This character, the thorn ('þ'), indicates a unicode string to NFO. */
 static const WChar NFO_UTF8_IDENTIFIER = 0x00DE;
@@ -42,7 +39,7 @@ void SetCurrentGrfLangID(byte language_id);
 std::string TranslateTTDPatchCodes(uint32 grfid, uint8 language_id, bool allow_newlines, const std::string &str, StringControlCode byte80 = SCC_NEWGRF_PRINT_WORD_STRING_ID);
 void AddGRFTextToList(GRFTextList &list, byte langid, uint32 grfid, bool allow_newlines, const char *text_to_add);
 void AddGRFTextToList(GRFTextWrapper &list, byte langid, uint32 grfid, bool allow_newlines, const char *text_to_add);
-void AddGRFTextToList(GRFTextWrapper &list, const char *text_to_add);
+void AddGRFTextToList(GRFTextWrapper &list, const std::string &text_to_add);
 
 bool CheckGrfLangID(byte lang_id, byte grf_version);
 
@@ -52,7 +49,7 @@ void RewindTextRefStack();
 bool UsingNewGRFTextStack();
 struct TextRefStack *CreateTextRefStackBackup();
 void RestoreTextRefStackBackup(struct TextRefStack *backup);
-uint RemapNewGRFStringControlCode(uint scc, char *buf_start, char **buff, const char **str, int64 *argv, uint argv_size, bool modify_argv);
+uint RemapNewGRFStringControlCode(uint scc, const char **str, int64 *argv, uint argv_size, bool modify_argv);
 
 /** Mapping of language data between a NewGRF and OpenTTD. */
 struct LanguageMap {

@@ -8,9 +8,10 @@
 /** @file newgrf_railtype.cpp NewGRF handling of rail types. */
 
 #include "stdafx.h"
+#include "core/container_func.hpp"
 #include "debug.h"
 #include "newgrf_railtype.h"
-#include "date_func.h"
+#include "timer/timer_game_calendar.h"
 #include "depot_base.h"
 #include "town.h"
 
@@ -18,7 +19,7 @@
 
 /* virtual */ uint32 RailTypeScopeResolver::GetRandomBits() const
 {
-	uint tmp = CountBits(this->tile + (TileX(this->tile) + TileY(this->tile)) * TILE_SIZE);
+	uint tmp = CountBits(static_cast<uint32>(this->tile + (TileX(this->tile) + TileY(this->tile)) * TILE_SIZE));
 	return GB(tmp, 0, 2);
 }
 
@@ -29,7 +30,7 @@
 			case 0x40: return 0;
 			case 0x41: return 0;
 			case 0x42: return 0;
-			case 0x43: return _date;
+			case 0x43: return TimerGameCalendar::date;
 			case 0x44: return HZB_TOWN_EDGE;
 		}
 	}
@@ -40,7 +41,7 @@
 		case 0x42: return IsLevelCrossingTile(this->tile) && IsCrossingBarred(this->tile);
 		case 0x43:
 			if (IsRailDepotTile(this->tile)) return Depot::GetByTile(this->tile)->build_date;
-			return _date;
+			return TimerGameCalendar::date;
 		case 0x44: {
 			const Town *t = nullptr;
 			if (IsRailDepotTile(this->tile)) {
@@ -52,17 +53,10 @@
 		}
 	}
 
-	DEBUG(grf, 1, "Unhandled rail type tile variable 0x%X", variable);
+	Debug(grf, 1, "Unhandled rail type tile variable 0x{:X}", variable);
 
 	*available = false;
 	return UINT_MAX;
-}
-
-/* virtual */ const SpriteGroup *RailTypeResolverObject::ResolveReal(const RealSpriteGroup *group) const
-{
-	if (group->num_loading > 0) return group->loading[0];
-	if (group->num_loaded  > 0) return group->loaded[0];
-	return nullptr;
 }
 
 GrfSpecFeature RailTypeResolverObject::GetFeature() const
@@ -136,6 +130,28 @@ SpriteID GetCustomSignalSprite(const RailtypeInfo *rti, TileIndex tile, SignalTy
 	if (group == nullptr || group->GetNumResults() == 0) return 0;
 
 	return group->GetResult();
+}
+
+/**
+ * Translate an index to the GRF-local railtype-translation table into a RailType.
+ * @param railtype  Index into GRF-local translation table.
+ * @param grffile   Originating GRF file.
+ * @return RailType or INVALID_RAILTYPE if the railtype is unknown.
+ */
+RailType GetRailTypeTranslation(uint8 railtype, const GRFFile *grffile)
+{
+	if (grffile == nullptr || grffile->railtype_list.size() == 0) {
+		/* No railtype table present. Return railtype as-is (if valid), so it works for original railtypes. */
+		if (railtype >= RAILTYPE_END || GetRailTypeInfo(static_cast<RailType>(railtype))->label == 0) return INVALID_RAILTYPE;
+
+		return static_cast<RailType>(railtype);
+	} else {
+		/* Railtype table present, but invalid index, return invalid type. */
+		if (railtype >= grffile->railtype_list.size()) return INVALID_RAILTYPE;
+
+		/* Look up railtype including alternate labels. */
+		return GetRailTypeByLabel(grffile->railtype_list[railtype]);
+	}
 }
 
 /**

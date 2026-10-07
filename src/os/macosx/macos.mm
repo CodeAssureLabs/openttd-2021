@@ -12,6 +12,7 @@
 #include "../../rev.h"
 #include "macos.h"
 #include "../../string_func.h"
+#include "../../fileio_func.h"
 #include <pthread.h>
 
 #define Rect  OTTDRect
@@ -40,6 +41,10 @@ typedef struct {
 #define NSOperatingSystemVersion OTTDOperatingSystemVersion
 #endif
 
+#ifdef WITH_COCOA
+static NSAutoreleasePool *_ottd_autorelease_pool;
+#endif
+
 /**
  * Get the version of the MacOS we are running under. Code adopted
  * from http://www.cocoadev.com/index.pl?DeterminingOSVersion
@@ -66,6 +71,10 @@ void GetMacOSVersion(int *return_major, int *return_minor, int *return_bugfix)
 	}
 
 #if (MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_10)
+#ifdef __clang__
+#	pragma clang diagnostic push
+#	pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
 	SInt32 systemVersion, version_major, version_minor, version_bugfix;
 	if (Gestalt(gestaltSystemVersion, &systemVersion) == noErr) {
 		if (systemVersion >= 0x1040) {
@@ -78,6 +87,9 @@ void GetMacOSVersion(int *return_major, int *return_minor, int *return_bugfix)
 			*return_bugfix = (int)GB(systemVersion, 0, 4);
 		}
 	}
+#ifdef __clang__
+#	pragma clang diagnostic pop
+#endif
 #endif
 }
 
@@ -123,7 +135,7 @@ void ShowMacDialog(const char *title, const char *message, const char *buttonLab
  */
 void ShowMacDialog(const char *title, const char *message, const char *buttonLabel)
 {
-	fprintf(stderr, "%s: %s\n", title, message);
+	fmt::print(stderr, "{}: {}\n", title, message);
 }
 
 #endif
@@ -171,26 +183,61 @@ const char *GetCurrentLocale(const char *)
 /**
  * Return the contents of the clipboard (COCOA).
  *
- * @param buffer Clipboard content.
- * @param last The pointer to the last element of the destination buffer
- * @return Whether clipboard is empty or not.
+ * @return The (optional) clipboard contents.
  */
-bool GetClipboardContents(char *buffer, const char *last)
+std::optional<std::string> GetClipboardContents()
 {
 	NSPasteboard *pb = [ NSPasteboard generalPasteboard ];
-	NSArray *types = [ NSArray arrayWithObject:NSStringPboardType ];
+	NSArray *types = [ NSArray arrayWithObject:NSPasteboardTypeString ];
 	NSString *bestType = [ pb availableTypeFromArray:types ];
 
 	/* Clipboard has no text data available. */
-	if (bestType == nil) return false;
+	if (bestType == nil) return std::nullopt;
 
-	NSString *string = [ pb stringForType:NSStringPboardType ];
-	if (string == nil || [ string length ] == 0) return false;
+	NSString *string = [ pb stringForType:NSPasteboardTypeString ];
+	if (string == nil || [ string length ] == 0) return std::nullopt;
 
-	strecpy(buffer, [ string UTF8String ], last);
-
-	return true;
+	return [ string UTF8String ];
 }
+
+/** Set the application's bundle directory.
+ *
+ * This is needed since OS X application bundles do not have a
+ * current directory and the data files are 'somewhere' in the bundle.
+ */
+void CocoaSetApplicationBundleDir()
+{
+	extern std::array<std::string, NUM_SEARCHPATHS> _searchpaths;
+
+	char tmp[MAXPATHLEN];
+	CFAutoRelease<CFURLRef> url(CFBundleCopyResourcesDirectoryURL(CFBundleGetMainBundle()));
+	if (CFURLGetFileSystemRepresentation(url.get(), true, (unsigned char *)tmp, MAXPATHLEN)) {
+		_searchpaths[SP_APPLICATION_BUNDLE_DIR] = tmp;
+		AppendPathSeparator(_searchpaths[SP_APPLICATION_BUNDLE_DIR]);
+	} else {
+		_searchpaths[SP_APPLICATION_BUNDLE_DIR].clear();
+	}
+}
+
+/**
+ * Setup autorelease for the application pool.
+ *
+ * These are called from main() to prevent a _NSAutoreleaseNoPool error when
+ * exiting before the cocoa video driver has been loaded
+ */
+void CocoaSetupAutoreleasePool()
+{
+	_ottd_autorelease_pool = [ [ NSAutoreleasePool alloc ] init ];
+}
+
+/**
+ * Autorelease the application pool.
+ */
+void CocoaReleaseAutoreleasePool()
+{
+	[ _ottd_autorelease_pool release ];
+}
+
 #endif
 
 /**
@@ -219,4 +266,9 @@ void MacOSSetThreadName(const char *name)
 	if (cur != nil && [ cur respondsToSelector:@selector(setName:) ]) {
 		[ cur performSelector:@selector(setName:) withObject:[ NSString stringWithUTF8String:name ] ];
 	}
+}
+
+uint64 MacOSGetPhysicalMemory()
+{
+	return [ [ NSProcessInfo processInfo ] physicalMemory ];
 }

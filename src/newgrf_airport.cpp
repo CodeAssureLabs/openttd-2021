@@ -9,7 +9,7 @@
 
 #include "stdafx.h"
 #include "debug.h"
-#include "date_func.h"
+#include "timer/timer_game_calendar.h"
 #include "newgrf_spritegroup.h"
 #include "newgrf_text.h"
 #include "station_base.h"
@@ -56,8 +56,6 @@ struct AirportResolverObject : public ResolverObject {
 			default: return ResolverObject::GetScope(scope, relative);
 		}
 	}
-
-	const SpriteGroup *ResolveReal(const RealSpriteGroup *group) const override;
 
 	GrfSpecFeature GetFeature() const override;
 	uint32 GetDebugID() const override;
@@ -126,9 +124,9 @@ AirportSpec AirportSpec::specs[NUM_AIRPORTS]; ///< Airport specifications.
 bool AirportSpec::IsAvailable() const
 {
 	if (!this->enabled) return false;
-	if (_cur_year < this->min_year) return false;
+	if (TimerGameCalendar::year < this->min_year) return false;
 	if (_settings_game.station.never_expire_airports) return true;
-	return _cur_year <= this->max_year;
+	return TimerGameCalendar::year <= this->max_year;
 }
 
 /**
@@ -145,8 +143,8 @@ bool AirportSpec::IsWithinMapBounds(byte table, TileIndex tile) const
 	byte h = this->size_y;
 	if (this->rotation[table] == DIR_E || this->rotation[table] == DIR_W) Swap(w, h);
 
-	return TileX(tile) + w < MapSizeX() &&
-		TileY(tile) + h < MapSizeY();
+	return TileX(tile) + w < Map::SizeX() &&
+		TileY(tile) + h < Map::SizeY();
 }
 
 /**
@@ -154,9 +152,10 @@ bool AirportSpec::IsWithinMapBounds(byte table, TileIndex tile) const
  */
 void AirportSpec::ResetAirports()
 {
-	extern const AirportSpec _origin_airport_specs[];
-	memset(&AirportSpec::specs, 0, sizeof(AirportSpec::specs));
-	memcpy(&AirportSpec::specs, &_origin_airport_specs, sizeof(AirportSpec) * NEW_AIRPORT_OFFSET);
+	extern const AirportSpec _origin_airport_specs[NEW_AIRPORT_OFFSET];
+
+	auto insert = std::copy(std::begin(_origin_airport_specs), std::end(_origin_airport_specs), std::begin(AirportSpec::specs));
+	std::fill(insert, std::end(AirportSpec::specs), AirportSpec{});
 
 	_airport_mngr.ResetOverride();
 }
@@ -177,23 +176,23 @@ void AirportOverrideManager::SetEntitySpec(AirportSpec *as)
 {
 	byte airport_id = this->AddEntityID(as->grf_prop.local_id, as->grf_prop.grffile->grfid, as->grf_prop.subst_id);
 
-	if (airport_id == invalid_ID) {
-		grfmsg(1, "Airport.SetEntitySpec: Too many airports allocated. Ignoring.");
+	if (airport_id == this->invalid_id) {
+		GrfMsg(1, "Airport.SetEntitySpec: Too many airports allocated. Ignoring.");
 		return;
 	}
 
-	memcpy(AirportSpec::GetWithoutOverride(airport_id), as, sizeof(*as));
+	*AirportSpec::GetWithoutOverride(airport_id) = *as;
 
 	/* Now add the overrides. */
-	for (int i = 0; i < max_offset; i++) {
+	for (int i = 0; i < this->max_offset; i++) {
 		AirportSpec *overridden_as = AirportSpec::GetWithoutOverride(i);
 
-		if (entity_overrides[i] != as->grf_prop.local_id || grfid_overrides[i] != as->grf_prop.grffile->grfid) continue;
+		if (this->entity_overrides[i] != as->grf_prop.local_id || this->grfid_overrides[i] != as->grf_prop.grffile->grfid) continue;
 
 		overridden_as->grf_prop.override = airport_id;
 		overridden_as->enabled = false;
-		entity_overrides[i] = invalid_ID;
-		grfid_overrides[i] = 0;
+		this->entity_overrides[i] = this->invalid_id;
+		this->grfid_overrides[i] = 0;
 	}
 }
 
@@ -213,20 +212,10 @@ void AirportOverrideManager::SetEntitySpec(AirportSpec *as)
 		case 0x7C: return (this->st->airport.psa != nullptr) ? this->st->airport.psa->GetValue(parameter) : 0;
 
 		case 0xF0: return this->st->facilities;
-		case 0xFA: return Clamp(this->st->build_date - DAYS_TILL_ORIGINAL_BASE_YEAR, 0, 65535);
+		case 0xFA: return ClampTo<uint16_t>(this->st->build_date - DAYS_TILL_ORIGINAL_BASE_YEAR);
 	}
 
 	return this->st->GetNewGRFVariable(this->ro, variable, parameter, available);
-}
-
-/* virtual */ const SpriteGroup *AirportResolverObject::ResolveReal(const RealSpriteGroup *group) const
-{
-	/* Airport action 2s should always have only 1 "loaded" state, but some
-	 * times things don't follow the spec... */
-	if (group->num_loaded > 0) return group->loaded[0];
-	if (group->num_loading > 0) return group->loading[0];
-
-	return nullptr;
 }
 
 GrfSpecFeature AirportResolverObject::GetFeature() const
