@@ -2,7 +2,7 @@
  * This file is part of OpenTTD.
  * OpenTTD is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, version 2.
  * OpenTTD is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with OpenTTD. If not, see <http://www.gnu.org/licenses/>.
+ * See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with OpenTTD. If not, see <https://www.gnu.org/licenses/old-licenses/gpl-2.0>.
  */
 
 /** @file script_industry.hpp Everything to query and build industries. */
@@ -23,9 +23,9 @@ class ScriptIndustry : public ScriptObject {
 public:
 	/** Ways for an industry to accept a cargo. */
 	enum CargoAcceptState {
-		CAS_NOT_ACCEPTED, ///< The CargoID is not accepted by this industry.
-		CAS_ACCEPTED,     ///< The industry currently accepts this CargoID.
-		CAS_TEMP_REFUSED, ///< The industry temporarily refuses to accept this CargoID but may do so again in the future.
+		CAS_NOT_ACCEPTED, ///< The CargoType is not accepted by this industry.
+		CAS_ACCEPTED,     ///< The industry currently accepts this CargoType.
+		CAS_TEMP_REFUSED, ///< The industry temporarily refuses to accept this CargoType but may do so again in the future.
 	};
 
 	/**
@@ -37,16 +37,20 @@ public:
 		 * When industry production change is evaluated, rolls to decrease are ignored.
 		 * This also prevents industry closure due to production dropping to the lowest level.
 		 */
-		INDCTL_NO_PRODUCTION_DECREASE = ::INDCTL_NO_PRODUCTION_DECREASE,
+		INDCTL_NO_PRODUCTION_DECREASE = ::IndustryControlFlags{::IndustryControlFlag::NoProductionDecrease}.base(),
 		/**
 		 * When industry production change is evaluated, rolls to increase are ignored.
 		 */
-		INDCTL_NO_PRODUCTION_INCREASE = ::INDCTL_NO_PRODUCTION_INCREASE,
+		INDCTL_NO_PRODUCTION_INCREASE = ::IndustryControlFlags{::IndustryControlFlag::NoProductionIncrease}.base(),
 		/**
 		 * Industry can not close regardless of production level or time since last delivery.
 		 * This does not prevent a closure already announced.
 		 */
-		INDCTL_NO_CLOSURE             = ::INDCTL_NO_CLOSURE,
+		INDCTL_NO_CLOSURE             = ::IndustryControlFlags{::IndustryControlFlag::NoClosure}.base(),
+		/**
+		 * Indicates that the production level of the industry is controlled by a game script.
+		 */
+		INDCTL_EXTERNAL_PROD_LEVEL    = ::IndustryControlFlags{::IndustryControlFlag::ExternalProdLevel}.base(),
 	};
 
 	/**
@@ -54,7 +58,7 @@ public:
 	 * @return The number of industries.
 	 * @note The maximum valid IndustryID can be higher than the value returned.
 	 */
-	static int32 GetIndustryCount();
+	static SQInteger GetIndustryCount();
 
 	/**
 	 * Checks whether the given industry index is valid.
@@ -79,57 +83,81 @@ public:
 	 * @pre IsValidIndustry(industry_id).
 	 * @return The name of the industry.
 	 */
-	static char *GetName(IndustryID industry_id);
+	static std::optional<std::string> GetName(IndustryID industry_id);
+
+	/**
+	 * Get the construction calendar-date of an industry.
+	 * @param industry_id The index of the industry.
+	 * @pre IsValidIndustry(industry_id).
+	 * @return Calendar-date the industry was constructed.
+	 * @see \ref ScriptCalendarTime
+	 * @api -ai
+	 */
+	static ScriptDate::Date GetConstructionDate(IndustryID industry_id);
+
+	/**
+	 * Set the custom text of an industry, shown in the GUI.
+	 * @param industry_id The industry to set the custom text of.
+	 * @param text The text to set it to (can be either a raw string, or a ScriptText object). If null, or an empty string, is passed, the text will be removed.
+	 * @pre ScriptCompanyMode::IsDeity().
+	 * @pre IsValidIndustry(industry_id).
+	 * @return True if the action succeeded.
+	 * @api -ai
+	 */
+	static bool SetText(IndustryID industry_id, Text *text);
 
 	/**
 	 * See whether an industry currently accepts a certain cargo.
 	 * @param industry_id The index of the industry.
-	 * @param cargo_id The index of the cargo.
+	 * @param cargo_type The index of the cargo.
 	 * @pre IsValidIndustry(industry_id).
-	 * @pre ScriptCargo::IsValidCargo(cargo_id).
+	 * @pre ScriptCargo::IsValidCargo(cargo_type).
 	 * @return Whether the industry accepts, temporarily refuses or never accepts this cargo.
 	 */
-	static CargoAcceptState IsCargoAccepted(IndustryID industry_id, CargoID cargo_id);
+	static CargoAcceptState IsCargoAccepted(IndustryID industry_id, CargoType cargo_type);
 
 	/**
 	 * Get the amount of cargo stockpiled for processing.
 	 * @param industry_id The index of the industry.
-	 * @param cargo_id The index of the cargo.
+	 * @param cargo_type The index of the cargo.
 	 * @pre IsValidIndustry(industry_id).
-	 * @pre ScriptCargo::IsValidCargo(cargo_id).
+	 * @pre ScriptCargo::IsValidCargo(cargo_type).
 	 * @return The amount of cargo that is waiting for processing.
 	 */
-	static int32 GetStockpiledCargo(IndustryID industry_id, CargoID cargo_id);
+	static SQInteger GetStockpiledCargo(IndustryID industry_id, CargoType cargo_type);
 
 	/**
-	 * Get the total last month's production of the given cargo at an industry.
+	 * Get the total last economy-month's production of the given cargo at an industry.
 	 * @param industry_id The index of the industry.
-	 * @param cargo_id The index of the cargo.
+	 * @param cargo_type The index of the cargo.
 	 * @pre IsValidIndustry(industry_id).
-	 * @pre ScriptCargo::IsValidCargo(cargo_id).
-	 * @return The last month's production of the given cargo for this industry.
+	 * @pre ScriptCargo::IsValidCargo(cargo_type).
+	 * @return The last economy-month's production of the given cargo for this industry.
+	 * @see \ref ScriptEconomyTime
 	 */
-	static int32 GetLastMonthProduction(IndustryID industry_id, CargoID cargo_id);
+	static SQInteger GetLastMonthProduction(IndustryID industry_id, CargoType cargo_type);
 
 	/**
-	 * Get the total amount of cargo transported from an industry last month.
+	 * Get the total amount of cargo transported from an industry last economy-month.
 	 * @param industry_id The index of the industry.
-	 * @param cargo_id The index of the cargo.
+	 * @param cargo_type The index of the cargo.
 	 * @pre IsValidIndustry(industry_id).
-	 * @pre ScriptCargo::IsValidCargo(cargo_id).
-	 * @return The amount of given cargo transported from this industry last month.
+	 * @pre ScriptCargo::IsValidCargo(cargo_type).
+	 * @return The amount of given cargo transported from this industry last economy-month.
+	 * @see \ref ScriptEconomyTime
 	 */
-	static int32 GetLastMonthTransported(IndustryID industry_id, CargoID cargo_id);
+	static SQInteger GetLastMonthTransported(IndustryID industry_id, CargoType cargo_type);
 
 	/**
-	 * Get the percentage of cargo transported from an industry last month.
+	 * Get the percentage of cargo transported from an industry last economy-month.
 	 * @param industry_id The index of the industry.
-	 * @param cargo_id The index of the cargo.
+	 * @param cargo_type The index of the cargo.
 	 * @pre IsValidIndustry(industry_id).
-	 * @pre ScriptCargo::IsValidCargo(cargo_id).
-	 * @return The percentage of given cargo transported from this industry last month.
+	 * @pre ScriptCargo::IsValidCargo(cargo_type).
+	 * @return The percentage of given cargo transported from this industry last economy-month.
+	 * @see \ref ScriptEconomyTime
 	 */
-	static int32 GetLastMonthTransportedPercentage(IndustryID industry_id, CargoID cargo_id);
+	static SQInteger GetLastMonthTransportedPercentage(IndustryID industry_id, CargoType cargo_type);
 
 	/**
 	 * Gets the location of the industry.
@@ -147,7 +175,7 @@ public:
 	 * @pre IsValidIndustry(industry_id).
 	 * @return The number of stations around an industry.
 	 */
-	static int32 GetAmountOfStationsAround(IndustryID industry_id);
+	static SQInteger GetAmountOfStationsAround(IndustryID industry_id);
 
 	/**
 	 * Get the manhattan distance from the tile to the ScriptIndustry::GetLocation()
@@ -158,7 +186,7 @@ public:
 	 * @pre ScriptMap::IsValidTile(tile).
 	 * @return The distance between industry and tile.
 	 */
-	static int32 GetDistanceManhattanToTile(IndustryID industry_id, TileIndex tile);
+	static SQInteger GetDistanceManhattanToTile(IndustryID industry_id, TileIndex tile);
 
 	/**
 	 * Get the square distance from the tile to the ScriptIndustry::GetLocation()
@@ -169,7 +197,7 @@ public:
 	 * @pre ScriptMap::IsValidTile(tile).
 	 * @return The distance between industry and tile.
 	 */
-	static int32 GetDistanceSquareToTile(IndustryID industry_id, TileIndex tile);
+	static SQInteger GetDistanceSquareToTile(IndustryID industry_id, TileIndex tile);
 
 	/**
 	 * Is this industry built on water.
@@ -222,24 +250,26 @@ public:
 	static IndustryType GetIndustryType(IndustryID industry_id);
 
 	/**
-	 * Get the last year this industry had any production output.
+	 * Get the last economy-year this industry had any production output.
 	 * @param industry_id The index of the industry.
 	 * @pre IsValidIndustry(industry_id).
-	 * @return Year the industry last had production, 0 if error.
+	 * @return Economy-year the industry last had production, 0 if error.
+	 * @see \ref ScriptEconomyTime
 	 * @api -ai
 	 */
-	static int32 GetLastProductionYear(IndustryID industry_id);
+	static SQInteger GetLastProductionYear(IndustryID industry_id);
 
 	/**
-	 * Get the last date this industry accepted any cargo delivery.
+	 * Get the last economy-date this industry accepted any cargo delivery.
 	 * @param industry_id The index of the industry.
-	 * @param cargo_type The cargo to query, or CT_INVALID to query latest of all accepted cargoes.
+	 * @param cargo_type The cargo to query, or INVALID_CARGO to query latest of all accepted cargoes.
 	 * @pre IsValidIndustry(industry_id).
-	 * @pre IsValidCargo(cargo_type) || cargo_type == CT_INVALID.
-	 * @return Date the industry last received cargo from a delivery, or ScriptDate::DATE_INVALID on error.
+	 * @pre IsValidCargo(cargo_type) || cargo_type == INVALID_CARGO.
+	 * @return Economy-date the industry last received cargo from a delivery, or ScriptDate::DATE_INVALID on error.
+	 * @see \ref ScriptEconomyTime
 	 * @api -ai
 	 */
-	static ScriptDate::Date GetCargoLastAcceptedDate(IndustryID industry_id, CargoID cargo_type);
+	static ScriptDate::Date GetCargoLastAcceptedDate(IndustryID industry_id, CargoType cargo_type);
 
 	/**
 	 * Get the current control flags for an industry.
@@ -248,18 +278,18 @@ public:
 	 * @return Bit flags of the IndustryControlFlags enumeration.
 	 * @api -ai
 	 */
-	static uint32 GetControlFlags(IndustryID industry_id);
+	static SQInteger GetControlFlags(IndustryID industry_id);
 
 	/**
 	 * Change the control flags for an industry.
 	 * @param industry_id The index of the industry.
 	 * @param control_flags New flags as a combination of IndustryControlFlags values.
 	 * @pre IsValidIndustry(industry_id).
-	 * @pre No ScriptCompanyMode may be in scope.
+	 * @pre ScriptCompanyMode::IsDeity().
 	 * @return True if the action succeeded.
 	 * @api -ai
 	 */
-	static bool SetControlFlags(IndustryID industry_id, uint32 control_flags);
+	static bool SetControlFlags(IndustryID industry_id, SQInteger control_flags);
 
 	/**
 	 * Find out which company currently has the exclusive rights to deliver cargo to the industry.
@@ -276,6 +306,7 @@ public:
 	 * @param industry_id The index of the industry.
 	 * @param company_id The company to set (ScriptCompany::COMPANY_INVALID to reset).
 	 * @pre IsValidIndustry(industry_id).
+	 * @pre ScriptCompanyMode::IsDeity().
 	 * @return True if the action succeeded.
 	 * @api -ai
 	 */
@@ -296,11 +327,35 @@ public:
 	 * @param industry_id The index of the industry.
 	 * @param company_id The company to set (ScriptCompany::COMPANY_INVALID to reset).
 	 * @pre IsValidIndustry(industry_id).
+	 * @pre ScriptCompanyMode::IsDeity().
 	 * @return True if the action succeeded.
 	 * @api -ai
 	 */
 	static bool SetExclusiveConsumer(IndustryID industry_id, ScriptCompany::CompanyID company_id);
 
+	/**
+	 * Gets the current production level of an industry.
+	 * @param industry_id The index of the industry.
+	 * @return The current production level of the industry.
+	 * @api -ai
+	 */
+	static SQInteger GetProductionLevel(IndustryID industry_id);
+
+	/**
+	 * Sets the current production level of an industry.
+	 * @note Setting the production level automatically sets the control flag INDCTL_EXTERNAL_PROD_LEVEL if it wasn't already set.
+	 *     Normal production behaviour can be restored by clearing the control flag.
+	 * @param industry_id The index of the industry.
+	 * @param prod_level The production level to set.
+	 * @param show_news If set to true and the production changed, generate a production change news message. If set to false, no news message is shown.
+	 * @param custom_news Custom news message text to override the default news text with. Pass null to use the default text. Only used if \c show_news is set to true.
+	 * @pre IsValidIndustry(industry_id).
+	 * @pre ScriptCompanyMode::IsDeity().
+	 * @pre prod_level >= 4 && prod_level <= 128.
+	 * @return True if the action succeeded.
+	 * @api -ai
+	 */
+	static bool SetProductionLevel(IndustryID industry_id, SQInteger prod_level, bool show_news, Text *custom_news);
 };
 
 #endif /* SCRIPT_INDUSTRY_HPP */
