@@ -78,7 +78,7 @@ public:
 	 * Get the total covered area.
 	 * @return The area covered by the matrix.
 	 */
-	const TileArea& GetArea() const
+	const TileArea &GetArea() const
 	{
 		return this->area;
 	}
@@ -95,14 +95,14 @@ public:
 		uint tile_y = (TileY(tile) / N) * N;
 		uint w = N, h = N;
 
-		w += min(extend * N, tile_x);
-		h += min(extend * N, tile_y);
+		w += std::min(extend * N, tile_x);
+		h += std::min(extend * N, tile_y);
 
-		tile_x -= min(extend * N, tile_x);
-		tile_y -= min(extend * N, tile_y);
+		tile_x -= std::min(extend * N, tile_x);
+		tile_y -= std::min(extend * N, tile_y);
 
-		w += min(extend * N, MapSizeX() - tile_x - w);
-		h += min(extend * N, MapSizeY() - tile_y - h);
+		w += std::min(extend * N, Map::SizeX() - tile_x - w);
+		h += std::min(extend * N, Map::SizeY() - tile_y - h);
 
 		return TileArea(TileXY(tile_x, tile_y), w, h);
 	}
