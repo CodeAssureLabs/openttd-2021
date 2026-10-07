@@ -27,12 +27,12 @@ Point TranslateXYToTileCoord(const Viewport *vp, int x, int y, bool clamp_to_map
 Point GetTileBelowCursor();
 void UpdateViewportPosition(Window *w);
 
-void MarkAllViewportsDirty(int left, int top, int right, int bottom);
+bool MarkAllViewportsDirty(int left, int top, int right, int bottom);
 
 bool DoZoomInOutWindow(ZoomStateChange how, Window *w);
 void ZoomInOrOutToCursorWindow(bool in, Window * w);
 Point GetTileZoomCenterWindow(bool in, Window * w);
-void FixTitleGameZoom();
+void FixTitleGameZoom(int zoom_adjust = 0);
 void HandleZoomMessage(Window *w, const Viewport *vp, byte widget_zoom_in, byte widget_zoom_out);
 
 /**
@@ -98,5 +98,6 @@ struct Town;
 
 void SetViewportCatchmentStation(const Station *st, bool sel);
 void SetViewportCatchmentTown(const Town *t, bool sel);
+void MarkCatchmentTilesDirty();
 
 #endif /* VIEWPORT_FUNC_H */

@@ -169,7 +169,7 @@
 	 *  the GameConfig. If not, remove the Game from the list. */
 	if (_settings_game.game_config != nullptr && _settings_game.game_config->HasScript()) {
 		if (!_settings_game.game_config->ResetInfo(true)) {
-			DEBUG(script, 0, "After a reload, the GameScript by the name '%s' was no longer found, and removed from the list.", _settings_game.game_config->GetName());
+			Debug(script, 0, "After a reload, the GameScript by the name '{}' was no longer found, and removed from the list.", _settings_game.game_config->GetName());
 			_settings_game.game_config->Change(nullptr);
 			if (Game::instance != nullptr) {
 				delete Game::instance;
@@ -182,7 +182,7 @@
 	}
 	if (_settings_newgame.game_config != nullptr && _settings_newgame.game_config->HasScript()) {
 		if (!_settings_newgame.game_config->ResetInfo(false)) {
-			DEBUG(script, 0, "After a reload, the GameScript by the name '%s' was no longer found, and removed from the list.", _settings_newgame.game_config->GetName());
+			Debug(script, 0, "After a reload, the GameScript by the name '{}' was no longer found, and removed from the list.", _settings_newgame.game_config->GetName());
 			_settings_newgame.game_config->Change(nullptr);
 		}
 	}
@@ -225,14 +225,14 @@
 	}
 }
 
-/* static */ char *Game::GetConsoleList(char *p, const char *last, bool newest_only)
+/* static */ std::string Game::GetConsoleList(bool newest_only)
 {
-	return Game::scanner_info->GetConsoleList(p, last, newest_only);
+	return Game::scanner_info->GetConsoleList(newest_only);
 }
 
-/* static */ char *Game::GetConsoleLibraryList(char *p, const char *last)
+/* static */ std::string Game::GetConsoleLibraryList()
 {
-	 return Game::scanner_library->GetConsoleList(p, last, true);
+	 return Game::scanner_library->GetConsoleList(true);
 }
 
 /* static */ const ScriptInfoList *Game::GetInfoList()

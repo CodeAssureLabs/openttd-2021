@@ -15,6 +15,8 @@
 static uint const ZOOM_LVL_SHIFT = 2;
 static uint const ZOOM_LVL_BASE  = 1 << ZOOM_LVL_SHIFT;
 
+static const int8 ZOOM_LVL_CFG_AUTO = -1;
+
 /** All zoom levels we know. */
 enum ZoomLevel : byte {
 	/* Our possible zoom-levels */
@@ -33,7 +35,7 @@ enum ZoomLevel : byte {
 	ZOOM_LVL_VIEWPORT = ZOOM_LVL_OUT_4X, ///< Default zoom level for viewports.
 	ZOOM_LVL_NEWS     = ZOOM_LVL_OUT_4X, ///< Default zoom level for the news messages.
 	ZOOM_LVL_INDUSTRY = ZOOM_LVL_OUT_8X, ///< Default zoom level for the industry view.
-	ZOOM_LVL_TOWN     = ZOOM_LVL_OUT_8X, ///< Default zoom level for the town view.
+	ZOOM_LVL_TOWN     = ZOOM_LVL_OUT_4X, ///< Default zoom level for the town view.
 	ZOOM_LVL_AIRCRAFT = ZOOM_LVL_OUT_4X, ///< Default zoom level for the aircraft view.
 	ZOOM_LVL_SHIP     = ZOOM_LVL_OUT_4X, ///< Default zoom level for the ship view.
 	ZOOM_LVL_TRAIN    = ZOOM_LVL_OUT_4X, ///< Default zoom level for the train view.
@@ -47,6 +49,9 @@ enum ZoomLevel : byte {
 
 };
 DECLARE_POSTFIX_INCREMENT(ZoomLevel)
+
+extern int8 _gui_zoom_cfg;
+extern int8 _font_zoom_cfg;
 
 extern ZoomLevel _gui_zoom;
 extern ZoomLevel _font_zoom;

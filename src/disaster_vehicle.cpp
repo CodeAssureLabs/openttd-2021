@@ -45,6 +45,7 @@
 #include "company_base.h"
 #include "core/random_func.hpp"
 #include "core/backup_type.hpp"
+#include "landscape_cmd.h"
 
 #include "table/strings.h"
 
@@ -61,7 +62,7 @@ static void DisasterClearSquare(TileIndex tile)
 		case MP_RAILWAY:
 			if (Company::IsHumanID(GetTileOwner(tile)) && !IsRailDepot(tile)) {
 				Backup<CompanyID> cur_company(_current_company, OWNER_WATER, FILE_LINE);
-				DoCommand(tile, 0, 0, DC_EXEC, CMD_LANDSCAPE_CLEAR);
+				Command<CMD_LANDSCAPE_CLEAR>::Do(DC_EXEC, tile);
 				cur_company.Restore();
 
 				/* update signals in buffer */
@@ -71,7 +72,7 @@ static void DisasterClearSquare(TileIndex tile)
 
 		case MP_HOUSE: {
 			Backup<CompanyID> cur_company(_current_company, OWNER_NONE, FILE_LINE);
-			DoCommand(tile, 0, 0, DC_EXEC, CMD_LANDSCAPE_CLEAR);
+			Command<CMD_LANDSCAPE_CLEAR>::Do(DC_EXEC, tile);
 			cur_company.Restore();
 			break;
 		}
@@ -110,7 +111,7 @@ void DisasterVehicle::UpdateImage()
 {
 	SpriteID img = this->image_override;
 	if (img == 0) img = _disaster_images[this->subtype][this->direction];
-	this->sprite_seq.Set(img);
+	this->sprite_cache.sprite_seq.Set(img);
 }
 
 /**
@@ -193,7 +194,7 @@ void DisasterVehicle::UpdatePosition(int x, int y, int z)
 		int safe_y = Clamp(y - 1, 0, MapMaxY() * TILE_SIZE);
 
 		u->x_pos = x;
-		u->y_pos = y - 1 - (max(z - GetSlopePixelZ(safe_x, safe_y), 0) >> 3);
+		u->y_pos = y - 1 - (std::max(z - GetSlopePixelZ(safe_x, safe_y), 0) >> 3);
 		safe_y = Clamp(u->y_pos, 0, MapMaxY() * TILE_SIZE);
 		u->z_pos = GetSlopePixelZ(safe_x, safe_y);
 		u->direction = this->direction;
@@ -243,7 +244,7 @@ static bool DisasterTick_Zeppeliner(DisasterVehicle *v)
 				v->age = 0;
 
 				SetDParam(0, GetStationIndex(v->tile));
-				AddVehicleNewsItem(STR_NEWS_DISASTER_ZEPPELIN, NT_ACCIDENT, v->index); // Delete the news, when the zeppelin is gone
+				AddTileNewsItem(STR_NEWS_DISASTER_ZEPPELIN, NT_ACCIDENT, v->tile);
 				AI::NewEvent(GetTileOwner(v->tile), new ScriptEventDisasterZeppelinerCrashed(GetStationIndex(v->tile)));
 			}
 		}
@@ -377,7 +378,7 @@ static bool DisasterTick_Ufo(DisasterVehicle *v)
 			if (u->crashed_ctr == 0) {
 				u->Crash();
 
-				AddVehicleNewsItem(STR_NEWS_DISASTER_SMALL_UFO, NT_ACCIDENT, u->index); // delete the news, when the roadvehicle is gone
+				AddTileNewsItem(STR_NEWS_DISASTER_SMALL_UFO, NT_ACCIDENT, u->tile);
 
 				AI::NewEvent(u->owner, new ScriptEventVehicleCrashed(u->index, u->tile, ScriptEventVehicleCrashed::CRASH_RV_UFO));
 				Game::NewEvent(new ScriptEventVehicleCrashed(u->index, u->tile, ScriptEventVehicleCrashed::CRASH_RV_UFO));
@@ -456,7 +457,7 @@ static bool DisasterTick_Aircraft(DisasterVehicle *v, uint16 image_override, boo
 			DestructIndustry(i);
 
 			SetDParam(0, i->town->index);
-			AddIndustryNewsItem(news_message, NT_ACCIDENT, i->index); // delete the news, when the industry closes
+			AddIndustryNewsItem(news_message, NT_ACCIDENT, i->index);
 			if (_settings_client.sound.disaster) SndPlayTileFx(SND_12_EXPLOSION, i->location.tile);
 		}
 	} else if (v->current_order.GetDestination() == 0) {
@@ -498,7 +499,7 @@ static bool DisasterTick_Helicopter_Rotors(DisasterVehicle *v)
 	v->tick_counter++;
 	if (HasBit(v->tick_counter, 0)) return true;
 
-	SpriteID &cur_image = v->sprite_seq.seq[0].sprite;
+	SpriteID &cur_image = v->sprite_cache.sprite_seq.seq[0].sprite;
 	if (++cur_image > SPR_ROTOR_MOVING_3) cur_image = SPR_ROTOR_MOVING_1;
 
 	v->UpdatePositionAndViewport();
@@ -941,7 +942,7 @@ void ReleaseDisastersTargetingIndustry(IndustryID i)
 		/* primary disaster vehicles that have chosen target */
 		if (v->subtype == ST_AIRPLANE || v->subtype == ST_HELICOPTER) {
 			/* if it has chosen target, and it is this industry (yes, dest_tile is IndustryID here), set order to "leaving map peacefully" */
-			if (v->current_order.GetDestination() > 0 && v->dest_tile == i) v->current_order.SetDestination(3);
+			if (v->current_order.GetDestination() > 0 && v->dest_tile == (uint32)i) v->current_order.SetDestination(3);
 		}
 	}
 }

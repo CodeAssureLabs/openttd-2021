@@ -14,6 +14,7 @@
 #include "strings_func.h"
 #include "vehicle_func.h"
 #include "zoom_func.h"
+#include "train_cmd.h"
 
 #include "table/strings.h"
 
@@ -21,13 +22,12 @@
 
 /**
  * Callback for building wagons.
- * @param result The result of the command.
- * @param tile   The tile the command was executed on.
- * @param p1 Additional data for the command (for the #CommandProc)
- * @param p2 Additional data for the command (for the #CommandProc)
  * @param cmd Unused.
+ * @param result The result of the command.
+ * @param new_veh_id ID of the ne vehicle.
+ * @param tile   The tile the command was executed on.
  */
-void CcBuildWagon(const CommandCost &result, TileIndex tile, uint32 p1, uint32 p2, uint32 cmd)
+void CcBuildWagon(Commands cmd, const CommandCost &result, VehicleID new_veh_id, uint, uint16, TileIndex tile, EngineID, bool, CargoID, ClientID)
 {
 	if (result.Failed()) return;
 
@@ -44,7 +44,7 @@ void CcBuildWagon(const CommandCost &result, TileIndex tile, uint32 p1, uint32 p
 	if (found != nullptr) {
 		found = found->Last();
 		/* put the new wagon at the end of the loco. */
-		DoCommandP(0, _new_vehicle_id, found->index, CMD_MOVE_RAIL_VEHICLE);
+		Command<CMD_MOVE_RAIL_VEHICLE>::Post(new_veh_id, found->index, false);
 		InvalidateWindowClassesData(WC_TRAINS_LIST, 0);
 	}
 }
@@ -67,9 +67,9 @@ static int HighlightDragPosition(int px, int max_width, VehicleID selection, boo
 		dragged_width += t->GetDisplayImageWidth(nullptr);
 	}
 
-	int drag_hlight_left = rtl ? max(px - dragged_width + 1, 0) : px;
-	int drag_hlight_right = rtl ? px : min(px + dragged_width, max_width) - 1;
-	int drag_hlight_width = max(drag_hlight_right - drag_hlight_left + 1, 0);
+	int drag_hlight_left = rtl ? std::max(px - dragged_width + 1, 0) : px;
+	int drag_hlight_right = rtl ? px : std::min(px + dragged_width, max_width) - 1;
+	int drag_hlight_width = std::max(drag_hlight_right - drag_hlight_left + 1, 0);
 
 	if (drag_hlight_width > 0) {
 		GfxFillRect(drag_hlight_left + WD_FRAMERECT_LEFT, WD_FRAMERECT_TOP + 1,
@@ -180,8 +180,9 @@ struct CargoSummaryItem {
 	}
 };
 
-static const uint TRAIN_DETAILS_MIN_INDENT = 32; ///< Minimum indent level in the train details window
-static const uint TRAIN_DETAILS_MAX_INDENT = 72; ///< Maximum indent level in the train details window; wider than this and we start on a new line
+static const uint TRAIN_DETAILS_MIN_INDENT  = 32; ///< Minimum indent level in the train details window
+static const uint TRAIN_DETAILS_MAX_INDENT  = 72; ///< Maximum indent level in the train details window; wider than this and we start on a new line
+static const int  TRAIN_DETAILS_LIST_INDENT = 10; ///< Indent for list items in the Total Cargo window
 
 /** Container for the cargo summary information. */
 typedef std::vector<CargoSummaryItem> CargoSummary;
@@ -337,7 +338,7 @@ int GetTrainDetailsWndVScroll(VehicleID veh_id, TrainDetailsWindowTabs det_tab)
 	} else {
 		for (const Train *v = Train::Get(veh_id); v != nullptr; v = v->GetNextVehicle()) {
 			GetCargoSummaryOfArticulatedVehicle(v, &_cargo_summary);
-			num += max(1u, (unsigned)_cargo_summary.size());
+			num += std::max(1u, (unsigned)_cargo_summary.size());
 
 			uint length = GetLengthOfArticulatedVehicle(v);
 			if (length > TRAIN_DETAILS_MAX_INDENT) num++;
@@ -363,8 +364,12 @@ void DrawTrainDetails(const Train *v, int left, int right, int y, int vscroll_po
 	/* get rid of awkward offset */
 	y -= WD_MATRIX_TOP;
 
+	/* Indent the total cargo capacity details */
+	int offs_left = _current_text_dir == TD_LTR ? TRAIN_DETAILS_LIST_INDENT : 0;
+	int offs_right = _current_text_dir == TD_LTR ? 0 : TRAIN_DETAILS_LIST_INDENT;
+
 	int sprite_height = ScaleGUITrad(GetVehicleHeight(VEH_TRAIN));
-	int line_height = max(sprite_height, WD_MATRIX_TOP + FONT_HEIGHT_NORMAL + WD_MATRIX_BOTTOM);
+	int line_height = std::max(sprite_height, WD_MATRIX_TOP + FONT_HEIGHT_NORMAL + WD_MATRIX_BOTTOM);
 	int sprite_y_offset = line_height / 2;
 	int text_y_offset = (line_height - FONT_HEIGHT_NORMAL) / 2;
 
@@ -405,9 +410,9 @@ void DrawTrainDetails(const Train *v, int left, int right, int y, int vscroll_po
 				dx = 0;
 			}
 
-			uint num_lines = max(1u, (unsigned)_cargo_summary.size());
+			uint num_lines = std::max(1u, (unsigned)_cargo_summary.size());
 			for (uint i = 0; i < num_lines; i++) {
-				int sprite_width = max<int>(dx, ScaleGUITrad(TRAIN_DETAILS_MIN_INDENT)) + 3;
+				int sprite_width = std::max<int>(dx, ScaleGUITrad(TRAIN_DETAILS_MIN_INDENT)) + 3;
 				int data_left  = left + (rtl ? 0 : sprite_width);
 				int data_right = right - (rtl ? sprite_width : 0);
 				if (vscroll_pos <= 0 && vscroll_pos > -vscroll_cap) {
@@ -465,7 +470,7 @@ void DrawTrainDetails(const Train *v, int left, int right, int y, int vscroll_po
 				SetDParam(2, i);            // {SHORTCARGO} #1
 				SetDParam(3, max_cargo[i]); // {SHORTCARGO} #2
 				SetDParam(4, _settings_game.vehicle.freight_trains);
-				DrawString(left, right, y + text_y_offset, FreightWagonMult(i) > 1 ? STR_VEHICLE_DETAILS_TRAIN_TOTAL_CAPACITY_MULT : STR_VEHICLE_DETAILS_TRAIN_TOTAL_CAPACITY);
+				DrawString(left + offs_left, right - offs_right, y + text_y_offset, FreightWagonMult(i) > 1 ? STR_VEHICLE_DETAILS_TRAIN_TOTAL_CAPACITY_MULT : STR_VEHICLE_DETAILS_TRAIN_TOTAL_CAPACITY);
 				y += line_height;
 			}
 		}

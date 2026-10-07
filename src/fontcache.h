@@ -28,6 +28,9 @@ protected:
 	int ascender;                     ///< The ascender value of the font.
 	int descender;                    ///< The descender value of the font.
 	int units_per_em;                 ///< The units per EM value of the font.
+
+	static int GetDefaultFontHeight(FontSize fs);
+
 public:
 	FontCache(FontSize fs);
 	virtual ~FontCache();
@@ -42,7 +45,7 @@ public:
 	 * Get the height of the font.
 	 * @return The height of the font.
 	 */
-	virtual int GetHeight() const { return this->height; }
+	inline int GetHeight() const { return this->height; }
 
 	/**
 	 * Get the ascender value of the font.
@@ -67,13 +70,6 @@ public:
 	 * @return The nominal font size.
 	 */
 	virtual int GetFontSize() const { return this->height; }
-
-	/**
-	 * Get the SpriteID mapped to the given key
-	 * @param key The key to get the sprite for.
-	 * @return The sprite.
-	 */
-	virtual SpriteID GetUnicodeGlyph(WChar key) = 0;
 
 	/**
 	 * Map a SpriteID to the key
@@ -127,7 +123,7 @@ public:
 	 * Get the native OS font handle, if there is one.
 	 * @return Opaque OS font handle.
 	 */
-	virtual void *GetOSHandle()
+	virtual const void *GetOSHandle()
 	{
 		return nullptr;
 	}
@@ -162,12 +158,6 @@ public:
 	 */
 	virtual bool IsBuiltInFont() = 0;
 };
-
-/** Get the SpriteID mapped to the given font size and key */
-static inline SpriteID GetUnicodeGlyph(FontSize size, WChar key)
-{
-	return FontCache::Get(size)->GetUnicodeGlyph(key);
-}
 
 /** Map a SpriteID to the font size and key */
 static inline void SetUnicodeGlyph(FontSize size, WChar key, SpriteID sprite)
@@ -209,30 +199,29 @@ static inline bool GetDrawGlyphShadow(FontSize size)
 	return FontCache::Get(size)->GetDrawGlyphShadow();
 }
 
-#if defined(WITH_FREETYPE) || defined(_WIN32)
+/** Settings for a single font. */
+struct FontCacheSubSetting {
+	std::string font; ///< The name of the font, or path to the font.
+	uint size;        ///< The (requested) size of the font.
+	bool aa;          ///< Whether to do anti aliasing or not.
 
-/** Settings for a single freetype font. */
-struct FreeTypeSubSetting {
-	char font[MAX_PATH]; ///< The name of the font, or path to the font.
-	uint size;           ///< The (requested) size of the font.
-	bool aa;             ///< Whether to do anti aliasing or not.
-
-	const void *os_handle = nullptr; ///< Optional native OS font info.
+	const void *os_handle = nullptr; ///< Optional native OS font info. Only valid during font search.
 };
 
-/** Settings for the freetype fonts. */
-struct FreeTypeSettings {
-	FreeTypeSubSetting small;  ///< The smallest font; mostly used for zoomed out view.
-	FreeTypeSubSetting medium; ///< The normal font size.
-	FreeTypeSubSetting large;  ///< The largest font; mostly used for newspapers.
-	FreeTypeSubSetting mono;   ///< The mono space font used for license/readme viewers.
+/** Settings for the four different fonts. */
+struct FontCacheSettings {
+	FontCacheSubSetting small;  ///< The smallest font; mostly used for zoomed out view.
+	FontCacheSubSetting medium; ///< The normal font size.
+	FontCacheSubSetting large;  ///< The largest font; mostly used for newspapers.
+	FontCacheSubSetting mono;   ///< The mono space font used for license/readme viewers.
 };
 
-extern FreeTypeSettings _freetype;
+extern FontCacheSettings _fcsettings;
 
-#endif /* defined(WITH_FREETYPE) || defined(_WIN32) */
+void InitFontCache(bool monospace);
+void UninitFontCache();
+bool HasAntialiasedFonts();
 
-void InitFreeType(bool monospace);
-void UninitFreeType();
+bool GetFontAAState(FontSize size, bool check_blitter = true);
 
 #endif /* FONTCACHE_H */

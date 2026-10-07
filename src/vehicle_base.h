@@ -22,8 +22,12 @@
 #include "group_type.h"
 #include "base_consist.h"
 #include "network/network.h"
+#include "saveload/saveload.h"
 #include <list>
 #include <map>
+
+const uint TILE_AXIAL_DISTANCE = 192;  // Logical length of the tile in any DiagDirection used in vehicle movement.
+const uint TILE_CORNER_DISTANCE = 128;  // Logical length of the tile corner crossing in any non-diagonal direction used in vehicle movement.
 
 /** Vehicle status bits in #Vehicle::vehstatus. */
 enum VehStatus {
@@ -126,7 +130,7 @@ struct VehicleCache {
 
 /** Sprite sequence for a vehicle part. */
 struct VehicleSpriteSeq {
-	PalSpriteID seq[4];
+	PalSpriteID seq[8];
 	uint count;
 
 	bool operator==(const VehicleSpriteSeq &other) const
@@ -181,14 +185,24 @@ struct VehicleSpriteSeq {
 	void Draw(int x, int y, PaletteID default_pal, bool force_pal) const;
 };
 
+/**
+ * Cache for vehicle sprites and values relating to whether they should be updated before drawing,
+ * or calculating the viewport.
+ */
+struct MutableSpriteCache {
+	Direction last_direction;     ///< Last direction we obtained sprites for
+	bool revalidate_before_draw;  ///< We need to do a GetImage() and check bounds before drawing this sprite
+	Rect old_coord;               ///< Co-ordinates from the last valid bounding box
+	bool is_viewport_candidate;   ///< This vehicle can potentially be drawn on a viewport
+	VehicleSpriteSeq sprite_seq;  ///< Vehicle appearance.
+};
+
 /** A vehicle pool for a little over 1 million vehicles. */
 typedef Pool<Vehicle, VehicleID, 512, 0xFF000> VehiclePool;
 extern VehiclePool _vehicle_pool;
 
 /* Some declarations of functions, so we can make them friendly */
-struct SaveLoad;
 struct GroundVehicleCache;
-extern const SaveLoad *GetVehicleDescription(VehicleType vt);
 struct LoadgameState;
 extern bool LoadOldVehicle(LoadgameState *ls, int num);
 extern void FixOldVehicles();
@@ -220,10 +234,13 @@ private:
 	Vehicle *previous_shared;           ///< NOSAVE: pointer to the previous vehicle in the shared order chain
 
 public:
-	friend const SaveLoad *GetVehicleDescription(VehicleType vt); ///< So we can use private/protected variables in the saveload code
 	friend void FixOldVehicles();
 	friend void AfterLoadVehicles(bool part_of_load);             ///< So we can set the #previous and #first pointers while loading
 	friend bool LoadOldVehicle(LoadgameState *ls, int num);       ///< So we can set the proper next pointer while loading
+	/* So we can use private/protected variables in the saveload code */
+	friend class SlVehicleCommon;
+	friend class SlVehicleDisaster;
+	friend void Ptrs_VEHS();
 
 	TileIndex tile;                     ///< Current tile index
 
@@ -240,7 +257,7 @@ public:
 
 	CargoPayment *cargo_payment;        ///< The cargo payment we're currently in
 
-	Rect coord;                         ///< NOSAVE: Graphical bounding box of the vehicle, i.e. what to redraw on moves.
+	mutable Rect coord;                 ///< NOSAVE: Graphical bounding box of the vehicle, i.e. what to redraw on moves.
 
 	Vehicle *hash_viewport_next;        ///< NOSAVE: Next vehicle in the visual location hash.
 	Vehicle **hash_viewport_prev;       ///< NOSAVE: Previous vehicle in the visual location hash.
@@ -275,7 +292,6 @@ public:
 	 * 0xff == reserved for another custom sprite
 	 */
 	byte spritenum;
-	VehicleSpriteSeq sprite_seq;        ///< Vehicle appearance.
 	byte x_extent;                      ///< x-extent of vehicle bounding box
 	byte y_extent;                      ///< y-extent of vehicle bounding box
 	byte z_extent;                      ///< z-extent of vehicle bounding box
@@ -316,9 +332,9 @@ public:
 	Order current_order;                ///< The current order (+ status, like: loading)
 
 	union {
-		OrderList *list;            ///< Pointer to the order list for this vehicle
-		Order     *old;             ///< Only used during conversion of old save games
-	} orders;                           ///< The orders currently assigned to the vehicle.
+		OrderList *orders;              ///< Pointer to the order list for this vehicle
+		Order *old_orders;              ///< Only used during conversion of old save games
+	};
 
 	uint16 load_unload_ticks;           ///< Ticks to wait before starting next cycle.
 	GroupID group_id;                   ///< Index of group Pool array
@@ -326,6 +342,8 @@ public:
 
 	NewGRFCache grf_cache;              ///< Cache of often used calculated NewGRF values
 	VehicleCache vcache;                ///< Cache of often used vehicle values.
+
+	mutable MutableSpriteCache sprite_cache; ///< Cache of sprites and values related to recalculating them, see #MutableSpriteCache
 
 	Vehicle(VehicleType type = VEH_INVALID);
 
@@ -411,7 +429,7 @@ public:
 	 */
 	inline uint GetAdvanceDistance()
 	{
-		return (this->direction & 1) ? 192 : 256;
+		return (this->direction & 1) ? TILE_AXIAL_DISTANCE : TILE_CORNER_DISTANCE * 2;
 	}
 
 	/**
@@ -529,6 +547,8 @@ public:
 	 * Calls the new day handler of the vehicle
 	 */
 	virtual void OnNewDay() {};
+
+	void ShiftDates(int interval);
 
 	/**
 	 * Crash the (whole) vehicle chain.
@@ -649,7 +669,7 @@ public:
 	 * Get the first order of the vehicles order list.
 	 * @return first order of order list.
 	 */
-	inline Order *GetFirstOrder() const { return (this->orders.list == nullptr) ? nullptr : this->orders.list->GetFirstOrder(); }
+	inline Order *GetFirstOrder() const { return (this->orders == nullptr) ? nullptr : this->orders->GetFirstOrder(); }
 
 	void AddToShared(Vehicle *shared_chain);
 	void RemoveFromShared();
@@ -670,25 +690,25 @@ public:
 	 * Get the first vehicle of this vehicle chain.
 	 * @return the first vehicle of the chain.
 	 */
-	inline Vehicle *FirstShared() const { return (this->orders.list == nullptr) ? this->First() : this->orders.list->GetFirstSharedVehicle(); }
+	inline Vehicle *FirstShared() const { return (this->orders == nullptr) ? this->First() : this->orders->GetFirstSharedVehicle(); }
 
 	/**
 	 * Check if we share our orders with another vehicle.
 	 * @return true if there are other vehicles sharing the same order
 	 */
-	inline bool IsOrderListShared() const { return this->orders.list != nullptr && this->orders.list->IsShared(); }
+	inline bool IsOrderListShared() const { return this->orders != nullptr && this->orders->IsShared(); }
 
 	/**
 	 * Get the number of orders this vehicle has.
 	 * @return the number of orders this vehicle has.
 	 */
-	inline VehicleOrderID GetNumOrders() const { return (this->orders.list == nullptr) ? 0 : this->orders.list->GetNumOrders(); }
+	inline VehicleOrderID GetNumOrders() const { return (this->orders == nullptr) ? 0 : this->orders->GetNumOrders(); }
 
 	/**
 	 * Get the number of manually added orders this vehicle has.
 	 * @return the number of manually added orders this vehicle has.
 	 */
-	inline VehicleOrderID GetNumManualOrders() const { return (this->orders.list == nullptr) ? 0 : this->orders.list->GetNumManualOrders(); }
+	inline VehicleOrderID GetNumManualOrders() const { return (this->orders == nullptr) ? 0 : this->orders->GetNumManualOrders(); }
 
 	/**
 	 * Get the next station the vehicle will stop at.
@@ -696,7 +716,7 @@ public:
 	 */
 	inline StationIDStack GetNextStoppingStation() const
 	{
-		return (this->orders.list == nullptr) ? INVALID_STATION : this->orders.list->GetNextStoppingStation(this);
+		return (this->orders == nullptr) ? INVALID_STATION : this->orders->GetNextStoppingStation(this);
 	}
 
 	void ResetRefitCaps();
@@ -756,8 +776,9 @@ public:
 
 	void UpdatePosition();
 	void UpdateViewport(bool dirty);
+	void UpdateBoundingBoxCoordinates(bool update_cache) const;
 	void UpdatePositionAndViewport();
-	void MarkAllViewportsDirty() const;
+	bool MarkAllViewportsDirty() const;
 
 	inline uint16 GetServiceInterval() const { return this->service_interval; }
 
@@ -857,7 +878,7 @@ public:
 	 */
 	inline Order *GetOrder(int index) const
 	{
-		return (this->orders.list == nullptr) ? nullptr : this->orders.list->GetOrderAt(index);
+		return (this->orders == nullptr) ? nullptr : this->orders->GetOrderAt(index);
 	}
 
 	/**
@@ -866,7 +887,7 @@ public:
 	 */
 	inline Order *GetLastOrder() const
 	{
-		return (this->orders.list == nullptr) ? nullptr : this->orders.list->GetLastOrder();
+		return (this->orders == nullptr) ? nullptr : this->orders->GetLastOrder();
 	}
 
 	bool IsEngineCountable() const;
@@ -1017,7 +1038,7 @@ public:
 	 * Returns an iterable ensemble of orders of a vehicle
 	 * @return an iterable ensemble of orders of a vehicle
 	 */
-	IterateWrapper Orders() const { return IterateWrapper(this->orders.list); }
+	IterateWrapper Orders() const { return IterateWrapper(this->orders); }
 };
 
 /**
@@ -1035,7 +1056,7 @@ struct SpecializedVehicle : public Vehicle {
 	 */
 	inline SpecializedVehicle<T, Type>() : Vehicle(Type)
 	{
-		this->sprite_seq.count = 1;
+		this->sprite_cache.sprite_seq.count = 1;
 	}
 
 	/**
@@ -1169,16 +1190,42 @@ struct SpecializedVehicle : public Vehicle {
 	 */
 	inline void UpdateViewport(bool force_update, bool update_delta)
 	{
+		bool sprite_has_changed = false;
+
 		/* Skip updating sprites on dedicated servers without screen */
 		if (_network_dedicated) return;
 
 		/* Explicitly choose method to call to prevent vtable dereference -
 		 * it gives ~3% runtime improvements in games with many vehicles */
 		if (update_delta) ((T *)this)->T::UpdateDeltaXY();
-		VehicleSpriteSeq seq;
-		((T *)this)->T::GetImage(this->direction, EIT_ON_MAP, &seq);
-		if (force_update || this->sprite_seq != seq) {
-			this->sprite_seq = seq;
+
+		/*
+		 * Only check for a new sprite sequence if the vehicle direction
+		 * has changed since we last checked it, assuming that otherwise
+		 * there won't be enough change in bounding box or offsets to need
+		 * to resolve a new sprite.
+		 */
+		if (this->direction != this->sprite_cache.last_direction || this->sprite_cache.is_viewport_candidate) {
+			VehicleSpriteSeq seq;
+
+			((T*)this)->T::GetImage(this->direction, EIT_ON_MAP, &seq);
+			if (this->sprite_cache.sprite_seq != seq) {
+				sprite_has_changed = true;
+				this->sprite_cache.sprite_seq = seq;
+			}
+
+			this->sprite_cache.last_direction = this->direction;
+			this->sprite_cache.revalidate_before_draw = false;
+		} else {
+			/*
+			 * A change that could potentially invalidate the sprite has been
+			 * made, signal that we should still resolve it before drawing on a
+			 * viewport.
+			 */
+			this->sprite_cache.revalidate_before_draw = true;
+		}
+
+		if (force_update || sprite_has_changed) {
 			this->Vehicle::UpdateViewport(true);
 		}
 	}

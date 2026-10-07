@@ -49,6 +49,7 @@
 #include "framerate_type.h"
 #include "guitimer_func.h"
 #include "screenshot_gui.h"
+#include "misc_cmd.h"
 
 #include "widgets/toolbar_widget.h"
 
@@ -141,7 +142,7 @@ public:
 
 	uint Height(uint width) const override
 	{
-		return max(max(this->icon_size.height, this->lock_size.height) + 2U, (uint)FONT_HEIGHT_NORMAL);
+		return std::max(std::max(this->icon_size.height, this->lock_size.height) + 2U, (uint)FONT_HEIGHT_NORMAL);
 	}
 
 	void Draw(int left, int right, int top, int bottom, bool sel, Colours bg_colour) const override
@@ -204,9 +205,8 @@ static void PopupMainToolbMenu(Window *w, int widget, StringID string, int count
 
 /** Enum for the Company Toolbar's network related buttons */
 static const int CTMN_CLIENT_LIST = -1; ///< Show the client list
-static const int CTMN_NEW_COMPANY = -2; ///< Create a new company
-static const int CTMN_SPECTATE    = -3; ///< Become spectator
-static const int CTMN_SPECTATOR   = -4; ///< Show a company window as spectator
+static const int CTMN_SPECTATE    = -2; ///< Become spectator
+static const int CTMN_SPECTATOR   = -3; ///< Show a company window as spectator
 
 /**
  * Pop up a generic company list menu.
@@ -225,13 +225,10 @@ static void PopupMainCompanyToolbMenu(Window *w, int widget, int grey = 0)
 			/* Add the client list button for the companies menu */
 			list.emplace_back(new DropDownListStringItem(STR_NETWORK_COMPANY_LIST_CLIENT_LIST, CTMN_CLIENT_LIST, false));
 
-			if (_local_company == COMPANY_SPECTATOR) {
-				list.emplace_back(new DropDownListStringItem(STR_NETWORK_COMPANY_LIST_NEW_COMPANY, CTMN_NEW_COMPANY, NetworkMaxCompaniesReached()));
-			} else {
-				list.emplace_back(new DropDownListStringItem(STR_NETWORK_COMPANY_LIST_SPECTATE, CTMN_SPECTATE, NetworkMaxSpectatorsReached()));
+			if (_local_company != COMPANY_SPECTATOR) {
+				list.emplace_back(new DropDownListStringItem(STR_NETWORK_COMPANY_LIST_SPECTATE, CTMN_SPECTATE, false));
 			}
 			break;
-
 		case WID_TN_STORY:
 			list.emplace_back(new DropDownListStringItem(STR_STORY_BOOK_SPECTATOR, CTMN_SPECTATOR, false));
 			break;
@@ -269,7 +266,7 @@ static CallBackFunction ToolbarPauseClick(Window *w)
 {
 	if (_networking && !_network_server) return CBF_NONE; // only server can pause the game
 
-	if (DoCommandP(0, PM_PAUSED_NORMAL, _pause_mode == PM_UNPAUSED, CMD_PAUSE)) {
+	if (Command<CMD_PAUSE>::Post(PM_PAUSED_NORMAL, _pause_mode == PM_UNPAUSED)) {
 		if (_settings_client.sound.confirm) SndPlayFx(SND_15_BEEP);
 	}
 	return CBF_NONE;
@@ -283,7 +280,8 @@ static CallBackFunction ToolbarPauseClick(Window *w)
  */
 static CallBackFunction ToolbarFastForwardClick(Window *w)
 {
-	_fast_forward ^= true;
+	ChangeGameSpeed(_game_speed == 100);
+
 	if (_settings_client.sound.click_beep) SndPlayFx(SND_15_BEEP);
 	return CBF_NONE;
 }
@@ -609,14 +607,6 @@ static CallBackFunction MenuClickCompany(int index)
 		switch (index) {
 			case CTMN_CLIENT_LIST:
 				ShowClientList();
-				return CBF_NONE;
-
-			case CTMN_NEW_COMPANY:
-				if (_network_server) {
-					DoCommandP(0, CCA_NEW, _network_own_client_id, CMD_COMPANY_CTRL);
-				} else {
-					NetworkSendCommand(0, CCA_NEW, 0, CMD_COMPANY_CTRL, nullptr, nullptr, _local_company);
-				}
 				return CBF_NONE;
 
 			case CTMN_SPECTATE:
@@ -1162,7 +1152,6 @@ static CallBackFunction ToolbarScenDatePanel(Window *w)
 {
 	SetDParam(0, _settings_game.game_creation.starting_year);
 	ShowQueryString(STR_JUST_INT, STR_MAPGEN_START_DATE_QUERY_CAPT, 8, w, CS_NUMERAL, QSF_ENABLE_DEFAULT);
-	_left_button_clicked = false;
 	return CBF_NONE;
 }
 
@@ -1356,10 +1345,10 @@ public:
 		/* First initialise some variables... */
 		for (NWidgetBase *child_wid = this->head; child_wid != nullptr; child_wid = child_wid->next) {
 			child_wid->SetupSmallestSize(w, init_array);
-			this->smallest_y = max(this->smallest_y, child_wid->smallest_y + child_wid->padding_top + child_wid->padding_bottom);
+			this->smallest_y = std::max(this->smallest_y, child_wid->smallest_y + child_wid->padding_top + child_wid->padding_bottom);
 			if (this->IsButton(child_wid->type)) {
 				nbuttons++;
-				this->smallest_x = max(this->smallest_x, child_wid->smallest_x + child_wid->padding_left + child_wid->padding_right);
+				this->smallest_x = std::max(this->smallest_x, child_wid->smallest_x + child_wid->padding_left + child_wid->padding_right);
 			} else if (child_wid->type == NWID_SPACER) {
 				this->spacers++;
 			}
@@ -1401,7 +1390,7 @@ public:
 
 		/* Now assign the widgets to their rightful place */
 		uint position = 0; // Place to put next child relative to origin of the container.
-		uint spacer_space = max(0, (int)given_width - (int)(button_count * this->smallest_x)); // Remaining spacing for 'spacer' widgets
+		uint spacer_space = std::max(0, (int)given_width - (int)(button_count * this->smallest_x)); // Remaining spacing for 'spacer' widgets
 		uint button_space = given_width - spacer_space; // Remaining spacing for the buttons
 		uint spacer_i = 0;
 		uint button_i = 0;
@@ -1784,7 +1773,7 @@ class NWidgetMainToolbarContainer : public NWidgetToolbarContainer {
 		};
 
 		/* If at least BIGGEST_ARRANGEMENT fit, just spread all the buttons nicely */
-		uint full_buttons = max(CeilDiv(width, this->smallest_x), SMALLEST_ARRANGEMENT);
+		uint full_buttons = std::max(CeilDiv(width, this->smallest_x), SMALLEST_ARRANGEMENT);
 		if (full_buttons > BIGGEST_ARRANGEMENT) {
 			button_count = arrangable_count = lengthof(arrange_all);
 			spacer_count = this->spacers;
@@ -1955,49 +1944,6 @@ static ToolbarButtonProc * const _toolbar_button_procs[] = {
 	ToolbarSwitchClick,
 };
 
-enum MainToolbarHotkeys {
-	MTHK_PAUSE,
-	MTHK_FASTFORWARD,
-	MTHK_SETTINGS,
-	MTHK_SAVEGAME,
-	MTHK_LOADGAME,
-	MTHK_SMALLMAP,
-	MTHK_TOWNDIRECTORY,
-	MTHK_SUBSIDIES,
-	MTHK_STATIONS,
-	MTHK_FINANCES,
-	MTHK_COMPANIES,
-	MTHK_STORY,
-	MTHK_GOAL,
-	MTHK_GRAPHS,
-	MTHK_LEAGUE,
-	MTHK_INDUSTRIES,
-	MTHK_TRAIN_LIST,
-	MTHK_ROADVEH_LIST,
-	MTHK_SHIP_LIST,
-	MTHK_AIRCRAFT_LIST,
-	MTHK_ZOOM_IN,
-	MTHK_ZOOM_OUT,
-	MTHK_BUILD_RAIL,
-	MTHK_BUILD_ROAD,
-	MTHK_BUILD_TRAM,
-	MTHK_BUILD_DOCKS,
-	MTHK_BUILD_AIRPORT,
-	MTHK_BUILD_TREES,
-	MTHK_MUSIC,
-	MTHK_LANDINFO,
-	MTHK_AI_DEBUG,
-	MTHK_SMALL_SCREENSHOT,
-	MTHK_ZOOMEDIN_SCREENSHOT,
-	MTHK_DEFAULTZOOM_SCREENSHOT,
-	MTHK_GIANT_SCREENSHOT,
-	MTHK_CHEATS,
-	MTHK_TERRAFORM,
-	MTHK_EXTRA_VIEWPORT,
-	MTHK_CLIENT_LIST,
-	MTHK_SIGN_LIST,
-};
-
 /** Main toolbar. */
 struct MainToolbarWindow : Window {
 	GUITimer timer;
@@ -2032,11 +1978,6 @@ struct MainToolbarWindow : Window {
 
 		this->SetWidgetDisabledState(WID_TN_GOAL, Goal::GetNumItems() == 0);
 		this->SetWidgetDisabledState(WID_TN_STORY, StoryPage::GetNumItems() == 0);
-
-		this->SetWidgetDisabledState(WID_TN_RAILS, !CanBuildVehicleInfrastructure(VEH_TRAIN));
-		this->SetWidgetDisabledState(WID_TN_ROADS, !CanBuildVehicleInfrastructure(VEH_ROAD, RTT_ROAD));
-		this->SetWidgetDisabledState(WID_TN_TRAMS, !CanBuildVehicleInfrastructure(VEH_ROAD, RTT_TRAM));
-		this->SetWidgetDisabledState(WID_TN_AIR, !CanBuildVehicleInfrastructure(VEH_AIRCRAFT));
 
 		this->DrawWidgets();
 	}
@@ -2078,11 +2019,11 @@ struct MainToolbarWindow : Window {
 			case MTHK_AIRCRAFT_LIST: ShowVehicleListWindow(_local_company, VEH_AIRCRAFT); break;
 			case MTHK_ZOOM_IN: ToolbarZoomInClick(this); break;
 			case MTHK_ZOOM_OUT: ToolbarZoomOutClick(this); break;
-			case MTHK_BUILD_RAIL: if (CanBuildVehicleInfrastructure(VEH_TRAIN)) ShowBuildRailToolbar(_last_built_railtype); break;
+			case MTHK_BUILD_RAIL: ShowBuildRailToolbar(_last_built_railtype); break;
 			case MTHK_BUILD_ROAD: ShowBuildRoadToolbar(_last_built_roadtype); break;
-			case MTHK_BUILD_TRAM: if (CanBuildVehicleInfrastructure(VEH_ROAD, RTT_TRAM)) ShowBuildRoadToolbar(_last_built_tramtype); break;
+			case MTHK_BUILD_TRAM: ShowBuildRoadToolbar(_last_built_tramtype); break;
 			case MTHK_BUILD_DOCKS: ShowBuildDocksToolbar(); break;
-			case MTHK_BUILD_AIRPORT: if (CanBuildVehicleInfrastructure(VEH_AIRCRAFT)) ShowBuildAirToolbar(); break;
+			case MTHK_BUILD_AIRPORT: ShowBuildAirToolbar(); break;
 			case MTHK_BUILD_TREES: ShowBuildTreesToolbar(); break;
 			case MTHK_MUSIC: ShowMusicWindow(); break;
 			case MTHK_AI_DEBUG: ShowAIDebugWindow(); break;
@@ -2132,7 +2073,7 @@ struct MainToolbarWindow : Window {
 			this->SetWidgetDirty(WID_TN_PAUSE);
 		}
 
-		if (this->IsWidgetLowered(WID_TN_FAST_FORWARD) != !!_fast_forward) {
+		if (this->IsWidgetLowered(WID_TN_FAST_FORWARD) != (_game_speed != 100)) {
 			this->ToggleWidgetLoweredState(WID_TN_FAST_FORWARD);
 			this->SetWidgetDirty(WID_TN_FAST_FORWARD);
 		}
@@ -2263,10 +2204,12 @@ static NWidgetBase *MakeMainToolbar(int *biggest_index)
 				hor->Add(new NWidgetSpacer(0, 0));
 				break;
 		}
-		hor->Add(new NWidgetLeaf(i == WID_TN_SAVE ? WWT_IMGBTN_2 : WWT_IMGBTN, COLOUR_GREY, i, toolbar_button_sprites[i], STR_TOOLBAR_TOOLTIP_PAUSE_GAME + i));
+		NWidgetLeaf *leaf = new NWidgetLeaf(i == WID_TN_SAVE ? WWT_IMGBTN_2 : WWT_IMGBTN, COLOUR_GREY, i, toolbar_button_sprites[i], STR_TOOLBAR_TOOLTIP_PAUSE_GAME + i);
+		leaf->SetMinimalSize(20, 20);
+		hor->Add(leaf);
 	}
 
-	*biggest_index = max<int>(*biggest_index, WID_TN_SWITCH_BAR);
+	*biggest_index = std::max<int>(*biggest_index, WID_TN_SWITCH_BAR);
 	return hor;
 }
 
@@ -2393,14 +2336,18 @@ struct ScenarioEditorToolbarWindow : Window {
 		this->DrawWidgets();
 	}
 
-	void DrawWidget(const Rect &r, int widget) const override
+	void SetStringParameters(int widget) const override
 	{
 		switch (widget) {
 			case WID_TE_DATE:
 				SetDParam(0, ConvertYMDToDate(_settings_game.game_creation.starting_year, 0, 1));
-				DrawString(r.left, r.right, (this->height - FONT_HEIGHT_NORMAL) / 2, STR_WHITE_DATE_LONG, TC_FROMSTRING, SA_HOR_CENTER);
 				break;
+		}
+	}
 
+	void DrawWidget(const Rect &r, int widget) const override
+	{
+		switch (widget) {
 			case WID_TE_SPACER: {
 				int height = r.bottom - r.top;
 				if (height > 2 * FONT_HEIGHT_NORMAL) {
@@ -2418,13 +2365,12 @@ struct ScenarioEditorToolbarWindow : Window {
 	{
 		switch (widget) {
 			case WID_TE_SPACER:
-				size->width = max(GetStringBoundingBox(STR_SCENEDIT_TOOLBAR_OPENTTD).width, GetStringBoundingBox(STR_SCENEDIT_TOOLBAR_SCENARIO_EDITOR).width) + WD_FRAMERECT_LEFT + WD_FRAMERECT_RIGHT;
+				size->width = std::max(GetStringBoundingBox(STR_SCENEDIT_TOOLBAR_OPENTTD).width, GetStringBoundingBox(STR_SCENEDIT_TOOLBAR_SCENARIO_EDITOR).width) + WD_FRAMERECT_LEFT + WD_FRAMERECT_RIGHT;
 				break;
 
 			case WID_TE_DATE:
 				SetDParam(0, ConvertYMDToDate(MAX_YEAR, 0, 1));
 				*size = GetStringBoundingBox(STR_WHITE_DATE_LONG);
-				size->height = max(size->height, GetSpriteSize(SPR_IMG_SAVE).height + WD_IMGBTN_TOP + WD_IMGBTN_BOTTOM);
 				break;
 		}
 	}
@@ -2513,7 +2459,7 @@ struct ScenarioEditorToolbarWindow : Window {
 			this->SetDirty();
 		}
 
-		if (this->IsWidgetLowered(WID_TE_FAST_FORWARD) != !!_fast_forward) {
+		if (this->IsWidgetLowered(WID_TE_FAST_FORWARD) != (_game_speed != 100)) {
 			this->ToggleWidgetLoweredState(WID_TE_FAST_FORWARD);
 			this->SetDirty();
 		}
@@ -2587,10 +2533,10 @@ static const NWidgetPart _nested_toolb_scen_inner_widgets[] = {
 	NWidget(WWT_PANEL, COLOUR_GREY, WID_TE_SPACER), EndContainer(),
 	NWidget(NWID_SPACER),
 	NWidget(WWT_PANEL, COLOUR_GREY, WID_TE_DATE_PANEL),
-		NWidget(NWID_HORIZONTAL), SetPIP(3, 2, 3),
-			NWidget(WWT_IMGBTN, COLOUR_GREY, WID_TE_DATE_BACKWARD), SetDataTip(SPR_ARROW_DOWN, STR_SCENEDIT_TOOLBAR_TOOLTIP_MOVE_THE_STARTING_DATE_BACKWARD),
-			NWidget(WWT_EMPTY, COLOUR_GREY, WID_TE_DATE), SetDataTip(STR_NULL, STR_SCENEDIT_TOOLBAR_TOOLTIP_SET_DATE),
-			NWidget(WWT_IMGBTN, COLOUR_GREY, WID_TE_DATE_FORWARD), SetDataTip(SPR_ARROW_UP, STR_SCENEDIT_TOOLBAR_TOOLTIP_MOVE_THE_STARTING_DATE_FORWARD),
+		NWidget(NWID_HORIZONTAL), SetPIP(2, 2, 2), SetPadding(1),
+			NWidget(WWT_IMGBTN, COLOUR_GREY, WID_TE_DATE_BACKWARD), SetDataTip(SPR_ARROW_DOWN, STR_SCENEDIT_TOOLBAR_TOOLTIP_MOVE_THE_STARTING_DATE_BACKWARD), SetFill(0, 1),
+			NWidget(WWT_TEXT, COLOUR_GREY, WID_TE_DATE), SetDataTip(STR_WHITE_DATE_LONG, STR_SCENEDIT_TOOLBAR_TOOLTIP_SET_DATE), SetAlignment(SA_CENTER), SetFill(0, 1),
+			NWidget(WWT_IMGBTN, COLOUR_GREY, WID_TE_DATE_FORWARD), SetDataTip(SPR_ARROW_UP, STR_SCENEDIT_TOOLBAR_TOOLTIP_MOVE_THE_STARTING_DATE_FORWARD), SetFill(0, 1),
 		EndContainer(),
 	EndContainer(),
 	NWidget(NWID_SPACER),
