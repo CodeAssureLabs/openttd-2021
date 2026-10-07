@@ -1,14 +1,12 @@
 add_files(
-    array.hpp
+    alternating_iterator.hpp
+    autorelease.hpp
     binaryheap.hpp
-    blob.hpp
-    countedobj.cpp
-    countedptr.hpp
     dbg_helpers.cpp
     dbg_helpers.h
-    fixedsizearray.hpp
+    endian_buffer.hpp
     getoptdata.cpp
     getoptdata.h
     hashtable.hpp
-    str.hpp
+    lrucache.hpp
 )

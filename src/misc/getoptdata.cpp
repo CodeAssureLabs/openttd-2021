@@ -21,63 +21,62 @@
  */
 int GetOptData::GetOpt()
 {
-	const OptionData *odata;
+	std::string_view s = this->cont;
+	if (s.empty()) {
+		if (this->arguments.empty()) return -1; // No arguments left -> finished.
 
-	char *s = this->cont;
-	if (s == nullptr) {
-		if (this->numleft == 0) return -1; // No arguments left -> finished.
+		s = this->arguments[0];
+		if (s[0] != '-') return -1; // No leading '-' -> not an option -> finished.
 
-		s = this->argv[0];
-		if (*s != '-') return -1; // No leading '-' -> not an option -> finished.
-
-		this->argv++;
-		this->numleft--;
+		this->arguments = this->arguments.subspan(1);
 
 		/* Is it a long option? */
-		for (odata = this->options; odata->flags != ODF_END; odata++) {
-			if (odata->longname != nullptr && !strcmp(odata->longname, s)) { // Long options always use the entire argument.
-				this->cont = nullptr;
-				goto set_optval;
+		for (auto &option : this->options) {
+			if (option.longname == s) { // Long options always use the entire argument.
+				this->cont = {};
+				return this->GetOpt(option);
 			}
 		}
 
-		s++; // Skip leading '-'.
+		s.remove_prefix(1); // Skip leading '-'.
 	}
 
 	/* Is it a short option? */
-	for (odata = this->options; odata->flags != ODF_END; odata++) {
-		if (odata->shortname != '\0' && *s == odata->shortname) {
-			this->cont = (s[1] != '\0') ? s + 1 : nullptr;
-
-set_optval: // Handle option value of *odata .
-			this->opt = nullptr;
-			switch (odata->flags) {
-				case ODF_NO_VALUE:
-					return odata->id;
-
-				case ODF_HAS_VALUE:
-				case ODF_OPTIONAL_VALUE:
-					if (this->cont != nullptr) { // Remainder of the argument is the option value.
-						this->opt = this->cont;
-						this->cont = nullptr;
-						return odata->id;
-					}
-					/* No more arguments, either return an error or a value-less option. */
-					if (this->numleft == 0) return (odata->flags == ODF_HAS_VALUE) ? -2 : odata->id;
-
-					/* Next argument looks like another option, let's not return it as option value. */
-					if (odata->flags == ODF_OPTIONAL_VALUE && this->argv[0][0] == '-') return odata->id;
-
-					this->opt = this->argv[0]; // Next argument is the option value.
-					this->argv++;
-					this->numleft--;
-					return odata->id;
-
-				default: NOT_REACHED();
-			}
+	for (auto &option : this->options) {
+		if (option.shortname != '\0' && s[0] == option.shortname) {
+			this->cont = s.substr(1);
+			return this->GetOpt(option);
 		}
 	}
 
 	return -2; // No other ways to interpret the text -> error.
+}
+
+int GetOptData::GetOpt(const OptionData &option)
+{
+	this->opt = {};
+	switch (option.type) {
+		case ODF_NO_VALUE:
+			return option.id;
+
+		case ODF_HAS_VALUE:
+		case ODF_OPTIONAL_VALUE:
+			if (!this->cont.empty()) { // Remainder of the argument is the option value.
+				this->opt = this->cont;
+				this->cont = {};
+				return option.id;
+			}
+			/* No more arguments, either return an error or a value-less option. */
+			if (this->arguments.empty()) return (option.type == ODF_HAS_VALUE) ? -2 : option.id;
+
+			/* Next argument looks like another option, let's not return it as option value. */
+			if (option.type == ODF_OPTIONAL_VALUE && this->arguments[0][0] == '-') return option.id;
+
+			this->opt = this->arguments[0]; // Next argument is the option value.
+			this->arguments = this->arguments.subspan(1);
+			return option.id;
+
+		default: NOT_REACHED();
+	}
 }
 

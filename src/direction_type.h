@@ -21,7 +21,7 @@
  * your viewport and not rotated by 45 degrees left or right to get
  * a "north" used in you games.
  */
-enum Direction : byte {
+enum Direction : uint8_t {
 	DIR_BEGIN = 0,          ///< Used to iterate
 	DIR_N   = 0,            ///< North
 	DIR_NE  = 1,            ///< Northeast
@@ -36,11 +36,12 @@ enum Direction : byte {
 };
 
 /** Allow incrementing of Direction variables */
-DECLARE_POSTFIX_INCREMENT(Direction)
+DECLARE_INCREMENT_DECREMENT_OPERATORS(Direction)
 
-/** Define basic enum properties */
-template <> struct EnumPropsT<Direction> : MakeEnumPropsT<Direction, byte, DIR_BEGIN, DIR_END, INVALID_DIR, 3> {};
+using Directions = EnumBitSet<Direction, uint8_t>;
 
+/** All possible directions. */
+static constexpr Directions DIRECTIONS_ALL{DIR_N, DIR_NE, DIR_E, DIR_SE, DIR_S, DIR_SW, DIR_W, DIR_NW};
 
 /**
  * Enumeration for the difference between two directions.
@@ -59,7 +60,7 @@ template <> struct EnumPropsT<Direction> : MakeEnumPropsT<Direction, byte, DIR_B
  *       modulo DIR_END or use the #ChangeDirDiff(DirDiff, DirDiff) function.
  * @see ChangeDirDiff(DirDiff, DirDiff)
  */
-enum DirDiff {
+enum DirDiff : uint8_t {
 	DIRDIFF_SAME    = 0,    ///< Both directions faces to the same direction
 	DIRDIFF_45RIGHT = 1,    ///< Angle of 45 degrees right
 	DIRDIFF_90RIGHT = 2,    ///< Angle of 90 degrees right
@@ -74,7 +75,7 @@ enum DirDiff {
  *
  * This enumeration is used for the 4 direction of the tile-edges.
  */
-enum DiagDirection : byte {
+enum DiagDirection : uint8_t {
 	DIAGDIR_BEGIN = 0,      ///< Used for iterations
 	DIAGDIR_NE  = 0,        ///< Northeast, upper right on your monitor
 	DIAGDIR_SE  = 1,        ///< Southeast
@@ -83,13 +84,10 @@ enum DiagDirection : byte {
 	DIAGDIR_END,            ///< Used for iterations
 	INVALID_DIAGDIR = 0xFF, ///< Flag for an invalid DiagDirection
 };
+DECLARE_INCREMENT_DECREMENT_OPERATORS(DiagDirection)
+DECLARE_ENUM_AS_ADDABLE(DiagDirection)
 
-/** Allow incrementing of DiagDirection variables */
-DECLARE_POSTFIX_INCREMENT(DiagDirection)
-
-/** Define basic enum properties */
-template <> struct EnumPropsT<DiagDirection> : MakeEnumPropsT<DiagDirection, byte, DIAGDIR_BEGIN, DIAGDIR_END, INVALID_DIAGDIR, 2> {};
-
+using DiagDirections = EnumBitSet<DiagDirection, uint8_t>;
 
 /**
  * Enumeration for the difference between to DiagDirection.
@@ -101,15 +99,17 @@ template <> struct EnumPropsT<DiagDirection> : MakeEnumPropsT<DiagDirection, byt
  *
  * @see DirDiff
  */
-enum DiagDirDiff {
+enum DiagDirDiff : uint8_t {
+	DIAGDIRDIFF_BEGIN   = 0,        ///< Used for iterations
 	DIAGDIRDIFF_SAME    = 0,        ///< Same directions
 	DIAGDIRDIFF_90RIGHT = 1,        ///< 90 degrees right
 	DIAGDIRDIFF_REVERSE = 2,        ///< Reverse directions
 	DIAGDIRDIFF_90LEFT  = 3,        ///< 90 degrees left
+	DIAGDIRDIFF_END,                ///< Used for iterations
 };
 
 /** Allow incrementing of DiagDirDiff variables */
-DECLARE_POSTFIX_INCREMENT(DiagDirDiff)
+DECLARE_INCREMENT_DECREMENT_OPERATORS(DiagDirDiff)
 
 
 /**
@@ -120,13 +120,12 @@ DECLARE_POSTFIX_INCREMENT(DiagDirDiff)
  * (and south-east edge). The Y axis must be so the one which goes
  * align the north-east edge (and south-west) edge.
  */
-enum Axis {
+enum Axis : uint8_t {
 	AXIS_X = 0,          ///< The X axis
 	AXIS_Y = 1,          ///< The y axis
 	AXIS_END,            ///< Used for iterations
 	INVALID_AXIS = 0xFF, ///< Flag for an invalid Axis
 };
-/** Helper information for extract tool. */
-template <> struct EnumPropsT<Axis> : MakeEnumPropsT<Axis, byte, AXIS_X, AXIS_END, INVALID_AXIS, 1> {};
+DECLARE_ENUM_AS_ADDABLE(Axis)
 
 #endif /* DIRECTION_TYPE_H */
