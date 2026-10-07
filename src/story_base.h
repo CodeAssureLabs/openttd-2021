@@ -2,7 +2,7 @@
  * This file is part of OpenTTD.
  * OpenTTD is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, version 2.
  * OpenTTD is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with OpenTTD. If not, see <http://www.gnu.org/licenses/>.
+ * See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with OpenTTD. If not, see <https://www.gnu.org/licenses/old-licenses/gpl-2.0>.
  */
 
 /** @file story_base.h %StoryPage base class. */
@@ -12,37 +12,35 @@
 
 #include "company_type.h"
 #include "story_type.h"
-#include "date_type.h"
+#include "strings_type.h"
+#include "timer/timer_game_calendar.h"
 #include "gfx_type.h"
 #include "vehicle_type.h"
 #include "core/pool_type.hpp"
 
-typedef Pool<StoryPageElement, StoryPageElementID, 64, 64000> StoryPageElementPool;
-typedef Pool<StoryPage, StoryPageID, 64, 64000> StoryPagePool;
+using StoryPageElementPool = Pool<StoryPageElement, StoryPageElementID, 64>;
+using StoryPagePool = Pool<StoryPage, StoryPageID, 64>;
 extern StoryPageElementPool _story_page_element_pool;
 extern StoryPagePool _story_page_pool;
-extern uint32 _story_page_element_next_sort_value;
-extern uint32 _story_page_next_sort_value;
+extern uint32_t _story_page_element_next_sort_value;
+extern uint32_t _story_page_next_sort_value;
 
 /*
  * Each story page element is one of these types.
  */
-enum StoryPageElementType : byte {
+enum StoryPageElementType : uint8_t {
 	SPET_TEXT = 0,       ///< A text element.
 	SPET_LOCATION,       ///< An element that references a tile along with a one-line text.
 	SPET_GOAL,           ///< An element that references a goal.
 	SPET_BUTTON_PUSH,    ///< A push button that triggers an immediate event.
 	SPET_BUTTON_TILE,    ///< A button that allows the player to select a tile, and triggers an event with the tile.
-	SPET_BUTTON_VEHICLE, ///< A button that allows the player to select a vehicle, and triggers an event wih the vehicle.
+	SPET_BUTTON_VEHICLE, ///< A button that allows the player to select a vehicle, and triggers an event with the vehicle.
 	SPET_END,
 	INVALID_SPET = 0xFF,
 };
 
-/** Define basic enum properties */
-template <> struct EnumPropsT<StoryPageElementType> : MakeEnumPropsT<StoryPageElementType, byte, SPET_TEXT, SPET_END, INVALID_SPET, 8> {};
-
 /** Flags available for buttons */
-enum StoryPageButtonFlags : byte {
+enum StoryPageButtonFlags : uint8_t {
 	SPBF_NONE        = 0,
 	SPBF_FLOAT_LEFT  = 1 << 0,
 	SPBF_FLOAT_RIGHT = 1 << 1,
@@ -50,7 +48,7 @@ enum StoryPageButtonFlags : byte {
 DECLARE_ENUM_AS_BIT_SET(StoryPageButtonFlags)
 
 /** Mouse cursors usable by story page buttons. */
-enum StoryPageButtonCursor : byte {
+enum StoryPageButtonCursor : uint8_t {
 	SPBC_MOUSE,
 	SPBC_ZZZ,
 	SPBC_BUOY,
@@ -110,12 +108,20 @@ enum StoryPageButtonCursor : byte {
 	INVALID_SPBC = 0xFF
 };
 
-/** Define basic enum properties */
-template <> struct EnumPropsT<StoryPageButtonCursor> : MakeEnumPropsT<StoryPageButtonCursor, byte, SPBC_MOUSE, SPBC_END, INVALID_SPBC, 8> {};
+/**
+ * Checks if a StoryPageButtonCursor value is valid.
+ *
+ * @param cursor The value to check.
+ * @return true if the given value is a valid StoryPageButtonCursor.
+ */
+inline bool IsValidStoryPageButtonCursor(StoryPageButtonCursor cursor)
+{
+	return cursor < SPBC_END;
+}
 
 /** Helper to construct packed "id" values for button-type StoryPageElement */
 struct StoryPageButtonData {
-	uint32 referenced_id;
+	uint32_t referenced_id = 0;
 
 	void SetColour(Colours button_colour);
 	void SetFlags(StoryPageButtonFlags flags);
@@ -137,49 +143,36 @@ struct StoryPageButtonData {
  * page content. Each element only contain one type of content.
  **/
 struct StoryPageElement : StoryPageElementPool::PoolItem<&_story_page_element_pool> {
-	uint32 sort_value;         ///< A number that increases for every created story page element. Used for sorting. The id of a story page element is the pool index.
-	StoryPageID page;          ///< Id of the page which the page element belongs to
-	StoryPageElementType type; ///< Type of page element
+	uint32_t sort_value = 0; ///< A number that increases for every created story page element. Used for sorting. The id of a story page element is the pool index.
+	StoryPageID page{}; ///< Id of the page which the page element belongs to
+	StoryPageElementType type{}; ///< Type of page element
 
-	uint32 referenced_id;      ///< Id of referenced object (location, goal etc.)
-	char *text;                ///< Static content text of page element
+	uint32_t referenced_id = 0; ///< Id of referenced object (location, goal etc.)
+	EncodedString text{}; ///< Static content text of page element
 
-	/**
-	 * We need an (empty) constructor so struct isn't zeroed (as C++ standard states)
-	 */
-	inline StoryPageElement() { }
+	StoryPageElement(StoryPageElementID index) : StoryPageElementPool::PoolItem<&_story_page_element_pool>(index) {}
+	StoryPageElement(StoryPageElementID index, uint32_t sort_value, StoryPageElementType type, StoryPageID page) :
+		StoryPageElementPool::PoolItem<&_story_page_element_pool>(index), sort_value(sort_value), page(page), type(type) {}
 
 	/**
 	 * (Empty) destructor has to be defined else operator delete might be called with nullptr parameter
 	 */
-	inline ~StoryPageElement() { free(this->text); }
+	~StoryPageElement() { }
 };
 
 /** Struct about stories, current and completed */
 struct StoryPage : StoryPagePool::PoolItem<&_story_page_pool> {
-	uint32 sort_value;   ///< A number that increases for every created story page. Used for sorting. The id of a story page is the pool index.
-	Date date;           ///< Date when the page was created.
-	CompanyID company;   ///< StoryPage is for a specific company; INVALID_COMPANY if it is global
+	uint32_t sort_value = 0; ///< A number that increases for every created story page. Used for sorting. The id of a story page is the pool index.
+	TimerGameCalendar::Date date{}; ///< Date when the page was created.
+	CompanyID company = CompanyID::Invalid(); ///< StoryPage is for a specific company; CompanyID::Invalid() if it is global
 
-	char *title;         ///< Title of story page
+	EncodedString title; ///< Title of story page
 
-	/**
-	 * We need an (empty) constructor so struct isn't zeroed (as C++ standard states)
-	 */
-	inline StoryPage() { }
+	StoryPage(StoryPageID index) : StoryPagePool::PoolItem<&_story_page_pool>(index) {}
+	StoryPage(StoryPageID index, uint32_t sort_value, TimerGameCalendar::Date date, CompanyID company, const EncodedString &title) :
+		StoryPagePool::PoolItem<&_story_page_pool>(index), sort_value(sort_value), date(date), company(company), title(title) {}
 
-	/**
-	 * (Empty) destructor has to be defined else operator delete might be called with nullptr parameter
-	 */
-	inline ~StoryPage()
-	{
-		if (!this->CleaningPool()) {
-			for (StoryPageElement *spe : StoryPageElement::Iterate()) {
-				if (spe->page == this->index) delete spe;
-			}
-		}
-		free(this->title);
-	}
+	~StoryPage();
 };
 
 #endif /* STORY_BASE_H */
