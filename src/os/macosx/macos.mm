@@ -12,6 +12,7 @@
 #include "../../rev.h"
 #include "macos.h"
 #include "../../string_func.h"
+#include "../../fileio_func.h"
 #include <pthread.h>
 
 #define Rect  OTTDRect
@@ -40,6 +41,10 @@ typedef struct {
 #define NSOperatingSystemVersion OTTDOperatingSystemVersion
 #endif
 
+#ifdef WITH_COCOA
+static NSAutoreleasePool *_ottd_autorelease_pool;
+#endif
+
 /**
  * Get the version of the MacOS we are running under. Code adopted
  * from http://www.cocoadev.com/index.pl?DeterminingOSVersion
@@ -66,6 +71,10 @@ void GetMacOSVersion(int *return_major, int *return_minor, int *return_bugfix)
 	}
 
 #if (MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_10)
+#ifdef __clang__
+#	pragma clang diagnostic push
+#	pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
 	SInt32 systemVersion, version_major, version_minor, version_bugfix;
 	if (Gestalt(gestaltSystemVersion, &systemVersion) == noErr) {
 		if (systemVersion >= 0x1040) {
@@ -78,26 +87,15 @@ void GetMacOSVersion(int *return_major, int *return_minor, int *return_bugfix)
 			*return_bugfix = (int)GB(systemVersion, 0, 4);
 		}
 	}
+#ifdef __clang__
+#	pragma clang diagnostic pop
+#endif
 #endif
 }
 
-#ifdef WITH_SDL
+#ifdef WITH_COCOA
 
-/**
- * Show the system dialogue message (SDL on MacOSX).
- *
- * @param title Window title.
- * @param message Message text.
- * @param buttonLabel Button text.
- */
-void ShowMacDialog(const char *title, const char *message, const char *buttonLabel)
-{
-	NSRunAlertPanel([ NSString stringWithUTF8String:title ], [ NSString stringWithUTF8String:message ], [ NSString stringWithUTF8String:buttonLabel ], nil, nil);
-}
-
-#elif defined WITH_COCOA
-
-extern void CocoaDialog(const char *title, const char *message, const char *buttonLabel);
+extern void CocoaDialog(std::string_view title, std::string_view message, std::string_view buttonLabel);
 
 /**
  * Show the system dialogue message (Cocoa on MacOSX).
@@ -106,7 +104,7 @@ extern void CocoaDialog(const char *title, const char *message, const char *butt
  * @param message Message text.
  * @param buttonLabel Button text.
  */
-void ShowMacDialog(const char *title, const char *message, const char *buttonLabel)
+void ShowMacDialog(std::string_view title, std::string_view message, std::string_view buttonLabel)
 {
 	CocoaDialog(title, message, buttonLabel);
 }
@@ -121,9 +119,9 @@ void ShowMacDialog(const char *title, const char *message, const char *buttonLab
  * @param message Message text.
  * @param buttonLabel Button text.
  */
-void ShowMacDialog(const char *title, const char *message, const char *buttonLabel)
+void ShowMacDialog(std::string_view title, std::string_view message, std::string_view buttonLabel)
 {
-	fprintf(stderr, "%s: %s\n", title, message);
+	fmt::print(stderr, "{}: {}\n", title, message);
 }
 
 #endif
@@ -135,7 +133,7 @@ void ShowMacDialog(const char *title, const char *message, const char *buttonLab
  * @param buf error message text.
  * @param system message text originates from OS.
  */
-void ShowOSErrorBox(const char *buf, bool system)
+void ShowOSErrorBox(std::string_view buf, bool system)
 {
 	/* Display the error in the best way possible. */
 	if (system) {
@@ -145,9 +143,9 @@ void ShowOSErrorBox(const char *buf, bool system)
 	}
 }
 
-void OSOpenBrowser(const char *url)
+void OSOpenBrowser(const std::string &url)
 {
-	[ [ NSWorkspace sharedWorkspace ] openURL:[ NSURL URLWithString:[ NSString stringWithUTF8String:url ] ] ];
+	[ [ NSWorkspace sharedWorkspace ] openURL:[ NSURL URLWithString:[ NSString stringWithUTF8String:url.c_str() ] ] ];
 }
 
 /**
@@ -171,26 +169,61 @@ const char *GetCurrentLocale(const char *)
 /**
  * Return the contents of the clipboard (COCOA).
  *
- * @param buffer Clipboard content.
- * @param last The pointer to the last element of the destination buffer
- * @return Whether clipboard is empty or not.
+ * @return The (optional) clipboard contents.
  */
-bool GetClipboardContents(char *buffer, const char *last)
+std::optional<std::string> GetClipboardContents()
 {
 	NSPasteboard *pb = [ NSPasteboard generalPasteboard ];
-	NSArray *types = [ NSArray arrayWithObject:NSStringPboardType ];
+	NSArray *types = [ NSArray arrayWithObject:NSPasteboardTypeString ];
 	NSString *bestType = [ pb availableTypeFromArray:types ];
 
 	/* Clipboard has no text data available. */
-	if (bestType == nil) return false;
+	if (bestType == nil) return std::nullopt;
 
-	NSString *string = [ pb stringForType:NSStringPboardType ];
-	if (string == nil || [ string length ] == 0) return false;
+	NSString *string = [ pb stringForType:NSPasteboardTypeString ];
+	if (string == nil || [ string length ] == 0) return std::nullopt;
 
-	strecpy(buffer, [ string UTF8String ], last);
-
-	return true;
+	return [ string UTF8String ];
 }
+
+/** Set the application's bundle directory.
+ *
+ * This is needed since OS X application bundles do not have a
+ * current directory and the data files are 'somewhere' in the bundle.
+ */
+void CocoaSetApplicationBundleDir()
+{
+	extern std::array<std::string, NUM_SEARCHPATHS> _searchpaths;
+
+	char tmp[MAXPATHLEN];
+	CFAutoRelease<CFURLRef> url(CFBundleCopyResourcesDirectoryURL(CFBundleGetMainBundle()));
+	if (CFURLGetFileSystemRepresentation(url.get(), true, (unsigned char *)tmp, MAXPATHLEN)) {
+		_searchpaths[SP_APPLICATION_BUNDLE_DIR] = tmp;
+		AppendPathSeparator(_searchpaths[SP_APPLICATION_BUNDLE_DIR]);
+	} else {
+		_searchpaths[SP_APPLICATION_BUNDLE_DIR].clear();
+	}
+}
+
+/**
+ * Setup autorelease for the application pool.
+ *
+ * These are called from main() to prevent a _NSAutoreleaseNoPool error when
+ * exiting before the cocoa video driver has been loaded
+ */
+void CocoaSetupAutoreleasePool()
+{
+	_ottd_autorelease_pool = [ [ NSAutoreleasePool alloc ] init ];
+}
+
+/**
+ * Autorelease the application pool.
+ */
+void CocoaReleaseAutoreleasePool()
+{
+	[ _ottd_autorelease_pool release ];
+}
+
 #endif
 
 /**
@@ -219,4 +252,9 @@ void MacOSSetThreadName(const char *name)
 	if (cur != nil && [ cur respondsToSelector:@selector(setName:) ]) {
 		[ cur performSelector:@selector(setName:) withObject:[ NSString stringWithUTF8String:name ] ];
 	}
+}
+
+uint64_t MacOSGetPhysicalMemory()
+{
+	return [ [ NSProcessInfo processInfo ] physicalMemory ];
 }

@@ -14,22 +14,24 @@
 #include "object_type.h"
 #include "tilearea_type.h"
 #include "town_type.h"
-#include "date_type.h"
+#include "timer/timer_game_calendar.h"
 
-typedef Pool<Object, ObjectID, 64, 0xFF0000> ObjectPool;
+using ObjectPool = Pool<Object, ObjectID, 64>;
 extern ObjectPool _object_pool;
 
 /** An object, such as transmitter, on the map. */
 struct Object : ObjectPool::PoolItem<&_object_pool> {
-	ObjectType type;    ///< Type of the object
-	Town *town;         ///< Town the object is built in
-	TileArea location;  ///< Location of the object
-	Date build_date;    ///< Date of construction
-	byte colour;        ///< Colour of the object, for display purpose
-	byte view;          ///< The view setting for this object
+	ObjectType type = INVALID_OBJECT_TYPE; ///< Type of the object
+	Town *town = nullptr; ///< Town the object is built in
+	TileArea location{INVALID_TILE, 0, 0}; ///< Location of the object
+	TimerGameCalendar::Date build_date{}; ///< Date of construction
+	uint8_t colour = 0; ///< Colour of the object, for display purpose
+	uint8_t view = 0; ///< The view setting for this object
 
 	/** Make sure the object isn't zeroed. */
 	Object() {}
+	Object(ObjectType type, Town *town, TileArea location, TimerGameCalendar::Date build_date, uint8_t view) :
+		type(type), town(town), location(location), build_date(build_date), view(view) {}
 	/** Make sure the right destructor is called as well! */
 	~Object() {}
 
@@ -62,7 +64,7 @@ struct Object : ObjectPool::PoolItem<&_object_pool> {
 	 * @param type ObjectType to query
 	 * @pre type < NUM_OBJECTS
 	 */
-	static inline uint16 GetTypeCount(ObjectType type)
+	static inline uint16_t GetTypeCount(ObjectType type)
 	{
 		assert(type < NUM_OBJECTS);
 		return counts[type];
@@ -75,7 +77,7 @@ struct Object : ObjectPool::PoolItem<&_object_pool> {
 	}
 
 protected:
-	static uint16 counts[NUM_OBJECTS]; ///< Number of objects per type ingame
+	static uint16_t counts[NUM_OBJECTS]; ///< Number of objects per type ingame
 };
 
 /**

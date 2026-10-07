@@ -32,8 +32,9 @@ public:
 	/**
 	 * Get the currently active instance of the sound driver.
 	 */
-	static SoundDriver *GetInstance() {
-		return static_cast<SoundDriver*>(*DriverFactoryBase::GetActiveDriver(Driver::DT_SOUND));
+	static SoundDriver *GetInstance()
+	{
+		return static_cast<SoundDriver *>(DriverFactoryBase::GetActiveDriver(Driver::DT_SOUND).get());
 	}
 };
 
