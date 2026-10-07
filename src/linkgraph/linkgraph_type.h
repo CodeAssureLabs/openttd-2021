@@ -10,16 +10,15 @@
 #ifndef LINKGRAPH_TYPE_H
 #define LINKGRAPH_TYPE_H
 
-typedef uint16 LinkGraphID;
-static const LinkGraphID INVALID_LINK_GRAPH = UINT16_MAX;
+#include "../core/pool_type.hpp"
 
-typedef uint16 LinkGraphJobID;
-static const LinkGraphID INVALID_LINK_GRAPH_JOB = UINT16_MAX;
+using LinkGraphID = PoolID<uint16_t, struct LinkGraphIDTag, 0xFFFF, 0xFFFF>;
+using LinkGraphJobID = PoolID<uint16_t, struct LinkGraphJobIDTag, 0xFFFF, 0xFFFF>;
 
-typedef uint16 NodeID;
+typedef uint16_t NodeID;
 static const NodeID INVALID_NODE = UINT16_MAX;
 
-enum DistributionType : byte {
+enum DistributionType : uint8_t {
 	DT_BEGIN = 0,
 	DT_MIN = 0,
 	DT_MANUAL = 0,           ///< Manual distribution. No link graph calculations are run.
@@ -30,11 +29,6 @@ enum DistributionType : byte {
 	DT_NUM = 3,
 	DT_END = 3
 };
-
-/* It needs to be 8bits, because we save and load it as such
- * Define basic enum properties
- */
-template <> struct EnumPropsT<DistributionType> : MakeEnumPropsT<DistributionType, byte, DT_BEGIN, DT_END, DT_NUM> {};
 
 /**
  * Special modes for updating links. 'Restricted' means that vehicles with
@@ -49,7 +43,7 @@ template <> struct EnumPropsT<DistributionType> : MakeEnumPropsT<DistributionTyp
  * Refreshing a link makes just sure a minimum capacity is kept. Increasing
  * actually adds the given capacity.
  */
-enum EdgeUpdateMode {
+enum EdgeUpdateMode : uint8_t {
 	EUM_INCREASE     = 1,      ///< Increase capacity.
 	EUM_REFRESH      = 1 << 1, ///< Refresh capacity.
 	EUM_RESTRICTED   = 1 << 2, ///< Use restricted link.

@@ -10,12 +10,10 @@
 #ifndef SCREENSHOT_H
 #define SCREENSHOT_H
 
-void InitializeScreenshotFormats();
-
-const char *GetCurrentScreenshotExtension();
+std::string_view GetCurrentScreenshotExtension();
 
 /** Type of requested screenshot */
-enum ScreenshotType {
+enum ScreenshotType : uint8_t {
 	SC_VIEWPORT,    ///< Screenshot of viewport.
 	SC_CRASHLOG,    ///< Raw screenshot from blitter buffer.
 	SC_ZOOMEDIN,    ///< Fully zoomed in screenshot of the visible area.
@@ -25,15 +23,13 @@ enum ScreenshotType {
 	SC_MINIMAP,     ///< Minimap screenshot.
 };
 
-void SetupScreenshotViewport(ScreenshotType t, struct Viewport *vp);
+void SetupScreenshotViewport(ScreenshotType t, struct Viewport *vp, uint32_t width = 0, uint32_t height = 0);
 bool MakeHeightmapScreenshot(const char *filename);
 void MakeScreenshotWithConfirm(ScreenshotType t);
-bool MakeScreenshot(ScreenshotType t, const char *name);
+bool MakeScreenshot(ScreenshotType t, std::string name, uint32_t width = 0, uint32_t height = 0);
 bool MakeMinimapWorldScreenshot();
 
-extern char _screenshot_format_name[8];
-extern uint _num_screenshot_formats;
-extern uint _cur_screenshot_format;
-extern char _full_screenshot_name[MAX_PATH];
+extern std::string _screenshot_format_name;
+extern std::string _full_screenshot_path;
 
 #endif /* SCREENSHOT_H */

@@ -14,27 +14,30 @@
 #include "goal_type.h"
 #include "core/pool_type.hpp"
 
-typedef Pool<Goal, GoalID, 64, 64000> GoalPool;
+using GoalPool = Pool<Goal, GoalID, 64>;
 extern GoalPool _goal_pool;
 
 /** Struct about goals, current and completed */
 struct Goal : GoalPool::PoolItem<&_goal_pool> {
-	CompanyID company; ///< Goal is for a specific company; INVALID_COMPANY if it is global
-	GoalType type;     ///< Type of the goal
-	GoalTypeID dst;    ///< Index of type
-	char *text;        ///< Text of the goal.
-	char *progress;    ///< Progress text of the goal.
-	bool completed;    ///< Is the goal completed or not?
+	CompanyID company = CompanyID::Invalid(); ///< Goal is for a specific company; CompanyID::Invalid() if it is global
+	GoalType type = GT_NONE; ///< Type of the goal
+	GoalTypeID dst = 0; ///< Index of type
+	std::string text{}; ///< Text of the goal.
+	std::string progress{}; ///< Progress text of the goal.
+	bool completed = false; ///< Is the goal completed or not?
 
 	/**
 	 * We need an (empty) constructor so struct isn't zeroed (as C++ standard states)
 	 */
-	inline Goal() { }
+	Goal() { }
+	Goal(GoalType type, GoalTypeID dst, CompanyID company, const std::string &text) : company(company), type(type), dst(dst), text(text) {}
 
 	/**
 	 * (Empty) destructor has to be defined else operator delete might be called with nullptr parameter
 	 */
-	inline ~Goal() { free(this->text); free(this->progress); }
+	~Goal() { }
+
+	static bool IsValidGoalDestination(CompanyID company, GoalType type, GoalTypeID dest);
 };
 
 #endif /* GOAL_BASE_H */

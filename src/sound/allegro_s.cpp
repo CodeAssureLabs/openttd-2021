@@ -37,7 +37,7 @@ void SoundDriver_Allegro::MainLoop()
 	MxMixSamples(data, _buffer_size);
 
 	/* Allegro sound is always unsigned, so we need to correct that */
-	uint16 *snd = (uint16*)data;
+	uint16_t *snd = (uint16_t*)data;
 	for (int i = 0; i < _buffer_size * 2; i++) snd[i] ^= 0x8000;
 
 	/* Tell we've filled the stream */
@@ -50,23 +50,23 @@ void SoundDriver_Allegro::MainLoop()
  */
 extern int _allegro_instance_count;
 
-const char *SoundDriver_Allegro::Start(const StringList &parm)
+std::optional<std::string_view> SoundDriver_Allegro::Start(const StringList &parm)
 {
 	if (_allegro_instance_count == 0 && install_allegro(SYSTEM_AUTODETECT, &errno, nullptr)) {
-		DEBUG(driver, 0, "allegro: install_allegro failed '%s'", allegro_error);
+		Debug(driver, 0, "allegro: install_allegro failed '{}'", allegro_error);
 		return "Failed to set up Allegro";
 	}
 	_allegro_instance_count++;
 
 	/* Initialise the sound */
 	if (install_sound(DIGI_AUTODETECT, MIDI_AUTODETECT, nullptr) != 0) {
-		DEBUG(driver, 0, "allegro: install_sound failed '%s'", allegro_error);
+		Debug(driver, 0, "allegro: install_sound failed '{}'", allegro_error);
 		return "Failed to set up Allegro sound";
 	}
 
 	/* Okay, there's no soundcard */
 	if (digi_card == DIGI_NONE) {
-		DEBUG(driver, 0, "allegro: no sound card found");
+		Debug(driver, 0, "allegro: no sound card found");
 		return "No sound card found";
 	}
 
@@ -74,7 +74,7 @@ const char *SoundDriver_Allegro::Start(const StringList &parm)
 	_buffer_size = GetDriverParamInt(parm, "samples", 1024) * hz / 11025;
 	_stream = play_audio_stream(_buffer_size, 16, true, hz, 255, 128);
 	MxInitialize(hz);
-	return nullptr;
+	return std::nullopt;
 }
 
 void SoundDriver_Allegro::Stop()
