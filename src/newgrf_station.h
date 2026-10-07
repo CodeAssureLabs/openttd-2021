@@ -40,10 +40,10 @@ struct StationScopeResolver : public ScopeResolver {
 	{
 	}
 
-	uint32 GetRandomBits() const override;
-	uint32 GetTriggers() const override;
+	uint32_t GetRandomBits() const override;
+	uint32_t GetTriggers() const override;
 
-	uint32 GetVariable(byte variable, uint32 parameter, bool *available) const override;
+	uint32_t GetVariable(byte variable, uint32_t parameter, bool *available) const override;
 };
 
 /** Station resolver. */
@@ -52,7 +52,7 @@ struct StationResolverObject : public ResolverObject {
 	TownScopeResolver *town_scope;      ///< The town scope resolver (created on the first call).
 
 	StationResolverObject(const StationSpec *statspec, BaseStation *st, TileIndex tile,
-			CallbackID callback = CBID_NO_CALLBACK, uint32 callback_param1 = 0, uint32 callback_param2 = 0);
+			CallbackID callback = CBID_NO_CALLBACK, uint32_t callback_param1 = 0, uint32_t callback_param2 = 0);
 	~StationResolverObject();
 
 	TownScopeResolver *GetTown();
@@ -77,7 +77,7 @@ struct StationResolverObject : public ResolverObject {
 	const SpriteGroup *ResolveReal(const RealSpriteGroup *group) const override;
 
 	GrfSpecFeature GetFeature() const override;
-	uint32 GetDebugID() const override;
+	uint32_t GetDebugID() const override;
 };
 
 enum StationClassID : byte {
@@ -86,7 +86,6 @@ enum StationClassID : byte {
 	STAT_CLASS_WAYP,         ///< Waypoint class.
 	STAT_CLASS_MAX = 255,    ///< Maximum number of classes.
 };
-template <> struct EnumPropsT<StationClassID> : MakeEnumPropsT<StationClassID, byte, STAT_CLASS_BEGIN, STAT_CLASS_MAX, STAT_CLASS_MAX, 8> {};
 
 /** Allow incrementing of StationClassID variables */
 DECLARE_POSTFIX_INCREMENT(StationClassID)
@@ -109,12 +108,13 @@ enum StationRandomTrigger {
 	SRT_PATH_RESERVATION, ///< Trigger platform when train reserves path.
 };
 
-/* Station layout for given dimensions - it is a two-dimensional array
- * where index is computed as (x * platforms) + platform. */
-typedef byte *StationLayout;
-
 /** Station specification. */
 struct StationSpec {
+	StationSpec() : cls_id(STAT_CLASS_DFLT), name(0),
+		disallowed_platforms(0), disallowed_lengths(0),
+		cargo_threshold(0), cargo_triggers(0),
+		callback_mask(0), flags(0), pylons(0), wires(0), blocked(0),
+		animation({0, 0, 0, 0}) {}
 	/**
 	 * Properties related the the grf file.
 	 * NUM_CARGO real cargo plus three pseudo cargo sprite groups.
@@ -144,14 +144,13 @@ struct StationSpec {
 	 * 4-5 = platform with roof, left side
 	 * 6-7 = platform with roof, right side
 	 */
-	uint tiles;
-	NewGRFSpriteLayout *renderdata; ///< Array of tile layouts.
+	std::vector<NewGRFSpriteLayout> renderdata; ///< Array of tile layouts.
 
 	/**
 	 * Cargo threshold for choosing between little and lots of cargo
 	 * @note little/lots are equivalent to the moving/loading states for vehicles
 	 */
-	uint16 cargo_threshold;
+	uint16_t cargo_threshold;
 
 	CargoTypes cargo_triggers; ///< Bitmask of cargo types which cause trigger re-randomizing
 
@@ -165,10 +164,15 @@ struct StationSpec {
 
 	AnimationInfo animation;
 
-	byte lengths;
-	byte *platforms;
-	StationLayout **layouts;
-	bool copied_layouts;
+	/**
+	 * Custom platform layouts.
+	 * This is a 2D array containing an array of tiles.
+	 * 1st layer is platform lengths.
+	 * 2nd layer is tracks (width).
+	 * These can be sparsely populated, and the upper limit is not defined but
+	 * limited to 255.
+	 */
+	std::vector<std::vector<std::vector<byte>>> layouts;
 };
 
 /** Struct containing information relating to station classes. */
@@ -177,11 +181,11 @@ typedef NewGRFClass<StationSpec, StationClassID, STAT_CLASS_MAX> StationClass;
 const StationSpec *GetStationSpec(TileIndex t);
 
 /* Evaluate a tile's position within a station, and return the result a bitstuffed format. */
-uint32 GetPlatformInfo(Axis axis, byte tile, int platforms, int length, int x, int y, bool centred);
+uint32_t GetPlatformInfo(Axis axis, byte tile, int platforms, int length, int x, int y, bool centred);
 
-SpriteID GetCustomStationRelocation(const StationSpec *statspec, BaseStation *st, TileIndex tile, uint32 var10 = 0);
+SpriteID GetCustomStationRelocation(const StationSpec *statspec, BaseStation *st, TileIndex tile, uint32_t var10 = 0);
 SpriteID GetCustomStationFoundationRelocation(const StationSpec *statspec, BaseStation *st, TileIndex tile, uint layout, uint edge_info);
-uint16 GetStationCallback(CallbackID callback, uint32 param1, uint32 param2, const StationSpec *statspec, BaseStation *st, TileIndex tile);
+uint16_t GetStationCallback(CallbackID callback, uint32_t param1, uint32_t param2, const StationSpec *statspec, BaseStation *st, TileIndex tile);
 CommandCost PerformStationTileSlopeCheck(TileIndex north_tile, TileIndex cur_tile, const StationSpec *statspec, Axis axis, byte plat_len, byte numtracks);
 
 /* Allocate a StationSpec to a Station. This is called once per build operation. */

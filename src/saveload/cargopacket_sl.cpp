@@ -8,10 +8,12 @@
 /** @file cargopacket_sl.cpp Code handling saving and loading of cargo packets */
 
 #include "../stdafx.h"
-#include "../vehicle_base.h"
-#include "../station_base.h"
 
 #include "saveload.h"
+#include "compat/cargopacket_sl_compat.h"
+
+#include "../vehicle_base.h"
+#include "../station_base.h"
 
 #include "../safeguards.h"
 
@@ -31,8 +33,7 @@
 			const CargoPacketList *packets = v->cargo.Packets();
 			for (VehicleCargoList::ConstIterator it(packets->begin()); it != packets->end(); it++) {
 				CargoPacket *cp = *it;
-				cp->source_xy = Station::IsValidID(cp->source) ? Station::Get(cp->source)->xy : v->tile;
-				cp->loaded_at_xy = cp->source_xy;
+				cp->source_xy = Station::IsValidID(cp->first_station) ? Station::Get(cp->first_station)->xy : v->tile;
 			}
 		}
 
@@ -48,8 +49,7 @@
 				const StationCargoPacketMap *packets = ge->cargo.Packets();
 				for (StationCargoList::ConstIterator it(packets->begin()); it != packets->end(); it++) {
 					CargoPacket *cp = *it;
-					cp->source_xy = Station::IsValidID(cp->source) ? Station::Get(cp->source)->xy : st->xy;
-					cp->loaded_at_xy = cp->source_xy;
+					cp->source_xy = Station::IsValidID(cp->first_station) ? Station::Get(cp->first_station)->xy : st->xy;
 				}
 			}
 		}
@@ -58,7 +58,7 @@
 	if (IsSavegameVersionBefore(SLV_120)) {
 		/* CargoPacket's source should be either INVALID_STATION or a valid station */
 		for (CargoPacket *cp : CargoPacket::Iterate()) {
-			if (!Station::IsValidID(cp->source)) cp->source = INVALID_STATION;
+			if (!Station::IsValidID(cp->first_station)) cp->first_station = INVALID_STATION;
 		}
 	}
 
@@ -83,51 +83,53 @@
  * some of the variables itself are private.
  * @return the saveload description for CargoPackets.
  */
-const SaveLoad *GetCargoPacketDesc()
+SaveLoadTable GetCargoPacketDesc()
 {
 	static const SaveLoad _cargopacket_desc[] = {
-		     SLE_VAR(CargoPacket, source,          SLE_UINT16),
-		     SLE_VAR(CargoPacket, source_xy,       SLE_UINT32),
-		     SLE_VAR(CargoPacket, loaded_at_xy,    SLE_UINT32),
-		     SLE_VAR(CargoPacket, count,           SLE_UINT16),
-		     SLE_VAR(CargoPacket, days_in_transit, SLE_UINT8),
-		     SLE_VAR(CargoPacket, feeder_share,    SLE_INT64),
-		 SLE_CONDVAR(CargoPacket, source_type,     SLE_UINT8,  SLV_125, SL_MAX_VERSION),
-		 SLE_CONDVAR(CargoPacket, source_id,       SLE_UINT16, SLV_125, SL_MAX_VERSION),
-
-		/* Used to be paid_for, but that got changed. */
-		SLE_CONDNULL(1, SL_MIN_VERSION, SLV_121),
-
-		SLE_END()
+		SLE_VARNAME(CargoPacket, first_station, "source", SLE_UINT16),
+		SLE_VAR(CargoPacket, source_xy,       SLE_UINT32),
+		SLE_CONDVARNAME(CargoPacket, next_hop, "loaded_at_xy", SLE_FILE_U32 | SLE_VAR_U16, SL_MIN_VERSION, SLV_REMOVE_LOADED_AT_XY),
+		SLE_CONDVARNAME(CargoPacket, next_hop, "loaded_at_xy", SLE_UINT16, SLV_REMOVE_LOADED_AT_XY, SL_MAX_VERSION),
+		SLE_VAR(CargoPacket, count,           SLE_UINT16),
+		SLE_CONDVARNAME(CargoPacket, periods_in_transit, "days_in_transit", SLE_FILE_U8 | SLE_VAR_U16, SL_MIN_VERSION, SLV_MORE_CARGO_AGE),
+		SLE_CONDVARNAME(CargoPacket, periods_in_transit, "days_in_transit", SLE_UINT16, SLV_MORE_CARGO_AGE, SLV_PERIODS_IN_TRANSIT_RENAME),
+		SLE_CONDVAR(CargoPacket, periods_in_transit, SLE_UINT16, SLV_PERIODS_IN_TRANSIT_RENAME, SL_MAX_VERSION),
+		SLE_VAR(CargoPacket, feeder_share,    SLE_INT64),
+		SLE_CONDVAR(CargoPacket, source_type,     SLE_UINT8,  SLV_125, SL_MAX_VERSION),
+		SLE_CONDVAR(CargoPacket, source_id,       SLE_UINT16, SLV_125, SL_MAX_VERSION),
 	};
 	return _cargopacket_desc;
 }
 
-/**
- * Save the cargo packets.
- */
-static void Save_CAPA()
-{
-	for (CargoPacket *cp : CargoPacket::Iterate()) {
-		SlSetArrayIndex(cp->index);
-		SlObject(cp, GetCargoPacketDesc());
+struct CAPAChunkHandler : ChunkHandler {
+	CAPAChunkHandler() : ChunkHandler('CAPA', CH_TABLE) {}
+
+	void Save() const override
+	{
+		SlTableHeader(GetCargoPacketDesc());
+
+		for (CargoPacket *cp : CargoPacket::Iterate()) {
+			SlSetArrayIndex(cp->index);
+			SlObject(cp, GetCargoPacketDesc());
+		}
 	}
-}
 
-/**
- * Load the cargo packets.
- */
-static void Load_CAPA()
-{
-	int index;
+	void Load() const override
+	{
+		const std::vector<SaveLoad> slt = SlCompatTableHeader(GetCargoPacketDesc(), _cargopacket_sl_compat);
 
-	while ((index = SlIterateArray()) != -1) {
-		CargoPacket *cp = new (index) CargoPacket();
-		SlObject(cp, GetCargoPacketDesc());
+		int index;
+
+		while ((index = SlIterateArray()) != -1) {
+			CargoPacket *cp = new (index) CargoPacket();
+			SlObject(cp, slt);
+		}
 	}
-}
-
-/** Chunk handlers related to cargo packets. */
-extern const ChunkHandler _cargopacket_chunk_handlers[] = {
-	{ 'CAPA', Save_CAPA, Load_CAPA, nullptr, nullptr, CH_ARRAY | CH_LAST},
 };
+
+static const CAPAChunkHandler CAPA;
+static const ChunkHandlerRef cargopacket_chunk_handlers[] = {
+	CAPA,
+};
+
+extern const ChunkHandlerTable _cargopacket_chunk_handlers(cargopacket_chunk_handlers);
