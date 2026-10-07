@@ -103,10 +103,10 @@ void MoveWaypointsToBaseStations()
 		/* Sometimes waypoint (sign) locations became disconnected from their actual location in
 		 * the map array. If this is the case, try to locate the actual location in the map array */
 		if (!IsTileType(t, MP_RAILWAY) || GetRailTileType(t) != 2 /* RAIL_TILE_WAYPOINT */ || _m[t].m2 != wp.index) {
-			DEBUG(sl, 0, "Found waypoint tile %u with invalid position", t);
+			Debug(sl, 0, "Found waypoint tile {} with invalid position", t);
 			for (t = 0; t < MapSize(); t++) {
 				if (IsTileType(t, MP_RAILWAY) && GetRailTileType(t) == 2 /* RAIL_TILE_WAYPOINT */ && _m[t].m2 == wp.index) {
-					DEBUG(sl, 0, "Found actual waypoint position at %u", t);
+					Debug(sl, 0, "Found actual waypoint position at {}", t);
 					break;
 				}
 			}
@@ -180,8 +180,6 @@ static const SaveLoad _old_waypoint_desc[] = {
 	SLE_CONDVAR(OldWaypoint, localidx,   SLE_UINT8,                   SLV_3, SL_MAX_VERSION),
 	SLE_CONDVAR(OldWaypoint, grfid,      SLE_UINT32,                 SLV_17, SL_MAX_VERSION),
 	SLE_CONDVAR(OldWaypoint, owner,      SLE_UINT8,                 SLV_101, SL_MAX_VERSION),
-
-	SLE_END()
 };
 
 static void Load_WAYP()
@@ -226,6 +224,8 @@ static void Ptrs_WAYP()
 	}
 }
 
-extern const ChunkHandler _waypoint_chunk_handlers[] = {
-	{ 'CHKP', nullptr, Load_WAYP, Ptrs_WAYP, nullptr, CH_ARRAY | CH_LAST},
+static const ChunkHandler waypoint_chunk_handlers[] = {
+	{ 'CHKP', nullptr, Load_WAYP, Ptrs_WAYP, nullptr, CH_ARRAY },
 };
+
+extern const ChunkHandlerTable _waypoint_chunk_handlers(waypoint_chunk_handlers);
