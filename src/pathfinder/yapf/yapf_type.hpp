@@ -10,8 +10,14 @@
 #ifndef YAPF_TYPE_HPP
 #define YAPF_TYPE_HPP
 
+#include <iomanip>
+#include <sstream>
+
+#include "../../core/enum_type.hpp"
+#include "../../misc/dbg_helpers.h"
+
 /* Enum used in PfCalcCost() to see why was the segment closed. */
-enum EndSegmentReason {
+enum EndSegmentReason : uint8_t {
 	/* The following reasons can be saved into cached segment */
 	ESR_DEAD_END = 0,      ///< track ends here
 	ESR_RAIL_TYPE,         ///< the next tile has a different rail type than our tiles
@@ -34,7 +40,7 @@ enum EndSegmentReason {
 	ESR_NONE = 0xFF,          ///< no reason to end the segment here
 };
 
-enum EndSegmentReasonBits {
+enum EndSegmentReasonBits : uint16_t {
 	ESRB_NONE = 0,
 
 	ESRB_DEAD_END          = 1 << ESR_DEAD_END,
@@ -66,7 +72,7 @@ enum EndSegmentReasonBits {
 
 DECLARE_ENUM_AS_BIT_SET(EndSegmentReasonBits)
 
-inline CStrA ValueStr(EndSegmentReasonBits bits)
+inline std::string ValueStr(EndSegmentReasonBits bits)
 {
 	static const char * const end_segment_reason_names[] = {
 		"DEAD_END", "RAIL_TYPE", "INFINITE_LOOP", "SEGMENT_TOO_LONG", "CHOICE_FOLLOWS",
@@ -74,9 +80,10 @@ inline CStrA ValueStr(EndSegmentReasonBits bits)
 		"PATH_TOO_LONG", "FIRST_TWO_WAY_RED", "LOOK_AHEAD_END", "TARGET_REACHED"
 	};
 
-	CStrA out;
-	out.Format("0x%04X (%s)", bits, ComposeNameT(bits, end_segment_reason_names, "UNK", ESRB_NONE, "NONE").Data());
-	return out.Transfer();
+	std::stringstream ss;
+	ss << "0x" << std::setfill('0') << std::setw(4) << std::hex << bits; // 0x%04X
+	ss << " (" << ComposeNameT(bits, end_segment_reason_names, "UNK", ESRB_NONE, "NONE") << ")";
+	return ss.str();
 }
 
 #endif /* YAPF_TYPE_HPP */
