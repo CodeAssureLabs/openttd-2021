@@ -28,10 +28,10 @@ typedef SmallMap<NetworkAddress, SOCKET> SocketList;    ///< Type for a mapping 
  */
 class NetworkAddress {
 private:
-	char hostname[NETWORK_HOSTNAME_LENGTH]; ///< The hostname
-	int address_length;                     ///< The length of the resolved address
-	sockaddr_storage address;               ///< The resolved address
-	bool resolved;                          ///< Whether the address has been (tried to be) resolved
+	std::string hostname;     ///< The hostname
+	int address_length;       ///< The length of the resolved address
+	sockaddr_storage address; ///< The resolved address
+	bool resolved;            ///< Whether the address has been (tried to be) resolved
 
 	/**
 	 * Helper function to resolve something to a socket.
@@ -52,7 +52,6 @@ public:
 		address(address),
 		resolved(address_length != 0)
 	{
-		*this->hostname = '\0';
 	}
 
 	/**
@@ -64,7 +63,6 @@ public:
 		address_length(address_length),
 		resolved(address_length != 0)
 	{
-		*this->hostname = '\0';
 		memset(&this->address, 0, sizeof(this->address));
 		memcpy(&this->address, address, address_length);
 	}
@@ -75,24 +73,22 @@ public:
 	 * @param port the port
 	 * @param family the address family
 	 */
-	NetworkAddress(const char *hostname = "", uint16 port = 0, int family = AF_UNSPEC) :
+	NetworkAddress(std::string_view hostname = "", uint16 port = 0, int family = AF_UNSPEC) :
 		address_length(0),
 		resolved(false)
 	{
-		/* Also handle IPv6 bracket enclosed hostnames */
-		if (StrEmpty(hostname)) hostname = "";
-		if (*hostname == '[') hostname++;
-		strecpy(this->hostname, StrEmpty(hostname) ? "" : hostname, lastof(this->hostname));
-		char *tmp = strrchr(this->hostname, ']');
-		if (tmp != nullptr) *tmp = '\0';
+		if (!hostname.empty() && hostname.front() == '[' && hostname.back() == ']') {
+			hostname.remove_prefix(1);
+			hostname.remove_suffix(1);
+		}
+		this->hostname = hostname;
 
 		memset(&this->address, 0, sizeof(this->address));
 		this->address.ss_family = family;
 		this->SetPort(port);
 	}
 
-	const char *GetHostname();
-	void GetAddressAsString(char *buffer, const char *last, bool with_family = true);
+	const std::string &GetHostname();
 	std::string GetAddressAsString(bool with_family = true);
 	const sockaddr_storage *GetAddress();
 
@@ -120,7 +116,7 @@ public:
 	}
 
 	bool IsFamily(int family);
-	bool IsInNetmask(const char *netmask);
+	bool IsInNetmask(const std::string &netmask);
 
 	/**
 	 * Compare the address of this class with the address of another.
@@ -174,11 +170,11 @@ public:
 		return this->CompareTo(address) < 0;
 	}
 
-	SOCKET Connect();
 	void Listen(int socktype, SocketList *sockets);
 
 	static const char *SocketTypeAsString(int socktype);
 	static const char *AddressFamilyAsString(int family);
+	static const std::string GetPeerName(SOCKET sock);
 };
 
 #endif /* NETWORK_CORE_ADDRESS_H */

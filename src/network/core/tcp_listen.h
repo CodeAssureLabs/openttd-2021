@@ -49,22 +49,22 @@ public:
 			SetNonBlocking(s); // XXX error handling?
 
 			NetworkAddress address(sin, sin_len);
-			DEBUG(net, 1, "[%s] Client connected from %s on frame %d", Tsocket::GetName(), address.GetHostname(), _frame_counter);
+			Debug(net, 3, "[{}] Client connected from {} on frame {}", Tsocket::GetName(), address.GetHostname(), _frame_counter);
 
 			SetNoDelay(s); // XXX error handling?
 
 			/* Check if the client is banned */
 			bool banned = false;
 			for (const auto &entry : _network_ban_list) {
-				banned = address.IsInNetmask(entry.c_str());
+				banned = address.IsInNetmask(entry);
 				if (banned) {
 					Packet p(Tban_packet);
 					p.PrepareToSend();
 
-					DEBUG(net, 1, "[%s] Banned ip tried to join (%s), refused", Tsocket::GetName(), entry.c_str());
+					Debug(net, 2, "[{}] Banned ip tried to join ({}), refused", Tsocket::GetName(), entry);
 
-					if (send(s, (const char*)p.buffer, p.size, 0) < 0) {
-						DEBUG(net, 0, "send failed with error %d", GET_LAST_ERROR());
+					if (p.TransferOut<int>(send, s, 0) < 0) {
+						Debug(net, 0, "[{}] send failed: {}", Tsocket::GetName(), NetworkError::GetLast().AsString());
 					}
 					closesocket(s);
 					break;
@@ -80,8 +80,8 @@ public:
 				Packet p(Tfull_packet);
 				p.PrepareToSend();
 
-				if (send(s, (const char*)p.buffer, p.size, 0) < 0) {
-					DEBUG(net, 0, "send failed with error %d", GET_LAST_ERROR());
+				if (p.TransferOut<int>(send, s, 0) < 0) {
+					Debug(net, 0, "[{}] send failed: {}", Tsocket::GetName(), NetworkError::GetLast().AsString());
 				}
 				closesocket(s);
 
@@ -150,8 +150,8 @@ public:
 		}
 
 		if (sockets.size() == 0) {
-			DEBUG(net, 0, "[server] could not start network: could not create listening socket");
-			NetworkError(STR_NETWORK_ERROR_SERVER_START);
+			Debug(net, 0, "Could not start network: could not create listening socket");
+			ShowNetworkError(STR_NETWORK_ERROR_SERVER_START);
 			return false;
 		}
 
@@ -165,7 +165,7 @@ public:
 			closesocket(s.second);
 		}
 		sockets.clear();
-		DEBUG(net, 1, "[%s] closed listeners", Tsocket::GetName());
+		Debug(net, 5, "[{}] Closed listeners", Tsocket::GetName());
 	}
 };
 

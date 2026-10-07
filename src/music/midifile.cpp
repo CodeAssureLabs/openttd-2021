@@ -14,7 +14,6 @@
 #include "../core/endian_func.hpp"
 #include "../base_media_base.h"
 #include "midi.h"
-#include <algorithm>
 
 #include "../console_func.h"
 #include "../console_internal.h"
@@ -1110,7 +1109,7 @@ std::string MidiFile::GetSMFFile(const MusicSongInfo &song)
 static bool CmdDumpSMF(byte argc, char *argv[])
 {
 	if (argc == 0) {
-		IConsolePrint(CC_WARNING, "Write the current song to a Standard MIDI File. Usage: 'dumpsmf <filename>'");
+		IConsolePrint(CC_HELP, "Write the current song to a Standard MIDI File. Usage: 'dumpsmf <filename>'.");
 		return true;
 	}
 	if (argc != 2) {
@@ -1128,7 +1127,7 @@ static bool CmdDumpSMF(byte argc, char *argv[])
 		IConsolePrint(CC_ERROR, "Filename too long.");
 		return false;
 	}
-	IConsolePrintF(CC_INFO, "Dumping MIDI to: %s", fnbuf);
+	IConsolePrint(CC_INFO, "Dumping MIDI to '{}'.", fnbuf);
 
 	if (_midifile_instance->WriteSMF(fnbuf)) {
 		IConsolePrint(CC_INFO, "File written successfully.");
@@ -1143,7 +1142,7 @@ static void RegisterConsoleMidiCommands()
 {
 	static bool registered = false;
 	if (!registered) {
-		IConsoleCmdRegister("dumpsmf", CmdDumpSMF);
+		IConsole::CmdRegister("dumpsmf", CmdDumpSMF);
 		registered = true;
 	}
 }
