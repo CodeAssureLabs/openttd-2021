@@ -36,7 +36,6 @@ struct SQVM : public CHAINABLE_OBJ
 	};
 
 	struct CallInfo{
-		//CallInfo() { _generator._type = OT_NULL;}
 		SQInstruction *_ip;
 		SQObjectPtr *_literals;
 		SQObjectPtr _closure;
@@ -113,7 +112,7 @@ public:
 #endif
 
 #ifndef NO_GARBAGE_COLLECTOR
-	void Mark(SQCollectable **chain);
+	void EnqueueMarkObjectForChildren(SQGCMarkerQueue &queue);
 #endif
 	void Finalize();
 	void GrowCallStack() {

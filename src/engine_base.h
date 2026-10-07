@@ -15,6 +15,21 @@
 #include "core/pool_type.hpp"
 #include "newgrf_commons.h"
 
+struct WagonOverride {
+	std::vector<EngineID> engines;
+	CargoID cargo;
+	const SpriteGroup *group;
+};
+
+/** Flags used client-side in the purchase/autorenew engine list. */
+enum class EngineDisplayFlags : byte {
+	None        = 0,         ///< No flag set.
+	HasVariants = (1U << 0), ///< Set if engine has variants.
+	IsFolded    = (1U << 1), ///< Set if display of variants should be folded (hidden).
+	Shaded      = (1U << 2), ///< Set if engine should be masked.
+};
+DECLARE_ENUM_AS_BIT_SET(EngineDisplayFlags)
+
 typedef Pool<Engine, EngineID, 64, 64000> EnginePool;
 extern EnginePool _engine_pool;
 
@@ -39,6 +54,9 @@ struct Engine : EnginePool::PoolItem<&_engine_pool> {
 	uint8 original_image_index; ///< Original vehicle image index, thus the image index of the overridden vehicle
 	VehicleType type;           ///< %Vehicle type, ie #VEH_ROAD, #VEH_TRAIN, etc.
 
+	EngineDisplayFlags display_flags; ///< NOSAVE client-side-only display flags for build engine list.
+	EngineID display_last_variant;    ///< NOSAVE client-side-only last variant selected.
+
 	EngineInfo info;
 
 	union {
@@ -56,13 +74,11 @@ struct Engine : EnginePool::PoolItem<&_engine_pool> {
 	 * evaluating callbacks.
 	 */
 	GRFFilePropsBase<NUM_CARGO + 2> grf_prop;
-	uint16 overrides_count;
-	struct WagonOverride *overrides;
+	std::vector<WagonOverride> overrides;
 	uint16 list_position;
 
-	Engine();
+	Engine() {}
 	Engine(VehicleType type, EngineID base);
-	~Engine();
 	bool IsEnabled() const;
 
 	/**

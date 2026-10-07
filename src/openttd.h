@@ -10,6 +10,7 @@
 #ifndef OPENTTD_H
 #define OPENTTD_H
 
+#include <atomic>
 #include "core/enum_type.hpp"
 
 /** Mode which defines the state of the game. */
@@ -25,6 +26,7 @@ enum SwitchMode {
 	SM_NONE,
 	SM_NEWGAME,           ///< New Game --> 'Random game'.
 	SM_RESTARTGAME,       ///< Restart --> 'Random game' with current settings.
+	SM_RELOADGAME,        ///< Reload the savegame / scenario / heightmap you started the game with.
 	SM_EDITOR,            ///< Switch to scenario editor.
 	SM_LOAD_GAME,         ///< Load game, Play Scenario.
 	SM_MENU,              ///< Switch to game intro menu.
@@ -35,6 +37,7 @@ enum SwitchMode {
 	SM_START_HEIGHTMAP,   ///< Load a heightmap and start a new game from it.
 	SM_LOAD_HEIGHTMAP,    ///< Load heightmap from scenario editor.
 	SM_RESTART_HEIGHTMAP, ///< Load a heightmap and start a new game from it with current settings.
+	SM_JOIN_GAME,         ///< Join a network game.
 };
 
 /** Display Options */
@@ -50,7 +53,7 @@ enum DisplayOptions {
 
 extern GameMode _game_mode;
 extern SwitchMode _switch_mode;
-extern bool _exit_game;
+extern std::atomic<bool> _exit_game;
 extern bool _save_config;
 
 /** Modes of pausing we've got */
@@ -76,8 +79,13 @@ void AskExitGame();
 void AskExitToGameMenu();
 
 int openttd_main(int argc, char *argv[]);
+void StateGameLoop();
 void HandleExitGameRequest();
 
 void SwitchToMode(SwitchMode new_mode);
+
+bool RequestNewGRFScan(struct NewGRFScanCallback *callback = nullptr);
+
+void OpenBrowser(const char *url);
 
 #endif /* OPENTTD_H */

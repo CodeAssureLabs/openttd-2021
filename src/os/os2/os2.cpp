@@ -12,8 +12,6 @@
 #include "../../gui.h"
 #include "../../fileio_func.h"
 #include "../../fios.h"
-#include "../../openttd.h"
-#include "../../core/random_func.hpp"
 #include "../../string_func.h"
 #include "../../textbuf_gui.h"
 #include "../../thread.h"
@@ -169,16 +167,6 @@ void ShowOSErrorBox(const char *buf, bool system)
 	WinTerminate(hab);
 }
 
-int CDECL main(int argc, char *argv[])
-{
-	SetRandomSeed(time(nullptr));
-
-	/* Make sure our arguments contain only valid UTF-8 characters. */
-	for (int i = 0; i < argc; i++) ValidateString(argv[i]);
-
-	return openttd_main(argc, argv);
-}
-
 bool GetClipboardContents(char *buffer, const char *last)
 {
 /* XXX -- Currently no clipboard support implemented with GCC */
@@ -203,13 +191,10 @@ bool GetClipboardContents(char *buffer, const char *last)
 }
 
 
-const char *FS2OTTD(const char *name) {return name;}
-const char *OTTD2FS(const char *name) {return name;}
-
 void OSOpenBrowser(const char *url)
 {
 	// stub only
-	DEBUG(misc, 0, "Failed to open url: %s", url);
+	Debug(misc, 0, "Failed to open url: {}", url);
 }
 
 void SetCurrentThreadName(const char *)

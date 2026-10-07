@@ -16,6 +16,10 @@
 #include "../core/string_compare_type.hpp"
 #include "../company_type.h"
 #include "../textfile_gui.h"
+#include "script_instance.hpp"
+
+/** Maximum of 10 digits for MIN / MAX_INT32, 1 for the sign and 1 for '\0'. */
+static const int INT32_DIGITS_WITH_SIGN_AND_TERMINATION = 10 + 1 + 1;
 
 /** Bitmask of flags for Script settings. */
 enum ScriptConfigFlags {
@@ -47,8 +51,6 @@ struct ScriptConfigItem {
 
 typedef std::list<ScriptConfigItem> ScriptConfigItemList; ///< List of ScriptConfig items.
 
-extern ScriptConfigItem _start_date_config;
-
 /**
  * Script settings.
  */
@@ -63,7 +65,8 @@ public:
 		version(-1),
 		info(nullptr),
 		config_list(nullptr),
-		is_random(false)
+		is_random(false),
+		to_load_data(nullptr)
 	{}
 
 	/**
@@ -116,18 +119,18 @@ public:
 	void AnchorUnchangeableSettings();
 
 	/**
-	 * Get the value of a setting for this config. It might fallback to his
+	 * Get the value of a setting for this config. It might fallback to its
 	 *  'info' to find the default value (if not set or if not-custom difficulty
 	 *  level).
 	 * @return The (default) value of the setting, or -1 if the setting was not
 	 *  found.
 	 */
-	virtual int GetSetting(const char *name) const;
+	int GetSetting(const char *name) const;
 
 	/**
 	 * Set the value of a setting for this config.
 	 */
-	virtual void SetSetting(const char *name, int value);
+	void SetSetting(const char *name, int value);
 
 	/**
 	 * Reset all settings to their default value.
@@ -142,7 +145,7 @@ public:
 	/**
 	 * Randomize all settings the Script requested to be randomized.
 	 */
-	virtual void AddRandomDeviation();
+	void AddRandomDeviation();
 
 	/**
 	 * Is this config attached to an Script? In other words, is there a Script
@@ -169,13 +172,13 @@ public:
 	 * Convert a string which is stored in the config file or savegames to
 	 *  custom settings of this Script.
 	 */
-	void StringToSettings(const char *value);
+	void StringToSettings(const std::string &value);
 
 	/**
 	 * Convert the custom settings to a string that can be stored in the config
 	 *  file or savegames.
 	 */
-	void SettingsToString(char *string, const char *last) const;
+	std::string SettingsToString() const;
 
 	/**
 	 * Search a textfile file next to this script.
@@ -185,24 +188,22 @@ public:
 	 */
 	const char *GetTextfile(TextfileType type, CompanyID slot) const;
 
-protected:
-	const char *name;                  ///< Name of the Script
-	int version;                       ///< Version of the Script
-	class ScriptInfo *info;            ///< ScriptInfo object for related to this Script version
-	SettingValueList settings;         ///< List with all setting=>value pairs that are configure for this Script
-	ScriptConfigItemList *config_list; ///< List with all settings defined by this Script
-	bool is_random;                    ///< True if the AI in this slot was randomly chosen.
+	void SetToLoadData(ScriptInstance::ScriptData *data);
+	ScriptInstance::ScriptData *GetToLoadData();
 
-	/**
-	 * In case you have mandatory non-Script-definable config entries in your
-	 *  list, add them to this function.
-	 */
-	virtual void PushExtraConfigList() {};
+protected:
+	const char *name;                                         ///< Name of the Script
+	int version;                                              ///< Version of the Script
+	class ScriptInfo *info;                                   ///< ScriptInfo object for related to this Script version
+	SettingValueList settings;                                ///< List with all setting=>value pairs that are configure for this Script
+	ScriptConfigItemList *config_list;                        ///< List with all settings defined by this Script
+	bool is_random;                                           ///< True if the AI in this slot was randomly chosen.
+	std::unique_ptr<ScriptInstance::ScriptData> to_load_data; ///< Data to load after the Script start.
 
 	/**
 	 * Routine that clears the config list.
 	 */
-	virtual void ClearConfigList();
+	void ClearConfigList();
 
 	/**
 	 * This function should call back to the Scanner in charge of this Config,

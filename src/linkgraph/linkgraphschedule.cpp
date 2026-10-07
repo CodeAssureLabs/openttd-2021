@@ -16,6 +16,7 @@
 #include "../framerate_type.h"
 #include "../command_func.h"
 #include "../network/network.h"
+#include "../misc_cmd.h"
 
 #include "../safeguards.h"
 
@@ -173,15 +174,15 @@ void StateGameLoop_LinkGraphPauseControl()
 	if (_pause_mode & PM_PAUSED_LINK_GRAPH) {
 		/* We are paused waiting on a job, check the job every tick. */
 		if (!LinkGraphSchedule::instance.IsJoinWithUnfinishedJobDue()) {
-			DoCommandP(0, PM_PAUSED_LINK_GRAPH, 0, CMD_PAUSE);
+			Command<CMD_PAUSE>::Post(PM_PAUSED_LINK_GRAPH, false);
 		}
 	} else if (_pause_mode == PM_UNPAUSED &&
 			_date_fract == LinkGraphSchedule::SPAWN_JOIN_TICK - 2 &&
-			_date % _settings_game.linkgraph.recalc_interval == _settings_game.linkgraph.recalc_interval / 2 &&
+			_date % (_settings_game.linkgraph.recalc_interval / SECONDS_PER_DAY) == (_settings_game.linkgraph.recalc_interval / SECONDS_PER_DAY) / 2 &&
 			LinkGraphSchedule::instance.IsJoinWithUnfinishedJobDue()) {
 		/* Perform check two _date_fract ticks before we would join, to make
 		 * sure it also works in multiplayer. */
-		DoCommandP(0, PM_PAUSED_LINK_GRAPH, 1, CMD_PAUSE);
+		Command<CMD_PAUSE>::Post(PM_PAUSED_LINK_GRAPH, true);
 	}
 }
 
@@ -204,10 +205,10 @@ void AfterLoad_LinkGraphPauseControl()
 void OnTick_LinkGraph()
 {
 	if (_date_fract != LinkGraphSchedule::SPAWN_JOIN_TICK) return;
-	Date offset = _date % _settings_game.linkgraph.recalc_interval;
+	Date offset = _date % (_settings_game.linkgraph.recalc_interval / SECONDS_PER_DAY);
 	if (offset == 0) {
 		LinkGraphSchedule::instance.SpawnNext();
-	} else if (offset == _settings_game.linkgraph.recalc_interval / 2) {
+	} else if (offset == (_settings_game.linkgraph.recalc_interval / SECONDS_PER_DAY) / 2) {
 		if (!_networking || _network_server) {
 			PerformanceMeasurer::SetInactive(PFE_GL_LINKGRAPH);
 			LinkGraphSchedule::instance.JoinNext();

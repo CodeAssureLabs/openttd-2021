@@ -74,8 +74,8 @@
 	}
 
 	/* Also still print to debug window */
-	DEBUG(script, level, "[%d] [%c] %s", (uint)ScriptObject::GetRootCompany(), logc, log->lines[log->pos]);
-	InvalidateWindowData(WC_AI_DEBUG, 0, ScriptObject::GetRootCompany());
+	Debug(script, level, "[{}] [{}] {}", (uint)ScriptObject::GetRootCompany(), logc, log->lines[log->pos]);
+	InvalidateWindowData(WC_SCRIPT_DEBUG, 0, ScriptObject::GetRootCompany());
 }
 
 /* static */ void ScriptLog::FreeLogPointer()

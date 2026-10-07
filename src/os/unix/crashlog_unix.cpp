@@ -66,7 +66,7 @@ class CrashLogUnix : public CrashLog {
 				" Message: %s\n\n",
 				strsignal(this->signum),
 				this->signum,
-				message == nullptr ? "<none>" : message
+				message
 		);
 	}
 
@@ -180,4 +180,8 @@ static void CDECL HandleCrash(int signum)
 	for (const int *i = _signals_to_handle; i != endof(_signals_to_handle); i++) {
 		signal(*i, HandleCrash);
 	}
+}
+
+/* static */ void CrashLog::InitThread()
+{
 }

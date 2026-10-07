@@ -15,7 +15,7 @@
 #include "base_media_func.h"
 
 #include "safeguards.h"
-#include "fios.h"
+#include "random_access_file_type.h"
 
 
 /**
@@ -29,15 +29,15 @@ char *GetMusicCatEntryName(const char *filename, size_t entrynum)
 {
 	if (!FioCheckFileExists(filename, BASESET_DIR)) return nullptr;
 
-	FioOpenFile(CONFIG_SLOT, filename, BASESET_DIR);
-	uint32 ofs = FioReadDword();
+	RandomAccessFile file(filename, BASESET_DIR);
+	uint32 ofs = file.ReadDword();
 	size_t entry_count = ofs / 8;
 	if (entrynum < entry_count) {
-		FioSeekTo(entrynum * 8, SEEK_SET);
-		FioSeekTo(FioReadDword(), SEEK_SET);
-		byte namelen = FioReadByte();
+		file.SeekTo(entrynum * 8, SEEK_SET);
+		file.SeekTo(file.ReadDword(), SEEK_SET);
+		byte namelen = file.ReadByte();
 		char *name = MallocT<char>(namelen + 1);
-		FioReadBlock(name, namelen);
+		file.ReadBlock(name, namelen);
 		name[namelen] = '\0';
 		return name;
 	}
@@ -57,17 +57,17 @@ byte *GetMusicCatEntryData(const char *filename, size_t entrynum, size_t &entryl
 	entrylen = 0;
 	if (!FioCheckFileExists(filename, BASESET_DIR)) return nullptr;
 
-	FioOpenFile(CONFIG_SLOT, filename, BASESET_DIR);
-	uint32 ofs = FioReadDword();
+	RandomAccessFile file(filename, BASESET_DIR);
+	uint32 ofs = file.ReadDword();
 	size_t entry_count = ofs / 8;
 	if (entrynum < entry_count) {
-		FioSeekTo(entrynum * 8, SEEK_SET);
-		size_t entrypos = FioReadDword();
-		entrylen = FioReadDword();
-		FioSeekTo(entrypos, SEEK_SET);
-		FioSkipBytes(FioReadByte());
+		file.SeekTo(entrynum * 8, SEEK_SET);
+		size_t entrypos = file.ReadDword();
+		entrylen = file.ReadDword();
+		file.SeekTo(entrypos, SEEK_SET);
+		file.SkipBytes(file.ReadByte());
 		byte *data = MallocT<byte>(entrylen);
-		FioReadBlock(data, entrylen);
+		file.ReadBlock(data, entrylen);
 		return data;
 	}
 	return nullptr;
@@ -128,7 +128,6 @@ bool MusicSet::FillSetDetails(IniFile *ini, const char *path, const char *full_f
 		for (uint i = 0; i < lengthof(this->songinfo); i++) {
 			const char *filename = this->files[i].filename;
 			if (names == nullptr || StrEmpty(filename) || this->files[i].check_result == MD5File::CR_NO_FILE) {
-				this->songinfo[i].songname[0] = '\0';
 				continue;
 			}
 
@@ -141,11 +140,10 @@ bool MusicSet::FillSetDetails(IniFile *ini, const char *path, const char *full_f
 				this->songinfo[i].cat_index = atoi(item->value->c_str());
 				char *songname = GetMusicCatEntryName(filename, this->songinfo[i].cat_index);
 				if (songname == nullptr) {
-					DEBUG(grf, 0, "Base music set song missing from CAT file: %s/%d", filename, this->songinfo[i].cat_index);
-					this->songinfo[i].songname[0] = '\0';
+					Debug(grf, 0, "Base music set song missing from CAT file: {}/{}", filename, this->songinfo[i].cat_index);
 					continue;
 				}
-				strecpy(this->songinfo[i].songname, songname, lastof(this->songinfo[i].songname));
+				this->songinfo[i].songname = songname;
 				free(songname);
 			} else {
 				this->songinfo[i].filetype = MTT_STANDARDMIDI;
@@ -166,9 +164,9 @@ bool MusicSet::FillSetDetails(IniFile *ini, const char *path, const char *full_f
 
 			if (this->songinfo[i].filetype == MTT_STANDARDMIDI) {
 				if (item != nullptr && item->value.has_value() && !item->value->empty()) {
-					strecpy(this->songinfo[i].songname, item->value->c_str(), lastof(this->songinfo[i].songname));
+					this->songinfo[i].songname = item->value.value();
 				} else {
-					DEBUG(grf, 0, "Base music set song name missing: %s", filename);
+					Debug(grf, 0, "Base music set song name missing: {}", filename);
 					return false;
 				}
 			}
