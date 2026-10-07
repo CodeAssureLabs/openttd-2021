@@ -11,6 +11,7 @@
 #include "command_func.h"
 #include "group.h"
 #include "autoreplace_base.h"
+#include "core/bitmath_func.hpp"
 #include "core/pool_func.hpp"
 
 #include "safeguards.h"
@@ -64,11 +65,22 @@ void RemoveAllEngineReplacement(EngineRenewList *erl)
 EngineID EngineReplacement(EngineRenewList erl, EngineID engine, GroupID group, bool *replace_when_old)
 {
 	const EngineRenew *er = GetEngineReplacement(erl, engine, group);
-	if (er == nullptr && (group == DEFAULT_GROUP || (Group::IsValidID(group) && !Group::Get(group)->replace_protection))) {
+	if (er == nullptr && (group == DEFAULT_GROUP || (Group::IsValidID(group) && !HasFlag(Group::Get(group)->flags, GroupFlags::ReplaceProtection)))) {
 		/* We didn't find anything useful in the vehicle's own group so we will try ALL_GROUP */
 		er = GetEngineReplacement(erl, engine, ALL_GROUP);
 	}
-	if (replace_when_old != nullptr) *replace_when_old = er == nullptr ? false : er->replace_when_old;
+	if (replace_when_old != nullptr) {
+		if (er == nullptr) {
+			/* Not replacing */
+			*replace_when_old = false;
+		} else if (er->to == engine) {
+			/* When replacing with same model, only ever do it when old */
+			*replace_when_old = true;
+		} else {
+			/* Use player setting */
+			*replace_when_old = er->replace_when_old;
+		}
+	}
 	return er == nullptr ? INVALID_ENGINE : er->to;
 }
 
