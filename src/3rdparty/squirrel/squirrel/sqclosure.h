@@ -14,7 +14,7 @@ public:
 		new (nc) SQClosure(ss,func);
 		return nc;
 	}
-	void Release(){
+	void Release() override {
 		sq_delete(this,SQClosure);
 	}
 	SQClosure *Clone()
@@ -32,8 +32,8 @@ public:
 	bool Save(SQVM *v,SQUserPointer up,SQWRITEFUNC write);
 	static bool Load(SQVM *v,SQUserPointer up,SQREADFUNC read,SQObjectPtr &ret);
 #ifndef NO_GARBAGE_COLLECTOR
-	void Mark(SQCollectable **chain);
-	void Finalize(){_outervalues.resize(0); }
+	void EnqueueMarkObjectForChildren(SQGCMarkerQueue &queue) override;
+	void Finalize() override {_outervalues.resize(0); }
 #endif
 	SQObjectPtr _env;
 	SQObjectPtr _function;
@@ -45,7 +45,7 @@ struct SQGenerator : public CHAINABLE_OBJ
 {
 	enum SQGeneratorState{eRunning,eSuspended,eDead};
 private:
-	SQGenerator(SQSharedState *ss,SQClosure *closure){_closure=closure;_state=eRunning;_ci._generator=NULL;INIT_CHAIN();ADD_TO_CHAIN(&_ss(this)->_gc_chain,this);}
+	SQGenerator(SQSharedState *ss,SQClosure *closure){_closure=closure;_state=eRunning;_ci._generator=nullptr;INIT_CHAIN();ADD_TO_CHAIN(&_ss(this)->_gc_chain,this);}
 public:
 	static SQGenerator *Create(SQSharedState *ss,SQClosure *closure){
 		SQGenerator *nc=(SQGenerator*)SQ_MALLOC(sizeof(SQGenerator));
@@ -60,14 +60,14 @@ public:
 		_state=eDead;
 		_stack.resize(0);
 		_closure=_null_;}
-	void Release(){
+	void Release() override {
 		sq_delete(this,SQGenerator);
 	}
 	bool Yield(SQVM *v);
 	bool Resume(SQVM *v,SQInteger target);
 #ifndef NO_GARBAGE_COLLECTOR
-	void Mark(SQCollectable **chain);
-	void Finalize(){_stack.resize(0);_closure=_null_;}
+	void EnqueueMarkObjectForChildren(SQGCMarkerQueue &queue) override;
+	void Finalize() override {_stack.resize(0);_closure=_null_;}
 #endif
 	SQObjectPtr _closure;
 	SQObjectPtrVec _stack;
@@ -102,12 +102,12 @@ public:
 	{
 		REMOVE_FROM_CHAIN(&_ss(this)->_gc_chain,this);
 	}
-	void Release(){
+	void Release() override {
 		sq_delete(this,SQNativeClosure);
 	}
 #ifndef NO_GARBAGE_COLLECTOR
-	void Mark(SQCollectable **chain);
-	void Finalize(){_outervalues.resize(0);}
+	void EnqueueMarkObjectForChildren(SQGCMarkerQueue &queue) override;
+	void Finalize() override {_outervalues.resize(0);}
 #endif
 	SQInteger _nparamscheck;
 	SQIntVec _typecheck;
