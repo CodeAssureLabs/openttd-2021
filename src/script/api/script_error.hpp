@@ -11,7 +11,7 @@
 #define SCRIPT_ERROR_HPP
 
 #include "script_object.hpp"
-#include <map>
+#include "script_companymode.hpp"
 
 /**
  * Helper to write precondition enforcers for the script API in an abbreviated manner.
@@ -42,14 +42,50 @@
  * @param string The string that is checked.
  */
 #define EnforcePreconditionEncodedText(returnval, string)   \
-	if ((string) == nullptr) { \
-		ScriptObject::SetLastError(ScriptError::ERR_PRECONDITION_TOO_MANY_PARAMETERS); \
-		return returnval; \
-	} \
-	if (StrEmpty(string)) { \
+	if (string.empty()) { \
 		ScriptObject::SetLastError(ScriptError::ERR_PRECONDITION_FAILED); \
 		return returnval; \
 	}
+
+/**
+ * Helper to enforce the precondition that the company mode is valid.
+ * @param returnval The value to return on failure.
+ */
+#define EnforceCompanyModeValid(returnval) \
+	EnforcePreconditionCustomError(returnval, ScriptCompanyMode::IsValid(), ScriptError::ERR_PRECONDITION_INVALID_COMPANY)
+
+/**
+ * Helper to enforce the precondition that the company mode is valid.
+ */
+#define EnforceCompanyModeValid_Void() \
+	if (!ScriptCompanyMode::IsValid()) { \
+		ScriptObject::SetLastError(ScriptError::ERR_PRECONDITION_INVALID_COMPANY); \
+		return; \
+	}
+
+/**
+ * Helper to enforce the precondition that we are in a deity mode.
+ * @param returnval The value to return on failure.
+ */
+#define EnforceDeityMode(returnval) \
+	EnforcePreconditionCustomError(returnval, ScriptCompanyMode::IsDeity(), ScriptError::ERR_PRECONDITION_INVALID_COMPANY)
+
+/**
+ * Helper to enforce the precondition that the company mode is valid or that we are a deity.
+ * @param returnval The value to return on failure.
+ */
+#define EnforceDeityOrCompanyModeValid(returnval) \
+	EnforcePreconditionCustomError(returnval, ScriptCompanyMode::IsDeity() || ScriptCompanyMode::IsValid(), ScriptError::ERR_PRECONDITION_INVALID_COMPANY)
+
+/**
+ * Helper to enforce the precondition that the company mode is valid or that we are a deity.
+ */
+#define EnforceDeityOrCompanyModeValid_Void() \
+	if (!(ScriptCompanyMode::IsDeity() || ScriptCompanyMode::IsValid())) { \
+		ScriptObject::SetLastError(ScriptError::ERR_PRECONDITION_INVALID_COMPANY); \
+		return; \
+	}
+
 
 /**
  * Class that handles all error related functions.
@@ -84,6 +120,8 @@ public:
 
 	/**
 	 * All general related error messages.
+	 *
+	 * @see ScriptErrorType
 	 */
 	enum ErrorMessages {
 		/** Initial error value */
@@ -94,8 +132,6 @@ public:
 		ERR_PRECONDITION_FAILED,                      // []
 		/** A string supplied was too long */
 		ERR_PRECONDITION_STRING_TOO_LONG,             // []
-		/** A string had too many parameters */
-		ERR_PRECONDITION_TOO_MANY_PARAMETERS,         // []
 		/** The company you use is invalid */
 		ERR_PRECONDITION_INVALID_COMPANY,             // []
 		/** An error returned by a NewGRF. No possibility to get the exact error in an script readable format */
@@ -158,7 +194,7 @@ public:
 	 * Get the last error in string format (for human readability).
 	 * @return An ErrorMessage enum item, as string.
 	 */
-	static char *GetLastErrorString();
+	static std::optional<std::string> GetLastErrorString();
 
 	/**
 	 * Get the error based on the OpenTTD StringID.
@@ -182,11 +218,11 @@ public:
 	 * @param ai_error_msg The script error message representation.
 	 * @param message The string representation of this error message, used for debug purposes.
 	 */
-	static void RegisterErrorMapString(ScriptErrorType ai_error_msg, const char *message);
+	static void RegisterErrorMapString(ScriptErrorType ai_error_msg, std::string_view message);
 
 private:
-	typedef std::map<StringID, ScriptErrorType> ScriptErrorMap;           ///< The type for mapping between error (internal OpenTTD) StringID to the script error type.
-	typedef std::map<ScriptErrorType, const char *> ScriptErrorMapString; ///< The type for mapping between error type and textual representation.
+	using ScriptErrorMap = std::map<StringID, ScriptErrorType>; ///< The type for mapping between error (internal OpenTTD) StringID to the script error type.
+	using ScriptErrorMapString = std::map<ScriptErrorType, std::string_view>; ///< The type for mapping between error type and textual representation.
 
 	static ScriptErrorMap error_map;              ///< The mapping between error (internal OpenTTD) StringID to the script error type.
 	static ScriptErrorMapString error_map_string; ///< The mapping between error type and textual representation.
