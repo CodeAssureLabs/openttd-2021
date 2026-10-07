@@ -15,7 +15,7 @@
 /** The allegro video driver. */
 class VideoDriver_Allegro : public VideoDriver {
 public:
-	const char *Start(const StringList &param) override;
+	std::optional<std::string_view> Start(const StringList &param) override;
 
 	void Stop() override;
 
@@ -31,7 +31,15 @@ public:
 
 	bool ClaimMousePointer() override;
 
-	const char *GetName() const override { return "allegro"; }
+	std::vector<int> GetListOfMonitorRefreshRates() override;
+
+	std::string_view GetName() const override { return "allegro"; }
+
+protected:
+	void InputLoop() override;
+	void Paint() override;
+	void CheckPaletteAnim() override;
+	bool PollEvent() override;
 };
 
 /** Factory for the allegro video driver. */
