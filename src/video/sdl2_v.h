@@ -40,11 +40,22 @@ public:
 	void EditBoxLostFocus() override;
 
 	const char *GetName() const override { return "sdl"; }
+
+protected:
+	Dimension GetScreenSize() const override;
+	void InputLoop() override;
+	bool LockVideoBuffer() override;
+	void UnlockVideoBuffer() override;
+	void Paint() override;
+	void PaintThread() override;
+	void CheckPaletteAnim() override;
+
 private:
 	int PollEvent();
 	void LoopOnce();
 	void MainLoopCleanup();
 	bool CreateMainSurface(uint w, uint h, bool resize);
+	bool CreateMainWindow(uint w, uint h);
 
 #ifdef __EMSCRIPTEN__
 	/* Convert a constant pointer back to a non-constant pointer to a member function. */
@@ -56,12 +67,11 @@ private:
 	 */
 	bool edit_box_focused;
 
-	uint32 cur_ticks;
-	uint32 last_cur_ticks;
-	uint32 next_tick;
-
+	int startup_display;
 	std::thread draw_thread;
 	std::unique_lock<std::recursive_mutex> draw_lock;
+
+	static void PaintThreadThunk(VideoDriver_SDL *drv);
 };
 
 /** Factory for the SDL video driver. */

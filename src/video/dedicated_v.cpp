@@ -21,6 +21,7 @@
 #include "../core/random_func.hpp"
 #include "../saveload/saveload.h"
 #include "../thread.h"
+#include "../window_func.h"
 #include "dedicated_v.h"
 
 #ifdef __OS2__
@@ -135,6 +136,8 @@ static FVideoDriver_Dedicated iFVideoDriver_Dedicated;
 
 const char *VideoDriver_Dedicated::Start(const StringList &parm)
 {
+	this->UpdateAutoResolution();
+
 	int bpp = BlitterFactory::GetCurrentBlitter()->GetScreenDepth();
 	_dedicated_video_mem = (bpp == 0) ? nullptr : MallocT<byte>(_cur_resolution.width * _cur_resolution.height * (bpp / 8));
 
@@ -193,24 +196,11 @@ static bool InputWaiting()
 	return select(STDIN + 1, &readfds, nullptr, nullptr, &tv) > 0;
 }
 
-static uint32 GetTime()
-{
-	struct timeval tim;
-
-	gettimeofday(&tim, nullptr);
-	return tim.tv_usec / 1000 + tim.tv_sec * 1000;
-}
-
 #else
 
 static bool InputWaiting()
 {
 	return WaitForSingleObject(_hInputReady, 1) == WAIT_OBJECT_0;
-}
-
-static uint32 GetTime()
-{
-	return GetTickCount();
 }
 
 #endif
@@ -246,9 +236,6 @@ static void DedicatedHandleKeyInput()
 
 void VideoDriver_Dedicated::MainLoop()
 {
-	uint32 cur_ticks = GetTime();
-	uint32 next_tick = cur_ticks + MILLISECONDS_PER_TICK;
-
 	/* Signal handlers */
 #if defined(UNIX)
 	signal(SIGTERM, DedicatedSignalHandler);
@@ -288,29 +275,12 @@ void VideoDriver_Dedicated::MainLoop()
 	}
 
 	while (!_exit_game) {
-		uint32 prev_cur_ticks = cur_ticks; // to check for wrapping
 		InteractiveRandom(); // randomness
 
 		if (!_dedicated_forks) DedicatedHandleKeyInput();
 
-		cur_ticks = GetTime();
-		_realtime_tick += cur_ticks - prev_cur_ticks;
-		if (cur_ticks >= next_tick || cur_ticks < prev_cur_ticks || _ddc_fastforward) {
-			next_tick = cur_ticks + MILLISECONDS_PER_TICK;
-
-			GameLoop();
-			UpdateWindows();
-		}
-
-		/* Don't sleep when fast forwarding (for desync debugging) */
-		if (!_ddc_fastforward) {
-			/* Sleep longer on a dedicated server, if the game is paused and no clients connected.
-			 * That can allow the CPU to better use deep sleep states. */
-			if (_pause_mode != 0 && !HasClients()) {
-				CSleep(100);
-			} else {
-				CSleep(1);
-			}
-		}
+		_fast_forward = _ddc_fastforward;
+		this->Tick();
+		this->SleepTillNextTick();
 	}
 }

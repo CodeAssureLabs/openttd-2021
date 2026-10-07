@@ -298,8 +298,6 @@ STR_TOOLTIP_SORT_ORDER                                          :{BLACK}Spôsob 
 STR_TOOLTIP_SORT_CRITERIA                                       :{BLACK}Zvoľ kritérium triedenia
 STR_TOOLTIP_FILTER_CRITERIA                                     :{BLACK}Vybrať kritériá filtrovania
 STR_BUTTON_SORT_BY                                              :{BLACK}Usporiadať
-STR_BUTTON_LOCATION                                             :{BLACK}Poloha
-STR_BUTTON_RENAME                                               :{BLACK}Premenovať
 STR_BUTTON_CATCHMENT                                            :{BLACK}Pokrytie
 STR_TOOLTIP_CATCHMENT                                           :{BLACK}Prepnúť zobrazenie oblasti pokrytia
 
@@ -817,6 +815,7 @@ STR_SMALLMAP_LEGENDA_DOCK                                       :{TINY_FONT}{BLA
 STR_SMALLMAP_LEGENDA_ROUGH_LAND                                 :{TINY_FONT}{BLACK}Nerovný terén
 STR_SMALLMAP_LEGENDA_GRASS_LAND                                 :{TINY_FONT}{BLACK}Trávnatý terén
 STR_SMALLMAP_LEGENDA_BARE_LAND                                  :{TINY_FONT}{BLACK}Holý terén
+STR_SMALLMAP_LEGENDA_RAINFOREST                                 :{TINY_FONT}{BLACK}Dážďový prales
 STR_SMALLMAP_LEGENDA_FIELDS                                     :{TINY_FONT}{BLACK}Polia
 STR_SMALLMAP_LEGENDA_TREES                                      :{TINY_FONT}{BLACK}Stromy
 STR_SMALLMAP_LEGENDA_ROCKS                                      :{TINY_FONT}{BLACK}Skaly
@@ -1017,8 +1016,6 @@ STR_GAME_OPTIONS_CURRENCY_HKD                                   :Hongkongský do
 STR_GAME_OPTIONS_CURRENCY_INR                                   :Indická rupia (INR)
 ############ end of currency region
 
-STR_GAME_OPTIONS_ROAD_VEHICLES_FRAME                            :{BLACK}Cestné vozidlá
-STR_GAME_OPTIONS_ROAD_VEHICLES_DROPDOWN_TOOLTIP                 :{BLACK}Výber strany, po ktorej jazdia cestné vozidlá
 STR_GAME_OPTIONS_ROAD_VEHICLES_DROPDOWN_LEFT                    :Jazdia naľavo
 STR_GAME_OPTIONS_ROAD_VEHICLES_DROPDOWN_RIGHT                   :Jazdia napravo
 
@@ -1073,6 +1070,7 @@ STR_GAME_OPTIONS_RESOLUTION_OTHER                               :iné
 STR_GAME_OPTIONS_GUI_ZOOM_FRAME                                 :{BLACK}Veľkosť rozhrania
 STR_GAME_OPTIONS_GUI_ZOOM_DROPDOWN_TOOLTIP                      :{BLACK}Výber veľkosti prvkov rozhrania
 
+STR_GAME_OPTIONS_GUI_ZOOM_DROPDOWN_AUTO                         :(automaticky zistené)
 STR_GAME_OPTIONS_GUI_ZOOM_DROPDOWN_NORMAL                       :Normálna
 STR_GAME_OPTIONS_GUI_ZOOM_DROPDOWN_2X_ZOOM                      :Dvojnásobná veľkosť
 STR_GAME_OPTIONS_GUI_ZOOM_DROPDOWN_4X_ZOOM                      :Štvornásobná veľkosť
@@ -1080,6 +1078,7 @@ STR_GAME_OPTIONS_GUI_ZOOM_DROPDOWN_4X_ZOOM                      :Štvornásobná
 STR_GAME_OPTIONS_FONT_ZOOM                                      :{BLACK}Veľkosť písma
 STR_GAME_OPTIONS_FONT_ZOOM_DROPDOWN_TOOLTIP                     :{BLACK}Výber veľkosti písma v rozhraní
 
+STR_GAME_OPTIONS_FONT_ZOOM_DROPDOWN_AUTO                        :(automaticky zistené)
 STR_GAME_OPTIONS_FONT_ZOOM_DROPDOWN_NORMAL                      :Normálna
 STR_GAME_OPTIONS_FONT_ZOOM_DROPDOWN_2X_ZOOM                     :Dvojnásobná veľkosť
 STR_GAME_OPTIONS_FONT_ZOOM_DROPDOWN_4X_ZOOM                     :Štvornásobná veľkosť
@@ -1519,6 +1518,8 @@ STR_CONFIG_SETTING_PERSISTENT_BUILDINGTOOLS                     :Zachovať stave
 STR_CONFIG_SETTING_PERSISTENT_BUILDINGTOOLS_HELPTEXT            :Zachovaj okno s nástrojmi na stavbu mostov/tunelov otvorené aj po použití
 STR_CONFIG_SETTING_EXPENSES_LAYOUT                              :Zoskupiť výdavky v okne financií spoločnosti: {STRING}
 STR_CONFIG_SETTING_EXPENSES_LAYOUT_HELPTEXT                     :Definujte rozloženie okna s financiami.
+STR_CONFIG_SETTING_AUTO_REMOVE_SIGNALS                          :Automaticky odstraňovať návestidlá pri výstavbe železnice: {STRING}
+STR_CONFIG_SETTING_AUTO_REMOVE_SIGNALS_HELPTEXT                 :Automaticky odstraňovať návestidla pri výstavbe železnice, ak návestidlá blokujú výstavbu. To však môže niekedy smerovať k zrážke vlakov.
 
 STR_CONFIG_SETTING_SOUND_TICKER                                 :Oznamovač správ: {STRING}
 STR_CONFIG_SETTING_SOUND_TICKER_HELPTEXT                        :Prehrať zvuk pri zhrnutých správach
@@ -1723,10 +1724,10 @@ STR_CONFIG_SETTING_TOWN_GROWTH_NORMAL                           :normálny
 STR_CONFIG_SETTING_TOWN_GROWTH_FAST                             :rýchly
 STR_CONFIG_SETTING_TOWN_GROWTH_VERY_FAST                        :Veľmi rýchly
 STR_CONFIG_SETTING_LARGER_TOWNS                                 :Podiel miest ktoré sa stanú veľkomestami: {STRING}
-STR_CONFIG_SETTING_LARGER_TOWNS_HELPTEXT                        :Množstvo miest ktoré sa stanú veľkomestami, teda tie ktoré začali väčšie a rastú rýchlejšie.
+STR_CONFIG_SETTING_LARGER_TOWNS_HELPTEXT                        :Množstvo miest, ktoré sa stanú veľkomestami, teda tie ktoré začali väčšie a rastú rýchlejšie.
 STR_CONFIG_SETTING_LARGER_TOWNS_VALUE                           :1 z {COMMA}
 STR_CONFIG_SETTING_LARGER_TOWNS_DISABLED                        :žiadne
-STR_CONFIG_SETTING_CITY_SIZE_MULTIPLIER                         :Násobok pociatocnej velkosti mesta: {STRING}
+STR_CONFIG_SETTING_CITY_SIZE_MULTIPLIER                         :Násobok počiatočnej veľkosti mesta: {STRING}
 STR_CONFIG_SETTING_CITY_SIZE_MULTIPLIER_HELPTEXT                :Priemerná veľkosť veľkomiest v porovnaní k mestám na začiatku hry.
 
 STR_CONFIG_SETTING_LINKGRAPH_INTERVAL                           :Aktualizovať distribučný graf každ{P 0:2 "ý" "é" "ých"} {STRING} {P 0:2 "deň" "dni" "dní"}
@@ -1903,7 +1904,7 @@ STR_ABANDON_SCENARIO_QUERY                                      :{YELLOW}Ste si 
 # Cheat window
 STR_CHEATS                                                      :{WHITE}Cheaty
 STR_CHEATS_TOOLTIP                                              :{BLACK}Zaškrtávacie pole indikuje opakované použite cheatu
-STR_CHEATS_WARNING                                              :{BLACK}Varovanie! Chceš oklamať svojich protihráčov. Pamätajte že táto hanba bude zapísaná naveky
+STR_CHEATS_NOTE                                                 :{BLACK}Poznámka: použitie akéhokoľvek z týchto nastavení bude zaznamenané v uloženej hre
 STR_CHEAT_MONEY                                                 :{LTBLUE}Zvýšiť hotovosť o {CURRENCY_LONG}
 STR_CHEAT_CHANGE_COMPANY                                        :{LTBLUE}Hrať za spoločnosť: {ORANGE}{COMMA}
 STR_CHEAT_EXTRA_DYNAMITE                                        :{LTBLUE}Magický buldozér (odstráni priemysel a nehnuteľnosti): {ORANGE}{STRING}
@@ -2137,7 +2138,7 @@ STR_NETWORK_LANG_LATVIAN                                        :Litovsky
 STR_NETWORK_GAME_LOBBY_CAPTION                                  :{WHITE}Sieťová hra - čakáreň
 
 STR_NETWORK_GAME_LOBBY_PREPARE_TO_JOIN                          :{BLACK}Pripravuje sa k vstupu: {ORANGE}{STRING}
-STR_NETWORK_GAME_LOBBY_COMPANY_LIST_TOOLTIP                     :{BLACK}Aktualny zoznam spolocnosti v tejto hre. Bud mozes do jednej vstupit, alebo zalozit novu spolocnost.
+STR_NETWORK_GAME_LOBBY_COMPANY_LIST_TOOLTIP                     :{BLACK}Aktuálny zoznam spoločností v tejto hre. Buď môžeš do jednej vstúpiť, alebo založiť novú spoločnosť.
 
 STR_NETWORK_GAME_LOBBY_COMPANY_INFO                             :{SILVER}INFO O SPOLOCNOSTI
 STR_NETWORK_GAME_LOBBY_COMPANY_NAME                             :{SILVER}Názov spoločnosti: {WHITE}{STRING}
@@ -2190,7 +2191,6 @@ STR_NETWORK_COMPANY_LIST_NEW_COMPANY                            :Nová spoločno
 # Network client list
 STR_NETWORK_CLIENTLIST_KICK                                     :Vyhodit
 STR_NETWORK_CLIENTLIST_BAN                                      :Ban
-STR_NETWORK_CLIENTLIST_GIVE_MONEY                               :Previesť peniaze
 STR_NETWORK_CLIENTLIST_SPEAK_TO_ALL                             :Napísať správu všetkým
 STR_NETWORK_CLIENTLIST_SPEAK_TO_COMPANY                         :Napísať spoločnosti správu
 STR_NETWORK_CLIENTLIST_SPEAK_TO_CLIENT                          :Súkromná správa
@@ -2198,8 +2198,6 @@ STR_NETWORK_CLIENTLIST_SPEAK_TO_CLIENT                          :Súkromná spr�
 STR_NETWORK_SERVER                                              :Server
 STR_NETWORK_CLIENT                                              :Klient
 STR_NETWORK_SPECTATORS                                          :Pozorovatelia
-
-STR_NETWORK_GIVE_MONEY_CAPTION                                  :{WHITE}Vložte čiastku ktorú chcete dať
 
 # Network set password
 STR_COMPANY_PASSWORD_CANCEL                                     :{BLACK}Neukladať zadané heslo
@@ -2303,8 +2301,7 @@ STR_NETWORK_MESSAGE_CLIENT_COMPANY_SPECTATE                     :*** {STRING} sa
 STR_NETWORK_MESSAGE_CLIENT_COMPANY_NEW                          :*** {STRING} založil novú spoločnosť (č. {2:NUM})
 STR_NETWORK_MESSAGE_CLIENT_LEFT                                 :*** {STRING} opustil hru ({2:STRING})
 STR_NETWORK_MESSAGE_NAME_CHANGE                                 :*** {STRING} zmenil/-a svoje meno na {STRING}
-STR_NETWORK_MESSAGE_GIVE_MONEY                                  :*** {STRING} dal ti spoločnosť {2:CURRENCY_LONG}
-STR_NETWORK_MESSAGE_GAVE_MONEY_AWAY                             :*** Dal si {1:STRING} {2:CURRENCY_LONG}
+STR_NETWORK_MESSAGE_GIVE_MONEY                                  :*** {STRING} dal {2:CURRENCY_LONG} spoločnosti {1:STRING}
 STR_NETWORK_MESSAGE_SERVER_SHUTDOWN                             :{WHITE}Server ukoncil relaciu
 STR_NETWORK_MESSAGE_SERVER_REBOOT                               :{WHITE}Server sa reštartuje...{}Čakajte prosím...
 STR_NETWORK_MESSAGE_KICKED                                      :*** Hráč {STRING} bol vyhodený. Dôvod: ({STRING})
@@ -2423,6 +2420,9 @@ STR_JOIN_STATION_CREATE_SPLITTED_STATION                        :{YELLOW}Postavi
 STR_JOIN_WAYPOINT_CAPTION                                       :{WHITE}Spojiť smerový bod
 STR_JOIN_WAYPOINT_CREATE_SPLITTED_WAYPOINT                      :{YELLOW}Postaviť smerový bod oddelene
 
+# Generic toolbar
+STR_TOOLBAR_DISABLED_NO_VEHICLE_AVAILABLE                       :{BLACK}Vypnuté, pretože v súčasnosti nie sú dostuné žiadne vozidlá pre tento typ infraštruktúry
+
 # Rail construction toolbar
 STR_RAIL_TOOLBAR_RAILROAD_CONSTRUCTION_CAPTION                  :Výstavba železnice
 STR_RAIL_TOOLBAR_ELRAIL_CONSTRUCTION_CAPTION                    :Výstavba elektrifikovanej železnice
@@ -2451,7 +2451,7 @@ STR_BUILD_DEPOT_TRAIN_ORIENTATION_TOOLTIP                       :{BLACK}Vybrať 
 
 # Rail waypoint construction window
 STR_WAYPOINT_CAPTION                                            :{WHITE}Smerový bod
-STR_WAYPOINT_GRAPHICS_TOOLTIP                                   :{BLACK}Vyber typ kontrolneho bodu
+STR_WAYPOINT_GRAPHICS_TOOLTIP                                   :{BLACK}Vyber typ kontrolného bodu
 
 # Rail station construction window
 STR_STATION_BUILD_RAIL_CAPTION                                  :{WHITE}Výber železničnej stanice
@@ -2645,7 +2645,7 @@ STR_FOUND_TOWN_NEW_TOWN_TOOLTIP                                 :{BLACK}Založi�
 STR_FOUND_TOWN_RANDOM_TOWN_BUTTON                               :{BLACK}Nahodné mesto
 STR_FOUND_TOWN_RANDOM_TOWN_TOOLTIP                              :{BLACK}Postaviť mesto na náhodnej pozícii
 STR_FOUND_TOWN_MANY_RANDOM_TOWNS                                :{BLACK}Veľa náhodných miest
-STR_FOUND_TOWN_RANDOM_TOWNS_TOOLTIP                             :{BLACK}Pokryt mapu nahodne umiestnenymi mestami
+STR_FOUND_TOWN_RANDOM_TOWNS_TOOLTIP                             :{BLACK}Pokryť mapu náhodne umiestnenými mestami
 
 STR_FOUND_TOWN_NAME_TITLE                                       :{YELLOW}Meno mesta:
 STR_FOUND_TOWN_NAME_EDITOR_TITLE                                :{BLACK}Vložte meno mesta
@@ -2673,12 +2673,18 @@ STR_FOUND_TOWN_SELECT_LAYOUT_RANDOM                             :{BLACK}Náhodn�
 # Fund new industry window
 STR_FUND_INDUSTRY_CAPTION                                       :{WHITE}Financovať nový priemysel
 STR_FUND_INDUSTRY_SELECTION_TOOLTIP                             :{BLACK}Vyberte vhodný typ priemyslu zo zoznamu
-STR_FUND_INDUSTRY_MANY_RANDOM_INDUSTRIES                        :Veľa náhodného priemyslu
-STR_FUND_INDUSTRY_MANY_RANDOM_INDUSTRIES_TOOLTIP                :{BLACK}Pokryt mapu nahodne umiestnenym priemyslom
+STR_FUND_INDUSTRY_MANY_RANDOM_INDUSTRIES                        :{BLACK}Vytvoriť náhodný priemysel
+STR_FUND_INDUSTRY_MANY_RANDOM_INDUSTRIES_TOOLTIP                :{BLACK}Pokryť mapu náhodne umiestneným priemyslom
+STR_FUND_INDUSTRY_MANY_RANDOM_INDUSTRIES_CAPTION                :{WHITE}Vytvoriť náhodný priemysel
+STR_FUND_INDUSTRY_MANY_RANDOM_INDUSTRIES_QUERY                  :{YELLOW}Ste si istý, že chcete vytvoriť veľké množstvo náhodného priemyslu?
 STR_FUND_INDUSTRY_INDUSTRY_BUILD_COST                           :{BLACK}Cena: {YELLOW}{CURRENCY_LONG}
 STR_FUND_INDUSTRY_PROSPECT_NEW_INDUSTRY                         :{BLACK}Vyhladat
-STR_FUND_INDUSTRY_BUILD_NEW_INDUSTRY                            :{BLACK}Postavit
-STR_FUND_INDUSTRY_FUND_NEW_INDUSTRY                             :{BLACK}Založit
+STR_FUND_INDUSTRY_BUILD_NEW_INDUSTRY                            :{BLACK}Postaviť
+STR_FUND_INDUSTRY_FUND_NEW_INDUSTRY                             :{BLACK}Založiť
+STR_FUND_INDUSTRY_REMOVE_ALL_INDUSTRIES                         :{BLACK}Odstrániť všetok priemysel
+STR_FUND_INDUSTRY_REMOVE_ALL_INDUSTRIES_TOOLTIP                 :{BLACK}Odstrániť všetok priemysel umiestnený na mape
+STR_FUND_INDUSTRY_REMOVE_ALL_INDUSTRIES_CAPTION                 :{WHITE}Odstrániť všetok priemysel
+STR_FUND_INDUSTRY_REMOVE_ALL_INDUSTRIES_QUERY                   :{YELLOW}Ste si istý, že chcete odstrániť všetok priemysel?
 
 # Industry cargoes window
 STR_INDUSTRY_CARGOES_INDUSTRY_CAPTION                           :{WHITE}Reťazec pre priemysel: {STRING}
@@ -2699,6 +2705,7 @@ STR_INDUSTRY_CARGOES_SELECT_INDUSTRY_TOOLTIP                    :{BLACK}Vyber pr
 
 # Land area window
 STR_LAND_AREA_INFORMATION_CAPTION                               :{WHITE}Informácie o pozemku
+STR_LAND_AREA_INFORMATION_LOCATION_TOOLTIP                      :{BLACK}Vycentrovať pohľad na pozíciu políčka. Ctrl+klik otvorí nové okno s pohľadom na políčko
 STR_LAND_AREA_INFORMATION_COST_TO_CLEAR_N_A                     :{BLACK}Náklady na odstránenie: {LTBLUE}N/A
 STR_LAND_AREA_INFORMATION_COST_TO_CLEAR                         :{BLACK}Náklady na odstránenie: {RED}{CURRENCY_LONG}
 STR_LAND_AREA_INFORMATION_REVENUE_WHEN_CLEARED                  :{BLACK}Zisk pri odstránení: {LTBLUE}{CURRENCY_LONG}
@@ -2794,21 +2801,21 @@ STR_LAI_WATER_DESCRIPTION_SHIP_DEPOT                            :Lodenica
 STR_LAI_TUNNEL_DESCRIPTION_RAILROAD                             :Železničný tunel
 STR_LAI_TUNNEL_DESCRIPTION_ROAD                                 :Cestný tunel
 
-STR_LAI_BRIDGE_DESCRIPTION_RAIL_SUSPENSION_STEEL                :Ocelovy zavesny zeleznicny most
-STR_LAI_BRIDGE_DESCRIPTION_RAIL_GIRDER_STEEL                    :Ocelovy pilierovy zeleznicny most
-STR_LAI_BRIDGE_DESCRIPTION_RAIL_CANTILEVER_STEEL                :Ocelovy visuty zeleznicny most
-STR_LAI_BRIDGE_DESCRIPTION_RAIL_SUSPENSION_CONCRETE             :Vystuzeny zavesny betonovy zeleznicny most
-STR_LAI_BRIDGE_DESCRIPTION_RAIL_WOODEN                          :Dreveny zeleznicny most
-STR_LAI_BRIDGE_DESCRIPTION_RAIL_CONCRETE                        :Betonovy zeleznicny most
-STR_LAI_BRIDGE_DESCRIPTION_RAIL_TUBULAR_STEEL                   :Kryty zeleznicny most
+STR_LAI_BRIDGE_DESCRIPTION_RAIL_SUSPENSION_STEEL                :Oceľový závesný železničný most
+STR_LAI_BRIDGE_DESCRIPTION_RAIL_GIRDER_STEEL                    :Oceľový pilierový železničný most
+STR_LAI_BRIDGE_DESCRIPTION_RAIL_CANTILEVER_STEEL                :Oceľový visutý železničný most
+STR_LAI_BRIDGE_DESCRIPTION_RAIL_SUSPENSION_CONCRETE             :Vystužený závesný betónový železničný most
+STR_LAI_BRIDGE_DESCRIPTION_RAIL_WOODEN                          :Drevený železničný most
+STR_LAI_BRIDGE_DESCRIPTION_RAIL_CONCRETE                        :Betónový železničný most
+STR_LAI_BRIDGE_DESCRIPTION_RAIL_TUBULAR_STEEL                   :Krytý železničný most
 
-STR_LAI_BRIDGE_DESCRIPTION_ROAD_SUSPENSION_STEEL                :Ocelovy zavesny cestny most
-STR_LAI_BRIDGE_DESCRIPTION_ROAD_GIRDER_STEEL                    :Ocelovy pilierovy cestny most
-STR_LAI_BRIDGE_DESCRIPTION_ROAD_CANTILEVER_STEEL                :Ocelovy visuty cestny most
-STR_LAI_BRIDGE_DESCRIPTION_ROAD_SUSPENSION_CONCRETE             :Vystuzeny zavesny betonovy cestny most
-STR_LAI_BRIDGE_DESCRIPTION_ROAD_WOODEN                          :Dreveny cestny most
-STR_LAI_BRIDGE_DESCRIPTION_ROAD_CONCRETE                        :Betonovy cestny most
-STR_LAI_BRIDGE_DESCRIPTION_ROAD_TUBULAR_STEEL                   :Kryty cestny most
+STR_LAI_BRIDGE_DESCRIPTION_ROAD_SUSPENSION_STEEL                :Oceľový závesný cestný most
+STR_LAI_BRIDGE_DESCRIPTION_ROAD_GIRDER_STEEL                    :Oceľovy pilierový cestný most
+STR_LAI_BRIDGE_DESCRIPTION_ROAD_CANTILEVER_STEEL                :Oceľový visutý cestný most
+STR_LAI_BRIDGE_DESCRIPTION_ROAD_SUSPENSION_CONCRETE             :Vystužený závesný betónový cestný most
+STR_LAI_BRIDGE_DESCRIPTION_ROAD_WOODEN                          :Drevený cestný most
+STR_LAI_BRIDGE_DESCRIPTION_ROAD_CONCRETE                        :Betónový cestný most
+STR_LAI_BRIDGE_DESCRIPTION_ROAD_TUBULAR_STEEL                   :Krytý cestný most
 
 STR_LAI_BRIDGE_DESCRIPTION_AQUEDUCT                             :Akvadukt
 
@@ -2890,7 +2897,7 @@ STR_SAVELOAD_SAVE_SCENARIO                                      :{WHITE}Uložiť
 STR_SAVELOAD_LOAD_SCENARIO                                      :{WHITE}Nahrať scenár
 STR_SAVELOAD_LOAD_HEIGHTMAP                                     :{WHITE}Nahrať výškovú mapu
 STR_SAVELOAD_SAVE_HEIGHTMAP                                     :{WHITE}Uložiť Výškovú mapu
-STR_SAVELOAD_HOME_BUTTON                                        :{BLACK}Kliknutim sem sa presuniete do sucasneho vychodzieho adresara pre ukladanie
+STR_SAVELOAD_HOME_BUTTON                                        :{BLACK}Kliknutím sem sa presuniete do súčasného predvoleného priečinku pre ukladanie
 STR_SAVELOAD_BYTES_FREE                                         :{BLACK}{BYTES} voľných
 STR_SAVELOAD_LIST_TOOLTIP                                       :{BLACK}Zoznam diskov, adresárov a súborov s uloženou hrou
 STR_SAVELOAD_EDITBOX_TOOLTIP                                    :{BLACK}Vybraný názov pre uloženie hry
@@ -2908,6 +2915,8 @@ STR_SAVELOAD_DETAIL_GRFSTATUS                                   :{SILVER}NewGRF:
 STR_SAVELOAD_FILTER_TITLE                                       :{BLACK}Filtrovací reťazec:
 STR_SAVELOAD_OVERWRITE_TITLE                                    :{WHITE}Prepísanie súboru
 STR_SAVELOAD_OVERWRITE_WARNING                                  :{YELLOW}Ste si istý, že chcete prepísať existujúci súbor?
+STR_SAVELOAD_DIRECTORY                                          :{STRING} (Priečinok)
+STR_SAVELOAD_PARENT_DIRECTORY                                   :{STRING} (Nadradený priečinok)
 
 STR_SAVELOAD_OSKTITLE                                           :{BLACK}Zadajte názov pre uloženie hry
 
@@ -2926,7 +2935,6 @@ STR_MAPGEN_SNOW_LINE_HEIGHT                                     :{BLACK}Výška 
 STR_MAPGEN_SNOW_LINE_UP                                         :{BLACK}Zvýšiť výšku hranice snehu o jedno
 STR_MAPGEN_SNOW_LINE_DOWN                                       :{BLACK}Znížiť výšku hranice snehu o jedno
 STR_MAPGEN_LAND_GENERATOR                                       :{BLACK}Generátor krajiny:
-STR_MAPGEN_TREE_PLACER                                          :{BLACK}Generátor stromov:
 STR_MAPGEN_TERRAIN_TYPE                                         :{BLACK}Typ terénu:
 STR_MAPGEN_QUANTITY_OF_SEA_LAKES                                :{BLACK}Rozloha mora:
 STR_MAPGEN_QUANTITY_OF_RIVERS                                   :{BLACK}Rieky:
@@ -2948,12 +2956,12 @@ STR_MAPGEN_BORDER_MANUAL                                        :{BLACK}Manuáln
 
 STR_MAPGEN_HEIGHTMAP_ROTATION                                   :{BLACK}Orientácia výškovej mapy:
 STR_MAPGEN_HEIGHTMAP_NAME                                       :{BLACK}Názov výškovej mapy:
-STR_MAPGEN_HEIGHTMAP_SIZE_LABEL                                 :{BLACK}Velkost:
+STR_MAPGEN_HEIGHTMAP_SIZE_LABEL                                 :{BLACK}Veľkosť:
 STR_MAPGEN_HEIGHTMAP_SIZE                                       :{ORANGE}{NUM} x {NUM}
 
 STR_MAPGEN_MAX_HEIGHTLEVEL_QUERY_CAPT                           :{WHITE}Zmeniť maximálnu výšku mapy
 STR_MAPGEN_SNOW_LINE_QUERY_CAPT                                 :{WHITE}Zmeniť výšku hranice snehu
-STR_MAPGEN_START_DATE_QUERY_CAPT                                :{WHITE}Zmenit rok zaciatku hry
+STR_MAPGEN_START_DATE_QUERY_CAPT                                :{WHITE}Zmeniť rok začiatku hry
 
 # SE Map generation
 STR_SE_MAPGEN_CAPTION                                           :{WHITE}Typ scenara
@@ -3169,8 +3177,9 @@ STR_SIGN_LIST_MATCH_CASE_TOOLTIP                                :{BLACK}Brať/ne
 
 # Sign window
 STR_EDIT_SIGN_CAPTION                                           :{WHITE}Upraviť text popisu
-STR_EDIT_SIGN_NEXT_SIGN_TOOLTIP                                 :{BLACK}Prejst na dalsiu znacku
-STR_EDIT_SIGN_PREVIOUS_SIGN_TOOLTIP                             :{BLACK}Prejsť na predchádzajúcu značku
+STR_EDIT_SIGN_LOCATION_TOOLTIP                                  :{BLACK}Vycentrovať pohľad na pozíciu popisu. Ctrl+klik otvorí nové okno s pohľadom na popis
+STR_EDIT_SIGN_NEXT_SIGN_TOOLTIP                                 :{BLACK}Prejsť na ďalší popis
+STR_EDIT_SIGN_PREVIOUS_SIGN_TOOLTIP                             :{BLACK}Prejsť na predchádzajúci popis
 
 STR_EDIT_SIGN_SIGN_OSKTITLE                                     :{BLACK}Zadajte názov pre popis
 
@@ -3445,6 +3454,8 @@ STR_COMPANY_VIEW_RELOCATE_HQ                                    :{BLACK}Premiest
 STR_COMPANY_VIEW_RELOCATE_COMPANY_HEADQUARTERS                  :{BLACK}Sídlo spoločnosti je možné premiestniť za 1% hodnoty spoločnosti. Shift+klik zobrazí odhadovanú cenu
 STR_COMPANY_VIEW_INFRASTRUCTURE_BUTTON                          :{BLACK}Detaily
 STR_COMPANY_VIEW_INFRASTRUCTURE_TOOLTIP                         :{BLACK}Zobraziť podrobné políčka infraštruktúry
+STR_COMPANY_VIEW_GIVE_MONEY_BUTTON                              :{BLACK}Dať peniaze
+STR_COMPANY_VIEW_GIVE_MONEY_TOOLTIP                             :{BLACK}Presunúť peniaze do tejto spoločnosti
 
 STR_COMPANY_VIEW_NEW_FACE_BUTTON                                :{BLACK}Nová tvár
 STR_COMPANY_VIEW_NEW_FACE_TOOLTIP                               :{BLACK}Vybrať novú tvár prezidenta
@@ -3462,6 +3473,7 @@ STR_COMPANY_VIEW_SELL_SHARE_TOOLTIP                             :{BLACK}Predať 
 
 STR_COMPANY_VIEW_COMPANY_NAME_QUERY_CAPTION                     :Názov spoločnosti
 STR_COMPANY_VIEW_PRESIDENT_S_NAME_QUERY_CAPTION                 :Meno prezidenta
+STR_COMPANY_VIEW_GIVE_MONEY_QUERY_CAPTION                       :Zadajte množstvo peňazí, ktoré chcete dať spoločnosti
 
 STR_BUY_COMPANY_MESSAGE                                         :{WHITE}Hľadáme záujemcu o kúpu našej spoločnosti{}{}Chcete kúpiť našu spoločnosť {COMPANY} za {CURRENCY_LONG}?
 
@@ -3822,10 +3834,10 @@ STR_REPLACE_REMOVE_WAGON_HELP                                   :{BLACK}Zachovan
 # Vehicle view
 STR_VEHICLE_VIEW_CAPTION                                        :{WHITE}{VEHICLE}
 
-STR_VEHICLE_VIEW_TRAIN_LOCATION_TOOLTIP                         :{BLACK}Vycentrovať pohľad na pozíciu vlaku. Ctrl+klik bude sledovať vlak
-STR_VEHICLE_VIEW_ROAD_VEHICLE_LOCATION_TOOLTIP                  :{BLACK}Vycentrovať pohľad na pozíciu vozidla. Ctrl+klik bude sledovať vozidlo
-STR_VEHICLE_VIEW_SHIP_LOCATION_TOOLTIP                          :{BLACK}Vycentrovať pohľad na pozíciu lode. Ctrl+klik bude sledovať loď
-STR_VEHICLE_VIEW_AIRCRAFT_LOCATION_TOOLTIP                      :{BLACK}Vycentrovať pohľad na pozíciu lietadla. Ctrl+klik bude sledovať lietadlo
+STR_VEHICLE_VIEW_TRAIN_CENTER_TOOLTIP                           :{BLACK}Vycentrovať pohľad na pozíciu vlaku. Dvojité kliknutie bude sledovať vlak v hlavnom pohľade. Ctrl+klik otvorí nové okno s pohľadom na vlak
+STR_VEHICLE_VIEW_ROAD_VEHICLE_CENTER_TOOLTIP                    :{BLACK}Vycentrovať pohľad na pozíciu vozidla. Dvojité kliknutie bude sledovať vozidlo v hlavnom pohľade. Ctrl+klik otvorí nové okno s pohľadom na vozidlo
+STR_VEHICLE_VIEW_SHIP_CENTER_TOOLTIP                            :{BLACK}Vycentrovať pohľad na pozíciu lode. Dvojité kliknutie bude sledovať loď v hlavnom pohľade. Ctrl+klik otvorí nové okno s pohľadom na loď
+STR_VEHICLE_VIEW_AIRCRAFT_CENTER_TOOLTIP                        :{BLACK}Vycentrovať pohľad na pozíciu lietadla. Dvojité kliknutie bude sledovať lietadlo v hlavnom pohľade. Ctrl+klik otvorí nové okno s pohľadom na lietadlo
 
 STR_VEHICLE_VIEW_TRAIN_SEND_TO_DEPOT_TOOLTIP                    :{BLACK}Poslať vlak do depa. Ctrl+klik iba servis
 STR_VEHICLE_VIEW_ROAD_VEHICLE_SEND_TO_DEPOT_TOOLTIP             :{BLACK}Poslať vozidlo do garáže. Ctrl+klik iba servis.
@@ -3857,10 +3869,12 @@ STR_VEHICLE_VIEW_ROAD_VEHICLE_SHOW_DETAILS_TOOLTIP              :{BLACK}Zobrazi�
 STR_VEHICLE_VIEW_SHIP_SHOW_DETAILS_TOOLTIP                      :{BLACK}Zobraziť detaily o lodi
 STR_VEHICLE_VIEW_AIRCRAFT_SHOW_DETAILS_TOOLTIP                  :{BLACK}Zobraziť detaily o lietadle
 
-STR_VEHICLE_VIEW_TRAIN_STATE_START_STOP_TOOLTIP                 :{BLACK}Aktuálna činnosť vlaku - kliknutím sa zastaví/spustí. Ctrl+klik presunie pohľad na cieľovú stanicu
-STR_VEHICLE_VIEW_ROAD_VEHICLE_STATE_START_STOP_TOOLTIP          :{BLACK}Aktuálna činnosť vozidla - kliknutím sa zastaví/spustí. Ctrl+klik presunie pohľad na cieľovú stanicu
-STR_VEHICLE_VIEW_SHIP_STATE_START_STOP_TOOLTIP                  :{BLACK}Aktuálna činnosť lode - kliknutím sa zastaví/spustí. Ctrl+klik presunie pohľad na cieľovú stanicu
-STR_VEHICLE_VIEW_AIRCRAFT_STATE_START_STOP_TOOLTIP              :{BLACK}Aktuálna činnosť lietadla - kliknutím sa zastaví/spustí. Ctrl+klik presunie pohľad na cieľovú stanicu
+STR_VEHICLE_VIEW_TRAIN_STATUS_START_STOP_TOOLTIP                :{BLACK}Činnosť aktuálneho vlaku - kliknite na zastavenie/spustenie vlaku
+STR_VEHICLE_VIEW_ROAD_VEHICLE_STATUS_START_STOP_TOOLTIP         :{BLACK}Činnosť aktuálneho cestného vozidla - kliknite na zastavenie/spustenie cestného vozidla
+STR_VEHICLE_VIEW_SHIP_STATE_STATUS_STOP_TOOLTIP                 :{BLACK}Činnosť aktuálnej lode - kliknite na zastavenie/spustenie lode
+STR_VEHICLE_VIEW_AIRCRAFT_STATUS_START_STOP_TOOLTIP             :{BLACK}Činnosť aktuálneho lietadla - kliknite na zastavenie/spustenie lietadla
+
+STR_VEHICLE_VIEW_ORDER_LOCATION_TOOLTIP                         :{BLACK}Vycentrovať pohľad na cieľovú pozíciu. Ctrl+klik otvorí nové okno s pohľadom na cieľ
 
 # Messages in the start stop button in the vehicle view
 STR_VEHICLE_STATUS_LOADING_UNLOADING                            :{LTBLUE}Nakláda / Vykláda
@@ -4088,6 +4102,7 @@ STR_ORDER_REFIT_STOP_ORDER                                      :(Prestavba na {
 STR_ORDER_STOP_ORDER                                            :(Zastav)
 
 STR_ORDER_GO_TO_STATION                                         :{STRING} {STATION} {STRING}
+STR_ORDER_GO_TO_STATION_CAN_T_USE_STATION                       :{PUSH_COLOUR}{RED}(Nemožno použiť stanicu){POP_COLOUR} {STRING} {STATION} {STRING}
 
 STR_ORDER_IMPLICIT                                              :(Predpokladané)
 
@@ -4412,7 +4427,8 @@ STR_ERROR_CAN_T_BORROW_ANY_MORE_MONEY                           :{WHITE}Nemôže
 STR_ERROR_LOAN_ALREADY_REPAYED                                  :{WHITE}... úver už bol splatený
 STR_ERROR_CURRENCY_REQUIRED                                     :{WHITE}... {CURRENCY_LONG} potrebuješ
 STR_ERROR_CAN_T_REPAY_LOAN                                      :{WHITE}Úver sa nedá splatiť...
-STR_ERROR_INSUFFICIENT_FUNDS                                    :{WHITE}Nie je mozne poskytnut peniaze, ktore su pozicane z banky ...
+STR_ERROR_INSUFFICIENT_FUNDS                                    :{WHITE}Nie je možné presunúť peniaze, ktoré sú požičané z banky...
+STR_ERROR_CAN_T_GIVE_MONEY                                      :{WHITE}Nie je možné presunúť peniaze tejto spoločnosti...
 STR_ERROR_CAN_T_BUY_COMPANY                                     :{WHITE}Spoločnosť nie je možné kúpiť ...
 STR_ERROR_CAN_T_BUILD_COMPANY_HEADQUARTERS                      :{WHITE}Nemôžeš postaviť sídlo spoločnosti...
 STR_ERROR_CAN_T_BUY_25_SHARE_IN_THIS                            :{WHITE}Nemôžeš kúpiť 25% podiel v tejto spoločnosti...
@@ -4435,11 +4451,11 @@ STR_ERROR_STATUE_NO_SUITABLE_PLACE                              :{WHITE}... v ce
 
 # Industry related errors
 STR_ERROR_TOO_MANY_INDUSTRIES                                   :{WHITE}... príliš veľa priemyslu
-STR_ERROR_CAN_T_GENERATE_INDUSTRIES                             :{WHITE}Nemozno vygenerovat priemysel ...
+STR_ERROR_CAN_T_GENERATE_INDUSTRIES                             :{WHITE}Nemožno vygenerovať priemysel...
 STR_ERROR_CAN_T_BUILD_HERE                                      :{WHITE}{STRING} sa tu nedá postaviť...
 STR_ERROR_CAN_T_CONSTRUCT_THIS_INDUSTRY                         :{WHITE}Nemôžeš tu postaviť tento typ priemyslu...
 STR_ERROR_INDUSTRY_TOO_CLOSE                                    :{WHITE}... príliš blízko iného priemyslu
-STR_ERROR_MUST_FOUND_TOWN_FIRST                                 :{WHITE}... najskor treba postavit mesto...
+STR_ERROR_MUST_FOUND_TOWN_FIRST                                 :{WHITE}... najskôr je potrebné založiť mesto
 STR_ERROR_ONLY_ONE_ALLOWED_PER_TOWN                             :{WHITE}... povolené len jedno pre 1mesto
 STR_ERROR_CAN_ONLY_BE_BUILT_IN_TOWNS_WITH_POPULATION_OF_1200    :{WHITE}... môže byť postavené v mestách z populáciou väčšou ako 1200
 STR_ERROR_CAN_ONLY_BE_BUILT_IN_RAINFOREST                       :{WHITE}... môže byť postavené len v dažďovom pralese
@@ -4539,6 +4555,8 @@ STR_ERROR_DEPOT_WRONG_DEPOT_TYPE                                :Nesprávny typ 
 STR_ERROR_TRAIN_TOO_LONG_AFTER_REPLACEMENT                      :{WHITE}{VEHICLE} je dlho po výmene
 STR_ERROR_AUTOREPLACE_NOTHING_TO_DO                             :{WHITE}Neboli využité žiadne pravidlá pre obnovu.
 STR_ERROR_AUTOREPLACE_MONEY_LIMIT                               :(finančný limit)
+STR_ERROR_AUTOREPLACE_INCOMPATIBLE_CARGO                        :{WHITE}Nové vozidlo nemôže prevážať {STRING}
+STR_ERROR_AUTOREPLACE_INCOMPATIBLE_REFIT                        :{WHITE}Nové vozidlo nemôže uskutočniť prestavbu v príkaze {NUM}
 
 # Rail construction errors
 STR_ERROR_IMPOSSIBLE_TRACK_COMBINATION                          :{WHITE}Nemožná kombinácia trate

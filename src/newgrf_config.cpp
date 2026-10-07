@@ -260,7 +260,7 @@ void GRFParameterInfo::SetValue(struct GRFConfig *config, uint32 value)
 	} else {
 		SB(config->param[this->param_nr], this->first_bit, this->num_bit, value);
 	}
-	config->num_params = max<uint>(config->num_params, this->param_nr + 1);
+	config->num_params = std::max<uint>(config->num_params, this->param_nr + 1);
 	SetWindowDirty(WC_GAME_OPTIONS, WN_GAME_OPTIONS_NEWGRF_STATE);
 }
 
@@ -339,7 +339,7 @@ static bool CalcGRFMD5Sum(GRFConfig *config, Subdirectory subdir)
 	if (f == nullptr) return false;
 
 	long start = ftell(f);
-	size = min(size, GRFGetSizeOfDataSection(f));
+	size = std::min(size, GRFGetSizeOfDataSection(f));
 
 	if (start < 0 || fseek(f, start, SEEK_SET) < 0) {
 		FioFCloseFile(f);
@@ -578,12 +578,13 @@ compatible_grf:
 
 /** Helper for scanning for files with GRF as extension */
 class GRFFileScanner : FileScanner {
-	uint next_update; ///< The next (realtime tick) we do update the screen.
+	std::chrono::steady_clock::time_point next_update; ///< The next moment we do update the screen.
 	uint num_scanned; ///< The number of GRFs we have scanned.
 
 public:
-	GRFFileScanner() : next_update(_realtime_tick), num_scanned(0)
+	GRFFileScanner() : num_scanned(0)
 	{
+		this->next_update = std::chrono::steady_clock::now();
 	}
 
 	bool AddFile(const std::string &filename, size_t basepath_length, const std::string &tar_filename) override;
@@ -634,7 +635,9 @@ bool GRFFileScanner::AddFile(const std::string &filename, size_t basepath_length
 	}
 
 	this->num_scanned++;
-	if (this->next_update <= _realtime_tick) {
+	if (std::chrono::steady_clock::now() >= this->next_update) {
+		this->next_update = std::chrono::steady_clock::now() + std::chrono::milliseconds(MODAL_PROGRESS_REDRAW_TIMEOUT);
+
 		_modal_progress_work_mutex.unlock();
 		_modal_progress_paint_mutex.lock();
 
@@ -645,8 +648,6 @@ bool GRFFileScanner::AddFile(const std::string &filename, size_t basepath_length
 
 		_modal_progress_work_mutex.lock();
 		_modal_progress_paint_mutex.unlock();
-
-		this->next_update = _realtime_tick + MODAL_PROGRESS_REDRAW_TIMEOUT;
 	}
 
 	if (!added) {

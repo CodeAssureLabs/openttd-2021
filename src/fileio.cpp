@@ -24,13 +24,8 @@
 #include <pwd.h>
 #endif
 #include <sys/stat.h>
-#include <algorithm>
 #include <array>
 #include <sstream>
-
-#ifdef WITH_XDG_BASEDIR
-#include <basedir.h>
-#endif
 
 #include "safeguards.h"
 
@@ -129,7 +124,7 @@ byte FioReadByte()
 void FioSkipBytes(int n)
 {
 	for (;;) {
-		int m = min(_fio.buffer_end - _fio.buffer, n);
+		int m = std::min<int>(_fio.buffer_end - _fio.buffer, n);
 		_fio.buffer += m;
 		n -= m;
 		if (n == 0) break;
@@ -896,7 +891,7 @@ bool ExtractTar(const std::string &tar_filename, Subdirectory subdir)
 		char buffer[4096];
 		size_t read;
 		for (; to_copy != 0; to_copy -= read) {
-			read = fread(buffer, 1, min(to_copy, lengthof(buffer)), in.get());
+			read = fread(buffer, 1, std::min(to_copy, lengthof(buffer)), in.get());
 			if (read <= 0 || fwrite(buffer, 1, read, out.get()) != read) break;
 		}
 
@@ -978,56 +973,78 @@ bool DoScanWorkingDirectory()
 }
 
 /**
+ * Gets the home directory of the user.
+ * May return an empty string in the unlikely scenario that the home directory cannot be found.
+ * @return User's home directory
+ */
+static std::string GetHomeDir()
+{
+#ifdef __HAIKU__
+	BPath path;
+	find_directory(B_USER_SETTINGS_DIRECTORY, &path);
+	return std::string(path.Path());
+#else
+	const char *home_env = getenv("HOME"); // Stack var, shouldn't be freed
+	if (home_env != nullptr) return std::string(home_env);
+
+	const struct passwd *pw = getpwuid(getuid());
+	if (pw != nullptr) return std::string(pw->pw_dir);
+#endif
+	return {};
+}
+
+/**
  * Determine the base (personal dir and game data dir) paths
  * @param exe the path to the executable
  */
 void DetermineBasePaths(const char *exe)
 {
 	std::string tmp;
-#if defined(WITH_XDG_BASEDIR) && defined(WITH_PERSONAL_DIR)
-	const char *xdg_data_home = xdgDataHome(nullptr);
-	tmp = xdg_data_home;
-	tmp += PATHSEP;
-	tmp += PERSONAL_DIR[0] == '.' ? &PERSONAL_DIR[1] : PERSONAL_DIR;
-	free(xdg_data_home);
+	const std::string homedir = GetHomeDir();
+#ifdef USE_XDG
+	const char *xdg_data_home = getenv("XDG_DATA_HOME");
+	if (xdg_data_home != nullptr) {
+		tmp = xdg_data_home;
+		tmp += PATHSEP;
+		tmp += PERSONAL_DIR[0] == '.' ? &PERSONAL_DIR[1] : PERSONAL_DIR;
+		AppendPathSeparator(tmp);
+		_searchpaths[SP_PERSONAL_DIR_XDG] = tmp;
 
-	AppendPathSeparator(tmp);
-	_searchpaths[SP_PERSONAL_DIR_XDG] = tmp;
+		tmp += "content_download";
+		AppendPathSeparator(tmp);
+		_searchpaths[SP_AUTODOWNLOAD_PERSONAL_DIR_XDG] = tmp;
+	} else if (!homedir.empty()) {
+		tmp = homedir;
+		tmp += PATHSEP ".local" PATHSEP "share" PATHSEP;
+		tmp += PERSONAL_DIR[0] == '.' ? &PERSONAL_DIR[1] : PERSONAL_DIR;
+		AppendPathSeparator(tmp);
+		_searchpaths[SP_PERSONAL_DIR_XDG] = tmp;
+
+		tmp += "content_download";
+		AppendPathSeparator(tmp);
+		_searchpaths[SP_AUTODOWNLOAD_PERSONAL_DIR_XDG] = tmp;
+	} else {
+		_searchpaths[SP_PERSONAL_DIR_XDG].clear();
+		_searchpaths[SP_AUTODOWNLOAD_PERSONAL_DIR_XDG].clear();
+	}
 #endif
+
 #if defined(OS2) || !defined(WITH_PERSONAL_DIR)
 	_searchpaths[SP_PERSONAL_DIR].clear();
 #else
-#ifdef __HAIKU__
-	BPath path;
-	find_directory(B_USER_SETTINGS_DIRECTORY, &path);
-	const char *homedir = stredup(path.Path());
-#else
-	/* getenv is highly unsafe; duplicate it as soon as possible,
-	 * or at least before something else touches the environment
-	 * variables in any way. It can also contain all kinds of
-	 * unvalidated data we rather not want internally. */
-	const char *homedir = getenv("HOME");
-	if (homedir != nullptr) {
-		homedir = stredup(homedir);
-	}
-
-	if (homedir == nullptr) {
-		const struct passwd *pw = getpwuid(getuid());
-		homedir = (pw == nullptr) ? nullptr : stredup(pw->pw_dir);
-	}
-#endif
-
-	if (homedir != nullptr) {
-		ValidateString(homedir);
+	if (!homedir.empty()) {
 		tmp = homedir;
 		tmp += PATHSEP;
 		tmp += PERSONAL_DIR;
 		AppendPathSeparator(tmp);
-
 		_searchpaths[SP_PERSONAL_DIR] = tmp;
-		free(homedir);
+
+		tmp += "content_download";
+		AppendPathSeparator(tmp);
+		_searchpaths[SP_AUTODOWNLOAD_PERSONAL_DIR] = tmp;
 	} else {
 		_searchpaths[SP_PERSONAL_DIR].clear();
+		_searchpaths[SP_AUTODOWNLOAD_PERSONAL_DIR].clear();
 	}
 #endif
 
@@ -1091,8 +1108,8 @@ void DetermineBasePaths(const char *exe)
 	_searchpaths[SP_INSTALLATION_DIR] = tmp;
 #endif
 #ifdef WITH_COCOA
-extern void cocoaSetApplicationBundleDir();
-	cocoaSetApplicationBundleDir();
+extern void CocoaSetApplicationBundleDir();
+	CocoaSetApplicationBundleDir();
 #else
 	_searchpaths[SP_APPLICATION_BUNDLE_DIR].clear();
 #endif
@@ -1111,13 +1128,20 @@ void DeterminePaths(const char *exe)
 {
 	DetermineBasePaths(exe);
 
-#if defined(WITH_XDG_BASEDIR) && defined(WITH_PERSONAL_DIR)
-	const char *xdg_config_home = xdgConfigHome(nullptr);
-	std::string config_home(xdg_config_home);
-	config_home += PATHSEP;
-	config_home += PERSONAL_DIR[0] == '.' ? &PERSONAL_DIR[1] : PERSONAL_DIR;
-	free(xdg_config_home);
-
+#ifdef USE_XDG
+	std::string config_home;
+	const std::string homedir = GetHomeDir();
+	const char *xdg_config_home = getenv("XDG_CONFIG_HOME");
+	if (xdg_config_home != nullptr) {
+		config_home = xdg_config_home;
+		config_home += PATHSEP;
+		config_home += PERSONAL_DIR[0] == '.' ? &PERSONAL_DIR[1] : PERSONAL_DIR;
+	} else if (!homedir.empty()) {
+		/* Defaults to ~/.config */
+		config_home = homedir;
+		config_home += PATHSEP ".config" PATHSEP;
+		config_home += PERSONAL_DIR[0] == '.' ? &PERSONAL_DIR[1] : PERSONAL_DIR;
+	}
 	AppendPathSeparator(config_home);
 #endif
 
@@ -1137,7 +1161,7 @@ void DeterminePaths(const char *exe)
 			if (end != std::string::npos) personal_dir.erase(end + 1);
 			config_dir = personal_dir;
 		} else {
-#if defined(WITH_XDG_BASEDIR) && defined(WITH_PERSONAL_DIR)
+#ifdef USE_XDG
 			/* No previous configuration file found. Use the configuration folder from XDG. */
 			config_dir = config_home;
 #else
@@ -1165,7 +1189,7 @@ void DeterminePaths(const char *exe)
 	extern std::string _windows_file;
 	_windows_file = config_dir + "windows.cfg";
 
-#if defined(WITH_XDG_BASEDIR) && defined(WITH_PERSONAL_DIR)
+#ifdef USE_XDG
 	if (config_dir == config_home) {
 		/* We are using the XDG configuration home for the config file,
 		 * then store the rest in the XDG data home folder. */

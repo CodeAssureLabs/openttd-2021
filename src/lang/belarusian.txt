@@ -545,8 +545,6 @@ STR_TOOLTIP_SORT_ORDER                                          :{BLACK}Зьме
 STR_TOOLTIP_SORT_CRITERIA                                       :{BLACK}Зьмена крытэрыю сартаваньня
 STR_TOOLTIP_FILTER_CRITERIA                                     :{BLACK}Выберыце фiльтр
 STR_BUTTON_SORT_BY                                              :{BLACK}Сартаваньне
-STR_BUTTON_LOCATION                                             :{BLACK}Агляд
-STR_BUTTON_RENAME                                               :{BLACK}Перайменаваць
 STR_BUTTON_CATCHMENT                                            :{BLACK}Ахоп
 
 STR_TOOLTIP_CLOSE_WINDOW                                        :{BLACK}Закрыць вакно
@@ -1249,8 +1247,6 @@ STR_GAME_OPTIONS_CURRENCY_HKD                                   :Ганконс�
 STR_GAME_OPTIONS_CURRENCY_INR                                   :Індыйская рупія (INR)
 ############ end of currency region
 
-STR_GAME_OPTIONS_ROAD_VEHICLES_FRAME                            :{BLACK}Дарожны рух
-STR_GAME_OPTIONS_ROAD_VEHICLES_DROPDOWN_TOOLTIP                 :{BLACK}Па якім баку дарогі рухаецца аўтатранспарт
 STR_GAME_OPTIONS_ROAD_VEHICLES_DROPDOWN_LEFT                    :Езьдзіць леваруч
 STR_GAME_OPTIONS_ROAD_VEHICLES_DROPDOWN_RIGHT                   :Езьдзіць праваруч
 
@@ -2116,7 +2112,6 @@ STR_ABANDON_SCENARIO_QUERY                                      :{YELLOW}Вы ў
 # Cheat window
 STR_CHEATS                                                      :{WHITE}Махлярства (чыты)
 STR_CHEATS_TOOLTIP                                              :{BLACK}Птушкі паказваюць, ці выкарыстоўвалі Вы гэты чыт раней
-STR_CHEATS_WARNING                                              :{BLACK}Увага, Вы зьбіраецеся здрадзіць сваім спаборнікам! Гэтага вам ніколі не даруюць!
 STR_CHEAT_MONEY                                                 :{LTBLUE}Дадаць {CURRENCY_LONG}
 STR_CHEAT_CHANGE_COMPANY                                        :{LTBLUE}Гульня за кампанію: {ORANGE}{COMMA}
 STR_CHEAT_EXTRA_DYNAMITE                                        :{LTBLUE}Чароўны дынамiт (знос УСЯГО): {ORANGE}{STRING}
@@ -2399,7 +2394,6 @@ STR_NETWORK_COMPANY_LIST_NEW_COMPANY                            :Новая ка
 # Network client list
 STR_NETWORK_CLIENTLIST_KICK                                     :Выкінуць гульца
 STR_NETWORK_CLIENTLIST_BAN                                      :Бан
-STR_NETWORK_CLIENTLIST_GIVE_MONEY                               :Передаць грошай
 STR_NETWORK_CLIENTLIST_SPEAK_TO_ALL                             :Пагутарыць з усімі
 STR_NETWORK_CLIENTLIST_SPEAK_TO_COMPANY                         :Пагутарыць з кампаніяй
 STR_NETWORK_CLIENTLIST_SPEAK_TO_CLIENT                          :Прыватнае паведамленьне
@@ -2407,8 +2401,6 @@ STR_NETWORK_CLIENTLIST_SPEAK_TO_CLIENT                          :Прыватн�
 STR_NETWORK_SERVER                                              :Сэрвэр
 STR_NETWORK_CLIENT                                              :Кліент
 STR_NETWORK_SPECTATORS                                          :Назіральнікі
-
-STR_NETWORK_GIVE_MONEY_CAPTION                                  :{WHITE}Увядзіце суму грошай, якую вы хочаце перадаць
 
 # Network set password
 STR_COMPANY_PASSWORD_CANCEL                                     :{BLACK}Не захоўваць уведзены пароль
@@ -2510,8 +2502,6 @@ STR_NETWORK_MESSAGE_CLIENT_COMPANY_SPECTATE                     :*** {STRING} д
 STR_NETWORK_MESSAGE_CLIENT_COMPANY_NEW                          :*** {STRING} распачаў новую кампанію (#{2:NUM})
 STR_NETWORK_MESSAGE_CLIENT_LEFT                                 :*** {STRING} выйшаў з гульні ({2:STRING})
 STR_NETWORK_MESSAGE_NAME_CHANGE                                 :*** {STRING} зьмяніў сваё імя на {STRING}
-STR_NETWORK_MESSAGE_GIVE_MONEY                                  :*** {STRING} перадаў вашай кампаніі {2:CURRENCY_LONG}
-STR_NETWORK_MESSAGE_GAVE_MONEY_AWAY                             :*** Вы перадалі {1:STRING} {2:CURRENCY_LONG}
 STR_NETWORK_MESSAGE_SERVER_SHUTDOWN                             :{WHITE}Гэты сэрвэр закрыў сэсію
 STR_NETWORK_MESSAGE_SERVER_REBOOT                               :{WHITE}Гэты сэрвэр перазапускаецца...{}Пачакайце, калі ласка
 
@@ -2644,6 +2634,8 @@ STR_JOIN_STATION_CREATE_SPLITTED_STATION                        :{YELLOW}Паб�
 
 STR_JOIN_WAYPOINT_CAPTION                                       :{WHITE}Аб'яднаць пункты шляху
 STR_JOIN_WAYPOINT_CREATE_SPLITTED_WAYPOINT                      :{YELLOW}Пабудаваць асобны пункт шляху
+
+# Generic toolbar
 
 # Rail construction toolbar
 STR_RAIL_TOOLBAR_RAILROAD_CONSTRUCTION_CAPTION                  :Чыгунка
@@ -3120,7 +3112,6 @@ STR_MAPGEN_SNOW_LINE_HEIGHT                                     :{BLACK}Вышы
 STR_MAPGEN_SNOW_LINE_UP                                         :{BLACK}Падняць сьнегавую лінію
 STR_MAPGEN_SNOW_LINE_DOWN                                       :{BLACK}Апусьціць сьнегавую лінію
 STR_MAPGEN_LAND_GENERATOR                                       :{BLACK}Ґенэратар ляндшафту:
-STR_MAPGEN_TREE_PLACER                                          :{BLACK}Альґарытм дрэваў:
 STR_MAPGEN_TERRAIN_TYPE                                         :{BLACK}Тып ляндшафту:
 STR_MAPGEN_QUANTITY_OF_SEA_LAKES                                :{BLACK}Колькасьць азёраў/мораў:
 STR_MAPGEN_QUANTITY_OF_RIVERS                                   :{BLACK}Колькасьць рэк:
@@ -4015,10 +4006,6 @@ STR_REPLACE_REMOVE_WAGON_HELP                                   :{BLACK}Дазв
 # Vehicle view
 STR_VEHICLE_VIEW_CAPTION                                        :{WHITE}{VEHICLE}
 
-STR_VEHICLE_VIEW_TRAIN_LOCATION_TOOLTIP                         :{BLACK}Паказаць цягнiк у галоўным вакне. Ctrl+клік — сачыць за цягнiком у галоўным вакне.
-STR_VEHICLE_VIEW_ROAD_VEHICLE_LOCATION_TOOLTIP                  :{BLACK}Паказаць аўтамабiль у галоўным вакне. Ctrl+клік — сачыць за ім у галоўным вакне.
-STR_VEHICLE_VIEW_SHIP_LOCATION_TOOLTIP                          :{BLACK}Паказаць карабель у галоўным вакне. Ctrl+клік будзе сачыць за караблём у галоўным вакне.
-STR_VEHICLE_VIEW_AIRCRAFT_LOCATION_TOOLTIP                      :{BLACK}Паказаць паветранае судна у галоўным вакне. Ctrl+клік — сачыць за ім у галоўным вакне.
 
 STR_VEHICLE_VIEW_TRAIN_SEND_TO_DEPOT_TOOLTIP                    :{BLACK}Паслаць цягнiк у дэпо. Ctrl+клік — толькі для абслугоўваньня.
 STR_VEHICLE_VIEW_ROAD_VEHICLE_SEND_TO_DEPOT_TOOLTIP             :{BLACK}Паслаць аўтамабiль у гараж. Ctrl+клік — толькі для абслугоўваньня.
@@ -4050,10 +4037,7 @@ STR_VEHICLE_VIEW_ROAD_VEHICLE_SHOW_DETAILS_TOOLTIP              :{BLACK}Пака
 STR_VEHICLE_VIEW_SHIP_SHOW_DETAILS_TOOLTIP                      :{BLACK}Паказаць зьвесткі аб караблi
 STR_VEHICLE_VIEW_AIRCRAFT_SHOW_DETAILS_TOOLTIP                  :{BLACK}Паказаць зьвесткі аб авiятранспарце
 
-STR_VEHICLE_VIEW_TRAIN_STATE_START_STOP_TOOLTIP                 :{BLACK}Бягучае дзеяньне цягнiка; клікніце для яго спыненьня/запуску. Ctrl+клік — агляд пункта прызначэньня.
-STR_VEHICLE_VIEW_ROAD_VEHICLE_STATE_START_STOP_TOOLTIP          :{BLACK}Бягучае дзеяньне аўтамабiля; клікніце для яго спыненьня/запуску. Ctrl+клік — агляд пункта прызначэньня.
-STR_VEHICLE_VIEW_SHIP_STATE_START_STOP_TOOLTIP                  :{BLACK}Бягучае дзеяньне карабля; клікніце для яго спыненьня/запуску. Ctrl+клік — агляд пункта прызначэньня.
-STR_VEHICLE_VIEW_AIRCRAFT_STATE_START_STOP_TOOLTIP              :{BLACK}Бягучае дзеяньне паветранага судна; клікніце для яго спыненьня/запуску. Ctrl+клік — агляд пункта прызначэньня.
+
 
 # Messages in the start stop button in the vehicle view
 STR_VEHICLE_STATUS_LOADING_UNLOADING                            :{LTBLUE}Разгрузка / Пагрузка

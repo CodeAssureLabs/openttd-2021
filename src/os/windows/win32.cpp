@@ -14,6 +14,7 @@
 #include "../../fileio_func.h"
 #include <windows.h>
 #include <fcntl.h>
+#include <mmsystem.h>
 #include <regstr.h>
 #define NO_SHOBJIDL_SORTDIRECTION // Avoid multiple definition of SORT_ASCENDING
 #include <shlobj.h> /* SHGetFolderPath */
@@ -413,6 +414,9 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	int argc;
 	char *argv[64]; // max 64 command line arguments
 
+	/* Set system timer resolution to 1ms. */
+	timeBeginPeriod(1);
+
 	CrashLog::InitialiseCrashLog();
 
 #if defined(UNICODE)
@@ -440,6 +444,10 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	for (int i = 0; i < argc; i++) ValidateString(argv[i]);
 
 	openttd_main(argc, argv);
+
+	/* Restore system timer resolution. */
+	timeEndPeriod(1);
+
 	free(cmdline);
 	return 0;
 }
@@ -466,6 +474,10 @@ void DetermineBasePaths(const char *exe)
 		tmp += PERSONAL_DIR;
 		AppendPathSeparator(tmp);
 		_searchpaths[SP_PERSONAL_DIR] = tmp;
+
+		tmp += "content_download";
+		AppendPathSeparator(tmp);
+		_searchpaths[SP_AUTODOWNLOAD_PERSONAL_DIR] = tmp;
 	} else {
 		_searchpaths[SP_PERSONAL_DIR].clear();
 	}
@@ -806,6 +818,38 @@ int OTTDStringCompare(const char *s1, const char *s2)
 	convert_to_fs(s2, s2_buf, lengthof(s2_buf));
 
 	return CompareString(MAKELCID(_current_language->winlangid, SORT_DEFAULT), NORM_IGNORECASE, s1_buf, -1, s2_buf, -1);
+}
+
+/**
+ * Is the current Windows version Vista or later?
+ * @return True if the current Windows is Vista or later.
+ */
+bool IsWindowsVistaOrGreater()
+{
+	typedef BOOL (WINAPI * LPVERIFYVERSIONINFO)(LPOSVERSIONINFOEX, DWORD, DWORDLONG);
+	typedef ULONGLONG (NTAPI * LPVERSETCONDITIONMASK)(ULONGLONG, DWORD, BYTE);
+#ifdef UNICODE
+	static LPVERIFYVERSIONINFO _VerifyVersionInfo = (LPVERIFYVERSIONINFO)GetProcAddress(GetModuleHandle(_T("Kernel32")), "VerifyVersionInfoW");
+#else
+	static LPVERIFYVERSIONINFO _VerifyVersionInfo = (LPVERIFYVERSIONINFO)GetProcAddress(GetModuleHandle(_T("Kernel32")), "VerifyVersionInfoA");
+#endif
+	static LPVERSETCONDITIONMASK _VerSetConditionMask = (LPVERSETCONDITIONMASK)GetProcAddress(GetModuleHandle(_T("Kernel32")), "VerSetConditionMask");
+
+	if (_VerifyVersionInfo != nullptr && _VerSetConditionMask != nullptr) {
+		OSVERSIONINFOEX osvi = { sizeof(osvi), 0, 0, 0, 0, {0}, 0, 0 };
+		DWORDLONG dwlConditionMask = 0;
+		dwlConditionMask = _VerSetConditionMask(dwlConditionMask, VER_MAJORVERSION, VER_GREATER_EQUAL);
+		dwlConditionMask = _VerSetConditionMask(dwlConditionMask, VER_MINORVERSION, VER_GREATER_EQUAL);
+		dwlConditionMask = _VerSetConditionMask(dwlConditionMask, VER_SERVICEPACKMAJOR, VER_GREATER_EQUAL);
+
+		osvi.dwMajorVersion = 6;
+		osvi.dwMinorVersion = 0;
+		osvi.wServicePackMajor = 0;
+
+		return _VerifyVersionInfo(&osvi, VER_MAJORVERSION | VER_MINORVERSION | VER_SERVICEPACKMAJOR, dwlConditionMask) != FALSE;
+	} else {
+		return LOBYTE(GetVersion()) >= 6;
+	}
 }
 
 #ifdef _MSC_VER
