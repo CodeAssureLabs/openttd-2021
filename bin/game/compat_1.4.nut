@@ -5,18 +5,10 @@
  * See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with OpenTTD. If not, see <http://www.gnu.org/licenses/>.
  */
 
-GSLog.Info("1.4 API compatibility in effect.");
+/* This file contains code to downgrade the API from 1.5 to 1.4 */
 
-/* 1.5 adds a game element reference to the news. */
-GSNews._Create <- GSNews.Create;
+GSNews.CreateCompat1_4 <- GSNews.Create;
 GSNews.Create <- function(type, text, company)
 {
-    return GSNews._Create(type, text, company, GSNews.NR_NONE, 0);
-}
-
-/* 1.9 adds a vehicle type parameter. */
-GSBridge._GetName <- GSBridge.GetName;
-GSBridge.GetName <- function(bridge_id)
-{
-	return GSBridge._GetName(bridge_id, GSVehicle.VT_RAIL);
+    return GSNews.CreateCompat1_4(type, text, company, GSNews.NR_NONE, 0);
 }

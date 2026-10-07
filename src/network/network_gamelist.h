@@ -11,24 +11,35 @@
 #define NETWORK_GAMELIST_H
 
 #include "core/address.h"
+#include "core/network_game_info.h"
 #include "network_type.h"
 
-/** Structure with information shown in the game list (GUI) */
-struct NetworkGameList {
-	NetworkGameInfo info;   ///< The game information of this server
-	NetworkAddress address; ///< The connection info of the game server
-	bool online;            ///< False if the server did not respond (default status)
-	bool manually;          ///< True if the server was added manually
-	uint8 retries;          ///< Number of retries (to stop requerying)
-	NetworkGameList *next;  ///< Next pointer to make a linked game list
+/** The status a server can be in. */
+enum NetworkGameStatus : uint8_t {
+	NGLS_OFFLINE, ///< Server is offline (or cannot be queried).
+	NGLS_ONLINE,  ///< Server is online.
+	NGLS_FULL,    ///< Server is full and cannot be queried.
+	NGLS_BANNED,  ///< You are banned from this server.
+	NGLS_TOO_OLD, ///< Server is too old to query.
 };
 
-/** Game list of this client */
-extern NetworkGameList *_network_game_list;
+/** Structure with information shown in the game list (GUI) */
+struct NetworkGame {
+	NetworkGame(const std::string &connection_string) : connection_string(connection_string) {}
 
-void NetworkGameListAddItemDelayed(NetworkGameList *item);
-NetworkGameList *NetworkGameListAddItem(NetworkAddress address);
-void NetworkGameListRemoveItem(NetworkGameList *remove);
-void NetworkGameListRequery();
+	NetworkGameInfo info{};                  ///< The game information of this server.
+	std::string connection_string;           ///< Address of the server.
+	NetworkGameStatus status = NGLS_OFFLINE; ///< Stats of the server.
+	bool manually = false;                   ///< True if the server was added manually.
+	bool refreshing = false;                 ///< Whether this server is being queried.
+	int version = 0;                         ///< Used to see which servers are no longer available on the Game Coordinator and can be removed.
+};
+
+extern std::vector<std::unique_ptr<NetworkGame>> _network_game_list;
+extern int _network_game_list_version;
+
+NetworkGame *NetworkGameListAddItem(const std::string &connection_string);
+void NetworkGameListRemoveItem(NetworkGame *remove);
+void NetworkGameListRemoveExpired();
 
 #endif /* NETWORK_GAMELIST_H */

@@ -1,13 +1,13 @@
 add_files(
-    alloc_func.cpp
-    alloc_func.hpp
     alloc_type.hpp
     backup_type.hpp
-    bitmath_func.cpp
+    base_bitset_type.hpp
     bitmath_func.hpp
+    container_func.hpp
+    convertible_through_base.hpp
     endian_func.hpp
-    endian_type.hpp
     enum_type.hpp
+    format.hpp
     geometry_func.cpp
     geometry_func.hpp
     geometry_type.hpp
@@ -22,9 +22,12 @@ add_files(
     pool_type.hpp
     random_func.cpp
     random_func.hpp
-    smallmap_type.hpp
-    smallmatrix_type.hpp
     smallstack_type.hpp
-    smallvec_type.hpp
-    string_compare_type.hpp
+    string_builder.cpp
+    string_builder.hpp
+    string_consumer.cpp
+    string_consumer.hpp
+    strong_typedef_type.hpp
+    utf8.cpp
+    utf8.hpp
 )
