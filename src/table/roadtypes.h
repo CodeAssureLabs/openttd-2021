@@ -61,7 +61,7 @@ static const RoadTypeInfo _original_roadtypes[] = {
 		ROADTYPES_ROAD,
 
 		/* flags */
-		ROTFB_TOWN_BUILD,
+		{RoadTypeFlag::TownBuild},
 
 		/* cost multiplier */
 		8,
@@ -73,7 +73,7 @@ static const RoadTypeInfo _original_roadtypes[] = {
 		0,
 
 		/* road type label */
-		'ROAD',
+		ROADTYPE_LABEL_ROAD,
 
 		/* alternate labels */
 		RoadTypeLabelList(),
@@ -82,7 +82,7 @@ static const RoadTypeInfo _original_roadtypes[] = {
 		0x01,
 
 		/* introduction date */
-		MIN_YEAR,
+		CalendarTime::MIN_DATE,
 
 		/* roadtypes required for this to be introduced */
 		ROADTYPES_NONE,
@@ -95,6 +95,7 @@ static const RoadTypeInfo _original_roadtypes[] = {
 
 		{ nullptr },
 		{ nullptr },
+		{},
 	},
 
 	/* Electrified Tram */
@@ -141,7 +142,7 @@ static const RoadTypeInfo _original_roadtypes[] = {
 		ROADTYPES_TRAM,
 
 		/* flags */
-		ROTFB_CATENARY | ROTFB_NO_HOUSES,
+		{RoadTypeFlag::Catenary, RoadTypeFlag::NoHouses},
 
 		/* cost multiplier */
 		16,
@@ -153,7 +154,7 @@ static const RoadTypeInfo _original_roadtypes[] = {
 		0,
 
 		/* road type label */
-		'ELRL',
+		ROADTYPE_LABEL_TRAM,
 
 		/* alternate labels */
 		RoadTypeLabelList(),
@@ -162,7 +163,7 @@ static const RoadTypeInfo _original_roadtypes[] = {
 		0x01,
 
 		/* introduction date */
-		INVALID_DATE,
+		CalendarTime::INVALID_DATE,
 
 		/* roadtypes required for this to be introduced */
 		ROADTYPES_NONE,
@@ -175,6 +176,7 @@ static const RoadTypeInfo _original_roadtypes[] = {
 
 		{ nullptr },
 		{ nullptr },
+		{},
 	},
 };
 
