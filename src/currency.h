@@ -2,7 +2,7 @@
  * This file is part of OpenTTD.
  * OpenTTD is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, version 2.
  * OpenTTD is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with OpenTTD. If not, see <http://www.gnu.org/licenses/>.
+ * See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with OpenTTD. If not, see <https://www.gnu.org/licenses/old-licenses/gpl-2.0>.
  */
 
 /** @file currency.h Functions to handle different currencies. */
@@ -10,18 +10,20 @@
 #ifndef CURRENCY_H
 #define CURRENCY_H
 
-#include "date_type.h"
+#include "timer/timer_game_calendar.h"
+#include "settings_type.h"
 #include "strings_type.h"
 
-static const int CF_NOEURO = 0; ///< Currency never switches to the Euro (as far as known).
-static const int CF_ISEURO = 1; ///< Currency _is_ the Euro.
+static constexpr TimerGameCalendar::Year CF_NOEURO{0}; ///< Currency never switches to the Euro (as far as known).
+static constexpr TimerGameCalendar::Year CF_ISEURO{1}; ///< Currency _is_ the Euro.
+static constexpr TimerGameCalendar::Year MIN_EURO_YEAR{2000}; ///< The earliest year custom currencies may switch to the Euro.
 
 /**
  * This enum gives the currencies a unique id which must be maintained for
  * savegame compatibility and in order to refer to them quickly, especially
  * for referencing the custom one.
  */
-enum Currencies {
+enum Currencies : uint8_t {
 	CURRENCY_GBP,       ///< British Pound
 	CURRENCY_USD,       ///< US Dollar
 	CURRENCY_EUR,       ///< Euro
@@ -42,7 +44,7 @@ enum Currencies {
 	CURRENCY_NLG,       ///< Dutch Gulden
 	CURRENCY_NOK,       ///< Norwegian Krone
 	CURRENCY_PLN,       ///< Polish Zloty
-	CURRENCY_RON,       ///< Romenian Leu
+	CURRENCY_RON,       ///< Romanian Leu
 	CURRENCY_RUR,       ///< Russian Rouble
 	CURRENCY_SIT,       ///< Slovenian Tolar
 	CURRENCY_SEK,       ///< Swedish Krona
@@ -62,16 +64,23 @@ enum Currencies {
 	CURRENCY_CNY,       ///< Chinese Renminbi
 	CURRENCY_HKD,       ///< Hong Kong Dollar
 	CURRENCY_INR,       ///< Indian Rupee
+	CURRENCY_IDR,       ///< Indonesian Rupiah
+	CURRENCY_MYR,       ///< Malaysian Ringgit
+	CURRENCY_LVL,       ///< Latvian Lats
+	CURRENCY_PTE,       ///< Portuguese Escudo
+	CURRENCY_UAH,       ///< Ukrainian Hryvnia
+	CURRENCY_VND,       ///< Vietnamese Dong
 	CURRENCY_END,       ///< always the last item
 };
 
 /** Specification of a currency. */
 struct CurrencySpec {
-	uint16 rate;
-	char separator[8];
-	Year to_euro;      ///< %Year of switching to the Euro. May also be #CF_NOEURO or #CF_ISEURO.
-	char prefix[16];
-	char suffix[16];
+	uint16_t rate;           ///< The conversion rate compared to the base currency.
+	std::string separator; ///< The thousands separator for this currency.
+	TimerGameCalendar::Year to_euro; ///< Year of switching to the Euro. May also be #CF_NOEURO or #CF_ISEURO.
+	std::string prefix;    ///< Prefix to apply when formatting money in this currency.
+	std::string suffix;    ///< Suffix to apply when formatting money in this currency.
+	std::string code; ///< 3 letter untranslated code to identify the currency.
 	/**
 	 * The currency symbol is represented by two possible values, prefix and suffix
 	 * Usage of one or the other is determined by #symbol_pos.
@@ -81,20 +90,39 @@ struct CurrencySpec {
 	 *            It is not a spec from Newgrf,
 	 *            rather a way to let users do what they want with custom currency
 	 */
-	byte symbol_pos;
+	uint8_t symbol_pos;
 	StringID name;
+
+	CurrencySpec() = default;
+
+	CurrencySpec(uint16_t rate, std::string_view separator, TimerGameCalendar::Year to_euro, std::string_view prefix, std::string_view suffix, std::string_view code, uint8_t symbol_pos, StringID name) :
+		rate(rate), separator(separator), to_euro(to_euro), prefix(prefix), suffix(suffix), code(code), symbol_pos(symbol_pos), name(name)
+	{
+	}
 };
 
-extern CurrencySpec _currency_specs[CURRENCY_END];
+extern std::array<CurrencySpec, CURRENCY_END> _currency_specs;
 
-/* XXX small hack, but makes the rest of the code a bit nicer to read */
-#define _custom_currency (_currency_specs[CURRENCY_CUSTOM])
-#define _currency ((const CurrencySpec*)&_currency_specs[GetGameSettings().locale.currency])
+/**
+ * Get the custom currency.
+ * @return Reference to custom currency.
+ */
+inline CurrencySpec &GetCustomCurrency()
+{
+	return _currency_specs[CURRENCY_CUSTOM];
+}
 
-uint64 GetMaskOfAllowedCurrencies();
-void CheckSwitchToEuro();
+/**
+ * Get the currently selected currency.
+ * @return Read-only reference to the current currency.
+ */
+inline const CurrencySpec &GetCurrency()
+{
+	return _currency_specs[GetGameSettings().locale.currency];
+}
+
+uint64_t GetMaskOfAllowedCurrencies();
 void ResetCurrencies(bool preserve_custom = true);
-StringID *BuildCurrencyDropdown();
-byte GetNewgrfCurrencyIdConverted(byte grfcurr_id);
+uint8_t GetNewgrfCurrencyIdConverted(uint8_t grfcurr_id);
 
 #endif /* CURRENCY_H */

@@ -2,10 +2,10 @@
  * This file is part of OpenTTD.
  * OpenTTD is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, version 2.
  * OpenTTD is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with OpenTTD. If not, see <http://www.gnu.org/licenses/>.
+ * See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with OpenTTD. If not, see <https://www.gnu.org/licenses/old-licenses/gpl-2.0>.
  */
 
-/** @file table/roadveh_movement.h Data about how a road vehicle must drive on a tile */
+/** @file roadveh_movement.h Data about how a road vehicle must drive on a tile. */
 
 static const RoadDriveEntry _roadveh_drive_data_0[] = {
 	{15, 5},
@@ -1084,7 +1084,7 @@ static const RoadDriveEntry * const _road_road_drive_data[] = {
 };
 
 /** Table of road stop stop frames, when to stop at a road stop. */
-extern const byte _road_stop_stop_frame[] = {
+extern const uint8_t _road_stop_stop_frame[] = {
 	/* Duplicated left and right because of "entered stop" bit */
 	20, 20, 16, 16,  20, 20, 16, 16,
 	19, 19, 15, 15,  19, 19, 15, 15,
@@ -1478,7 +1478,8 @@ static const RoadDriveEntry * const _road_tram_drive_data[] = {
 	nullptr,
 };
 
-static const RoadDriveEntry * const * const _road_drive_data[2] = {
+/** Road drive data for all \c RoadTramTypes */
+static const EnumIndexArray<const RoadDriveEntry * const *, RoadTramType, RoadTramType::End> _road_drive_data{
 	_road_road_drive_data,
 	_road_tram_drive_data,
 };
