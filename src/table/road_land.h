@@ -8,7 +8,7 @@
 /** @file road_land.h Sprite constructs for road depots. */
 
 #define TILE_SEQ_LINE(img, pal, dx, dy, sx, sy) { dx, dy, 0, sx, sy, 20, {img, pal} },
-#define TILE_SEQ_END() { (int8)0x80, 0, 0, 0, 0, 0, {0, 0} }
+#define TILE_SEQ_END() { (int8_t)0x80, 0, 0, 0, 0, 0, {0, 0} }
 
 static const DrawTileSeqStruct _road_depot_NE[] = {
 	TILE_SEQ_LINE(0x584 | (1 << PALETTE_MODIFIER_COLOUR), PAL_NONE, 0, 15, 16, 1)
@@ -32,7 +32,7 @@ static const DrawTileSeqStruct _road_depot_NW[] = {
 	TILE_SEQ_END()
 };
 
-static const DrawTileSprites _road_depot[] = {
+static const DrawTileSpriteSpan _road_depot[] = {
 	{ {0xA4A, PAL_NONE}, _road_depot_NE },
 	{ {0xA4A, PAL_NONE}, _road_depot_SE },
 	{ {0xA4A, PAL_NONE}, _road_depot_SW },
@@ -49,8 +49,48 @@ static const DrawTileSeqStruct _crossing_layout_ALL[] = {
 	TILE_SEQ_END()
 };
 
-static const DrawTileSprites _crossing_layout = {
+static const DrawTileSpriteSpan _crossing_layout = {
 	{0, PAL_NONE}, _crossing_layout_ALL
+};
+
+static const DrawTileSeqStruct _crossing_layout_SW_ALL[] = {
+	TILE_SEQ_LINE(6, PAL_NONE, 13,  0, 3, 3)
+	TILE_SEQ_LINE(8, PAL_NONE, 13, 13, 3, 3)
+	TILE_SEQ_END()
+};
+
+static const DrawTileSpriteSpan _crossing_layout_SW = {
+	{0, PAL_NONE}, _crossing_layout_SW_ALL
+};
+
+static const DrawTileSeqStruct _crossing_layout_NW_ALL[] = {
+	TILE_SEQ_LINE(2, PAL_NONE,  0,  0, 3, 3)
+	TILE_SEQ_LINE(6, PAL_NONE, 13,  0, 3, 3)
+	TILE_SEQ_END()
+};
+
+static const DrawTileSpriteSpan _crossing_layout_NW = {
+	{0, PAL_NONE}, _crossing_layout_NW_ALL
+};
+
+static const DrawTileSeqStruct _crossing_layout_NE_ALL[] = {
+	TILE_SEQ_LINE(2, PAL_NONE,  0,  0, 3, 3)
+	TILE_SEQ_LINE(4, PAL_NONE,  0, 13, 3, 3)
+	TILE_SEQ_END()
+};
+
+static const DrawTileSpriteSpan _crossing_layout_NE = {
+	{0, PAL_NONE}, _crossing_layout_NE_ALL
+};
+
+static const DrawTileSeqStruct _crossing_layout_SE_ALL[] = {
+	TILE_SEQ_LINE(4, PAL_NONE,  0, 13, 3, 3)
+	TILE_SEQ_LINE(8, PAL_NONE, 13, 13, 3, 3)
+	TILE_SEQ_END()
+};
+
+static const DrawTileSpriteSpan _crossing_layout_SE = {
+	{0, PAL_NONE}, _crossing_layout_SE_ALL
 };
 
 #undef TILE_SEQ_LINE
@@ -62,11 +102,11 @@ static const SpriteID _road_tile_sprites_1[16] = {
 	0x543, 0x53C, 0x535, 0x538, 0x53D, 0x537, 0x53A, 0x536
 };
 
-static const SpriteID _road_frontwire_sprites_1[16] = {
+static const SpriteID _road_backpole_sprites_1[16] = {
 	0, 0x54, 0x55, 0x5B, 0x54, 0x54, 0x5E, 0x5A, 0x55, 0x5C, 0x55, 0x58, 0x5D, 0x57, 0x59, 0x56
 };
 
-static const SpriteID _road_backpole_sprites_1[16] = {
+static const SpriteID _road_frontwire_sprites_1[16] = {
 	0, 0x38, 0x39, 0x40, 0x38, 0x38, 0x43, 0x3E, 0x39, 0x41, 0x39, 0x3C, 0x42, 0x3B, 0x3D, 0x3A
 };
 
