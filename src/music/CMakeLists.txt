@@ -34,13 +34,7 @@ if(NOT OPTION_DEDICATED)
     add_files(
         bemidi.cpp
         bemidi.h
-        CONDITION OPTION_HAIKU
-    )
-
-    add_files(
-        os2_m.cpp
-        os2_m.h
-        CONDITION OPTION_OS2
+        CONDITION HAIKU
     )
 endif()
 
