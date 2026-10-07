@@ -113,6 +113,9 @@ struct GRFError {
 	GRFError(StringID severity, StringID message = 0);
 	GRFError(const GRFError &error);
 
+	/* Remove the copy assignment, as the default implementation will not do the right thing. */
+	GRFError &operator=(GRFError &rhs) = delete;
+
 	std::string custom_message; ///< Custom message (if present)
 	std::string data;           ///< Additional data for message and custom_message
 	StringID message;           ///< Default message
@@ -150,17 +153,20 @@ struct GRFParameterInfo {
 
 /** Information about GRF, used in the game and (part of it) in savegames */
 struct GRFConfig : ZeroedMemoryAllocator {
-	GRFConfig(const char *filename = nullptr);
+	GRFConfig(const std::string &filename = std::string{});
 	GRFConfig(const GRFConfig &config);
 	~GRFConfig();
 
+	/* Remove the copy assignment, as the default implementation will not do the right thing. */
+	GRFConfig &operator=(GRFConfig &rhs) = delete;
+
 	GRFIdentifier ident;                        ///< grfid and md5sum to uniquely identify newgrfs
 	uint8 original_md5sum[16];                  ///< MD5 checksum of original file if only a 'compatible' file was loaded
-	char *filename;                             ///< Filename - either with or without full path
+	std::string filename;                       ///< Filename - either with or without full path
 	GRFTextWrapper name;                        ///< NOSAVE: GRF name (Action 0x08)
 	GRFTextWrapper info;                        ///< NOSAVE: GRF info (author, copyright, ...) (Action 0x08)
 	GRFTextWrapper url;                         ///< NOSAVE: URL belonging to this GRF.
-	GRFError *error;                            ///< NOSAVE: Error/Warning during GRF loading (Action 0x0B)
+	std::unique_ptr<GRFError> error;            ///< NOSAVE: Error/Warning during GRF loading (Action 0x0B)
 
 	uint32 version;                             ///< NOSAVE: Version a NewGRF can set so only the newest NewGRF is shown
 	uint32 min_loadable_version;                ///< NOSAVE: Minimum compatible version a NewGRF can define
@@ -178,7 +184,7 @@ struct GRFConfig : ZeroedMemoryAllocator {
 
 	void CopyParams(const GRFConfig &src);
 
-	const char *GetTextfile(TextfileType type) const;
+	std::optional<std::string> GetTextfile(TextfileType type) const;
 	const char *GetName() const;
 	const char *GetDescription() const;
 	const char *GetURL() const;
@@ -206,7 +212,7 @@ extern uint _missing_extra_graphics;  ///< Number of sprites provided by the fal
 /** Callback for NewGRF scanning. */
 struct NewGRFScanCallback {
 	/** Make sure the right destructor gets called. */
-	virtual ~NewGRFScanCallback() {}
+	virtual ~NewGRFScanCallback() = default;
 	/** Called whenever the NewGRF scan completed. */
 	virtual void OnNewGRFsScanned() = 0;
 };
@@ -228,11 +234,7 @@ char *GRFBuildParamList(char *dst, const GRFConfig *c, const char *last);
 /* In newgrf_gui.cpp */
 void ShowNewGRFSettings(bool editable, bool show_params, bool exec_changes, GRFConfig **config);
 
-/** For communication about GRFs over the network */
-#define UNKNOWN_GRF_NAME_PLACEHOLDER "<Unknown>"
-GRFTextWrapper FindUnknownGRFName(uint32 grfid, uint8 *md5sum, bool create);
-
 void UpdateNewGRFScanStatus(uint num, const char *name);
-bool UpdateNewGRFConfigPalette(int32 p1 = 0);
+void UpdateNewGRFConfigPalette(int32 new_value = 0);
 
 #endif /* NEWGRF_CONFIG_H */

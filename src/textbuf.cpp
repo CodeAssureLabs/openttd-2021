@@ -8,7 +8,6 @@
 /** @file textbuf.cpp Textbuffer handling. */
 
 #include "stdafx.h"
-#include <stdarg.h>
 
 #include "textbuf_type.h"
 #include "string_func.h"
@@ -369,12 +368,10 @@ bool Textbuf::MovePos(uint16 keycode)
  * @param max_chars maximum size in chars, including terminating '\0'
  */
 Textbuf::Textbuf(uint16 max_bytes, uint16 max_chars)
-	: buf(MallocT<char>(max_bytes))
+	: buf(MallocT<char>(max_bytes)), char_iter(StringIterator::Create())
 {
 	assert(max_bytes != 0);
 	assert(max_chars != 0);
-
-	this->char_iter = StringIterator::Create();
 
 	this->afilter    = CS_ALPHANUMERAL;
 	this->max_bytes  = max_bytes;
@@ -385,7 +382,6 @@ Textbuf::Textbuf(uint16 max_bytes, uint16 max_chars)
 
 Textbuf::~Textbuf()
 {
-	delete this->char_iter;
 	free(this->buf);
 }
 
@@ -403,21 +399,9 @@ void Textbuf::Assign(StringID string)
  * Copy a string into the textbuffer.
  * @param text Source.
  */
-void Textbuf::Assign(const char *text)
+void Textbuf::Assign(const std::string_view text)
 {
-	strecpy(this->buf, text, &this->buf[this->max_bytes - 1]);
-	this->UpdateSize();
-}
-
-/**
- * Print a formatted string into the textbuffer.
- */
-void Textbuf::Print(const char *format, ...)
-{
-	va_list va;
-	va_start(va, format);
-	vseprintf(this->buf, &this->buf[this->max_bytes - 1], format, va);
-	va_end(va);
+	strecpy(this->buf, text.data(), &this->buf[this->max_bytes - 1]);
 	this->UpdateSize();
 }
 
@@ -475,6 +459,7 @@ HandleKeyPressResult Textbuf::HandleKeyPress(WChar key, uint16 keycode)
 		case WKC_RETURN: case WKC_NUM_ENTER: return HKPR_CONFIRM;
 
 		case (WKC_CTRL | 'V'):
+		case (WKC_SHIFT | WKC_INSERT):
 			edited = this->InsertClipboard();
 			break;
 

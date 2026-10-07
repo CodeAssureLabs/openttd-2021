@@ -10,10 +10,7 @@
 #ifndef SMALLVEC_TYPE_HPP
 #define SMALLVEC_TYPE_HPP
 
-#include "alloc_func.hpp"
 #include "mem_func.hpp"
-#include <vector>
-#include <algorithm>
 
 /**
  * Helper function to append an item to a vector if it is not already contained

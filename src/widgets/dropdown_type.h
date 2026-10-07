@@ -25,12 +25,12 @@ public:
 	bool masked; ///< Masked and unselectable item
 
 	DropDownListItem(int result, bool masked) : result(result), masked(masked) {}
-	virtual ~DropDownListItem() {}
+	virtual ~DropDownListItem() = default;
 
 	virtual bool Selectable() const { return false; }
 	virtual uint Height(uint width) const { return FONT_HEIGHT_NORMAL; }
 	virtual uint Width() const { return 0; }
-	virtual void Draw(int left, int right, int top, int bottom, bool sel, Colours bg_colour) const;
+	virtual void Draw(const Rect &r, bool sel, Colours bg_colour) const;
 };
 
 /**
@@ -44,7 +44,7 @@ public:
 
 	bool Selectable() const override { return true; }
 	uint Width() const override;
-	void Draw(int left, int right, int top, int bottom, bool sel, Colours bg_colour) const override;
+	void Draw(const Rect &r, bool sel, Colours bg_colour) const override;
 	virtual StringID String() const { return this->string; }
 
 	static bool NatSortFunc(std::unique_ptr<const DropDownListItem> const &first, std::unique_ptr<const DropDownListItem> const &second);
@@ -61,6 +61,7 @@ public:
 
 	StringID String() const override;
 	void SetParam(uint index, uint64 value) { decode_params[index] = value; }
+	void SetParamStr(uint index, const char *str) { this->SetParam(index, (uint64)(size_t)str); }
 };
 
 /**
@@ -83,13 +84,12 @@ class DropDownListIconItem : public DropDownListParamStringItem {
 	PaletteID pal;
 	Dimension dim;
 	uint sprite_y;
-	uint text_y;
 public:
 	DropDownListIconItem(SpriteID sprite, PaletteID pal, StringID string, int result, bool masked);
 
 	uint Height(uint width) const override;
 	uint Width() const override;
-	void Draw(int left, int right, int top, int bottom, bool sel, Colours bg_colour) const override;
+	void Draw(const Rect &r, bool sel, Colours bg_colour) const override;
 	void SetDimension(Dimension d);
 };
 
@@ -98,8 +98,8 @@ public:
  */
 typedef std::vector<std::unique_ptr<const DropDownListItem>> DropDownList;
 
-void ShowDropDownListAt(Window *w, DropDownList &&list, int selected, int button, Rect wi_rect, Colours wi_colour, bool auto_width = false, bool instant_close = false);
+void ShowDropDownListAt(Window *w, DropDownList &&list, int selected, int button, Rect wi_rect, Colours wi_colour, bool instant_close = false);
 
-void ShowDropDownList(Window *w, DropDownList &&list, int selected, int button, uint width = 0, bool auto_width = false, bool instant_close = false);
+void ShowDropDownList(Window *w, DropDownList &&list, int selected, int button, uint width = 0, bool instant_close = false);
 
 #endif /* WIDGETS_DROPDOWN_TYPE_H */

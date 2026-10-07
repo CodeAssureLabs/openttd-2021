@@ -14,7 +14,9 @@
 #include "core/smallvec_type.hpp"
 #include "viewport_func.h"
 #include "settings_type.h"
-#include "guitimer_func.h"
+#include "command_type.h"
+#include "timer/timer.h"
+#include "timer/timer_window.h"
 
 #include "safeguards.h"
 
@@ -73,7 +75,17 @@ void UpdateTextEffect(TextEffectID te_id, StringID msg)
 	te->params_1 = GetDParam(0);
 	te->params_2 = GetDParam(1);
 
-	te->UpdatePosition(te->center, te->top, msg);
+	te->UpdatePosition(te->center, te->top, te->string_id, te->string_id - 1);
+}
+
+void UpdateAllTextEffectVirtCoords()
+{
+	for (auto &te : _text_effects) {
+		if (te.string_id == INVALID_STRING_ID) continue;
+		SetDParam(0, te.params_1);
+		SetDParam(1, te.params_2);
+		te.UpdatePosition(te.center, te.top, te.string_id, te.string_id - 1);
+	}
 }
 
 void RemoveTextEffect(TextEffectID te_id)
@@ -81,11 +93,9 @@ void RemoveTextEffect(TextEffectID te_id)
 	_text_effects[te_id].Reset();
 }
 
-void MoveAllTextEffects(uint delta_ms)
-{
-	static GUITimer texteffecttimer = GUITimer(MILLISECONDS_PER_TICK);
-	uint count = texteffecttimer.CountElapsed(delta_ms);
-	if (count == 0) return;
+/** Slowly move text effects upwards. */
+IntervalTimer<TimerWindow> move_all_text_effects_interval = {std::chrono::milliseconds(30), [](uint count) {
+	if (_pause_mode && _game_mode != GM_EDITOR && _settings_game.construction.command_pause_level <= CMDPL_NO_CONSTRUCTION) return;
 
 	for (TextEffect &te : _text_effects) {
 		if (te.string_id == INVALID_STRING_ID) continue;
@@ -101,7 +111,7 @@ void MoveAllTextEffects(uint delta_ms)
 		te.top -= count * ZOOM_LVL_BASE;
 		te.MarkDirty(ZOOM_LVL_OUT_8X);
 	}
-}
+}};
 
 void InitTextEffects()
 {

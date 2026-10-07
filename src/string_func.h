@@ -24,31 +24,45 @@
 #ifndef STRING_FUNC_H
 #define STRING_FUNC_H
 
-#include <stdarg.h>
 #include <iosfwd>
 
 #include "core/bitmath_func.hpp"
+#include "core/span_type.hpp"
 #include "string_type.h"
 
-char *strecat(char *dst, const char *src, const char *last);
-char *strecpy(char *dst, const char *src, const char *last);
-char *stredup(const char *src, const char *last = nullptr);
+char *strecat(char *dst, const char *src, const char *last) NOACCESS(3);
+char *strecpy(char *dst, const char *src, const char *last) NOACCESS(3);
+char *stredup(const char *src, const char *last = nullptr) NOACCESS(2);
 
-int CDECL seprintf(char *str, const char *last, const char *format, ...) WARN_FORMAT(3, 4);
-int CDECL vseprintf(char *str, const char *last, const char *format, va_list ap) WARN_FORMAT(3, 0);
+int CDECL seprintf(char *str, const char *last, const char *format, ...) WARN_FORMAT(3, 4) NOACCESS(2);
 
-char *CDECL str_fmt(const char *str, ...) WARN_FORMAT(1, 2);
+std::string FormatArrayAsHex(span<const byte> data);
 
-void str_validate(char *str, const char *last, StringValidationSettings settings = SVS_REPLACE_WITH_QUESTION_MARK);
-std::string str_validate(const std::string &str, StringValidationSettings settings = SVS_REPLACE_WITH_QUESTION_MARK);
-void ValidateString(const char *str);
+void StrMakeValidInPlace(char *str, const char *last, StringValidationSettings settings = SVS_REPLACE_WITH_QUESTION_MARK) NOACCESS(2);
+[[nodiscard]] std::string StrMakeValid(std::string_view str, StringValidationSettings settings = SVS_REPLACE_WITH_QUESTION_MARK);
+void StrMakeValidInPlace(char *str, StringValidationSettings settings = SVS_REPLACE_WITH_QUESTION_MARK);
 
-void str_fix_scc_encoded(char *str, const char *last);
+void str_fix_scc_encoded(char *str, const char *last) NOACCESS(2);
 void str_strip_colours(char *str);
 bool strtolower(char *str);
 bool strtolower(std::string &str, std::string::size_type offs = 0);
 
-bool StrValid(const char *str, const char *last);
+[[nodiscard]] bool StrValid(const char *str, const char *last) NOACCESS(2);
+void StrTrimInPlace(std::string &str);
+
+[[nodiscard]] bool StrStartsWith(const std::string_view str, const std::string_view prefix);
+[[nodiscard]] bool StrStartsWithIgnoreCase(std::string_view str, const std::string_view prefix);
+[[nodiscard]] bool StrEndsWith(const std::string_view str, const std::string_view suffix);
+[[nodiscard]] bool StrEndsWithIgnoreCase(std::string_view str, const std::string_view suffix);
+
+[[nodiscard]] int StrCompareIgnoreCase(const std::string_view str1, const std::string_view str2);
+[[nodiscard]] bool StrEqualsIgnoreCase(const std::string_view str1, const std::string_view str2);
+[[nodiscard]] int StrNaturalCompare(std::string_view s1, std::string_view s2, bool ignore_garbage_at_front = false);
+
+/** Case insensitive comparator for strings, for example for use in std::map. */
+struct CaseInsensitiveComparator {
+	bool operator()(const std::string_view s1, const std::string_view s2) const { return StrCompareIgnoreCase(s1, s2) < 0; }
+};
 
 /**
  * Check if a string buffer is empty.
@@ -76,7 +90,7 @@ static inline size_t ttd_strnlen(const char *str, size_t maxlen)
 	return t - str;
 }
 
-char *md5sumToString(char *buf, const char *last, const uint8 md5sum[16]);
+std::string MD5SumToString(const uint8 md5sum[16]);
 
 bool IsValidChar(WChar key, CharSetFilter afilter);
 
@@ -165,6 +179,7 @@ static inline const char *Utf8PrevChar(const char *s)
 }
 
 size_t Utf8StringLength(const char *s);
+size_t Utf8StringLength(const std::string &str);
 
 /**
  * Is the given character a lead surrogate code point?
@@ -266,7 +281,5 @@ static inline bool IsWhitespace(WChar c)
 #	define DEFINE_STRCASESTR
 char *strcasestr(const char *haystack, const char *needle);
 #endif /* strcasestr is available */
-
-int strnatcmp(const char *s1, const char *s2, bool ignore_garbage_at_front = false);
 
 #endif /* STRING_FUNC_H */

@@ -19,7 +19,6 @@
 #include "saveload_internal.h"
 #include "oldloader.h"
 
-#include <exception>
 
 #include "../safeguards.h"
 
@@ -56,7 +55,7 @@ static byte ReadByteFromFile(LoadgameState *ls)
 
 		/* We tried to read, but there is nothing in the file anymore.. */
 		if (count == 0) {
-			DEBUG(oldloader, 0, "Read past end of file, loading failed");
+			Debug(oldloader, 0, "Read past end of file, loading failed");
 			throw std::exception();
 		}
 
@@ -108,8 +107,6 @@ byte ReadByte(LoadgameState *ls)
  */
 bool LoadChunk(LoadgameState *ls, void *base, const OldChunks *chunks)
 {
-	byte *base_ptr = (byte*)base;
-
 	for (const OldChunks *chunk = chunks; chunk->type != OC_END; chunk++) {
 		if (((chunk->type & OC_TTD) && _savegame_type == SGT_TTO) ||
 				((chunk->type & OC_TTO) && _savegame_type != SGT_TTO)) {
@@ -134,8 +131,8 @@ bool LoadChunk(LoadgameState *ls, void *base, const OldChunks *chunks)
 						break;
 
 					case OC_ASSERT:
-						DEBUG(oldloader, 4, "Assert point: 0x%X / 0x%X", ls->total_read, chunk->offset + _bump_assert_value);
-						if (ls->total_read != chunk->offset + _bump_assert_value) throw std::exception();
+						Debug(oldloader, 4, "Assert point: 0x{:X} / 0x{:X}", ls->total_read, (uint)(size_t)chunk->ptr + _bump_assert_value);
+						if (ls->total_read != (size_t)chunk->ptr + _bump_assert_value) throw std::exception();
 					default: break;
 				}
 			} else {
@@ -153,10 +150,10 @@ bool LoadChunk(LoadgameState *ls, void *base, const OldChunks *chunks)
 				}
 
 				/* When both pointers are nullptr, we are just skipping data */
-				if (base_ptr == nullptr && chunk->ptr == nullptr) continue;
+				if (base == nullptr && chunk->ptr == nullptr) continue;
 
-				/* Writing to the var: bits 8 to 15 have the VAR type */
-				if (chunk->ptr == nullptr) ptr = base_ptr + chunk->offset;
+				/* Chunk refers to a struct member, get address in base. */
+				if (chunk->ptr == nullptr) ptr = (byte *)chunk->offset(base);
 
 				/* Write the data */
 				switch (GetOldChunkVarType(chunk->type)) {
@@ -236,7 +233,7 @@ static inline bool CheckOldSavegameType(FILE *f, char *temp, const char *last, u
 
 	bool ret = VerifyOldNameChecksum(temp, len);
 	temp[len - 2] = '\0'; // name is null-terminated in savegame, but it's better to be sure
-	str_validate(temp, last);
+	StrMakeValidInPlace(temp, last);
 
 	return ret;
 }
@@ -275,7 +272,7 @@ bool LoadOldSaveGame(const std::string &file)
 {
 	LoadgameState ls;
 
-	DEBUG(oldloader, 3, "Trying to load a TTD(Patch) savegame");
+	Debug(oldloader, 3, "Trying to load a TTD(Patch) savegame");
 
 	InitLoading(&ls);
 
@@ -283,7 +280,7 @@ bool LoadOldSaveGame(const std::string &file)
 	ls.file = FioFOpenFile(file, "rb", NO_DIRECTORY);
 
 	if (ls.file == nullptr) {
-		DEBUG(oldloader, 0, "Cannot open file '%s'", file.c_str());
+		Debug(oldloader, 0, "Cannot open file '{}'", file);
 		return false;
 	}
 

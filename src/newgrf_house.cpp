@@ -152,13 +152,12 @@ void DecreaseBuildingCount(Town *t, HouseID house_id)
 
 static uint32 GetNumHouses(HouseID house_id, const Town *town)
 {
-	uint8 map_id_count, town_id_count, map_class_count, town_class_count;
 	HouseClassID class_id = HouseSpec::Get(house_id)->class_id;
 
-	map_id_count     = ClampU(_building_counts.id_count[house_id], 0, 255);
-	map_class_count  = ClampU(_building_counts.class_count[class_id], 0, 255);
-	town_id_count    = ClampU(town->cache.building_counts.id_count[house_id], 0, 255);
-	town_class_count = ClampU(town->cache.building_counts.class_count[class_id], 0, 255);
+	uint8_t map_id_count     = ClampTo<uint8_t>(_building_counts.id_count[house_id]);
+	uint8_t map_class_count  = ClampTo<uint8_t>(_building_counts.class_count[class_id]);
+	uint8_t town_id_count    = ClampTo<uint8_t>(town->cache.building_counts.id_count[house_id]);
+	uint8_t town_class_count = ClampTo<uint8_t>(town->cache.building_counts.class_count[class_id]);
 
 	return map_class_count << 24 | town_class_count << 16 | map_id_count << 8 | town_id_count;
 }
@@ -346,7 +345,7 @@ static uint32 GetDistanceFromNearbyHouse(uint8 parameter, TileIndex tile, HouseI
 			/* Extract tile offset. */
 			int8 x_offs = GB(GetRegister(0x100), 0, 8);
 			int8 y_offs = GB(GetRegister(0x100), 8, 8);
-			TileIndex testtile = TILE_MASK(this->tile + TileDiffXY(x_offs, y_offs));
+			TileIndex testtile = Map::WrapToMap(this->tile + TileDiffXY(x_offs, y_offs));
 
 			StationFinder stations(TileArea(testtile, 1, 1));
 			const StationList *sl = stations.GetStations();
@@ -404,7 +403,7 @@ static uint32 GetDistanceFromNearbyHouse(uint8 parameter, TileIndex tile, HouseI
 		}
 	}
 
-	DEBUG(grf, 1, "Unhandled house variable 0x%X", variable);
+	Debug(grf, 1, "Unhandled house variable 0x{:X}", variable);
 
 	*available = false;
 	return UINT_MAX;
@@ -480,7 +479,7 @@ uint16 GetSimpleHouseCallback(CallbackID callback, uint32 param1, uint32 param2,
 }
 
 /** Helper class for animation control. */
-struct HouseAnimationBase : public AnimationBase<HouseAnimationBase, HouseSpec, Town, CargoTypes, GetSimpleHouseCallback> {
+struct HouseAnimationBase : public AnimationBase<HouseAnimationBase, HouseSpec, Town, CargoTypes, GetSimpleHouseCallback, TileAnimationFrameAnimationHelper<Town> > {
 	static const CallbackID cb_animation_speed      = CBID_HOUSE_ANIMATION_SPEED;
 	static const CallbackID cb_animation_next_frame = CBID_HOUSE_ANIMATION_NEXT_FRAME;
 

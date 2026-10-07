@@ -18,6 +18,7 @@
 #include "slope_type.h"
 #include "strings_type.h"
 #include "date_type.h"
+#include "timer/timer_game_calendar.h"
 #include "signal_type.h"
 #include "settings_type.h"
 
@@ -249,7 +250,7 @@ public:
 	 * The introduction at this date is furthermore limited by the
 	 * #introduction_required_railtypes.
 	 */
-	Date introduction_date;
+	TimerGameCalendar::Date introduction_date;
 
 	/**
 	 * Bitmask of railtypes that are required for this railtype to be introduced
@@ -388,7 +389,7 @@ static inline Money RailClearCost(RailType railtype)
 	 * cost.
 	 */
 	assert(railtype < RAILTYPE_END);
-	return max(_price[PR_CLEAR_RAIL], -RailBuildCost(railtype) * 3 / 4);
+	return std::max(_price[PR_CLEAR_RAIL], -RailBuildCost(railtype) * 3 / 4);
 }
 
 /**
@@ -408,8 +409,8 @@ static inline Money RailConvertCost(RailType from, RailType to)
 	 * build costs, if the target type is more expensive (material upgrade costs).
 	 * Upgrade can never be more expensive than re-building. */
 	if (HasPowerOnRail(from, to) || HasPowerOnRail(to, from)) {
-		Money upgradecost = RailBuildCost(to) / 8 + max((Money)0, RailBuildCost(to) - RailBuildCost(from));
-		return min(upgradecost, rebuildcost);
+		Money upgradecost = RailBuildCost(to) / 8 + std::max((Money)0, RailBuildCost(to) - RailBuildCost(from));
+		return std::min(upgradecost, rebuildcost);
 	}
 
 	/* make the price the same as remove + build new type for rail types
@@ -450,7 +451,7 @@ bool HasRailtypeAvail(const CompanyID company, const RailType railtype);
 bool HasAnyRailtypesAvail(const CompanyID company);
 bool ValParamRailtype(const RailType rail);
 
-RailTypes AddDateIntroducedRailTypes(RailTypes current, Date date);
+RailTypes AddDateIntroducedRailTypes(RailTypes current, TimerGameCalendar::Date date);
 
 RailTypes GetCompanyRailtypes(CompanyID company, bool introduces = true);
 RailTypes GetRailTypes(bool introduces);
@@ -463,11 +464,5 @@ RailType AllocateRailType(RailTypeLabel label);
 
 extern std::vector<RailType> _sorted_railtypes;
 extern RailTypes _railtypes_hidden_mask;
-
-/**
- * Loop header for iterating over railtypes, sorted by sortorder.
- * @param var Railtype.
- */
-#define FOR_ALL_SORTED_RAILTYPES(var) for (uint8 index = 0; index < _sorted_railtypes.size() && (var = _sorted_railtypes[index], true) ; index++)
 
 #endif /* RAIL_H */
