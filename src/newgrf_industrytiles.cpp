@@ -31,7 +31,7 @@
  * @param grf_version8 True, if we are dealing with a new NewGRF which uses GRF version >= 8.
  * @return a construction of bits obeying the newgrf format
  */
-uint32 GetNearbyIndustryTileInformation(byte parameter, TileIndex tile, IndustryID index, bool signed_offsets, bool grf_version8)
+uint32_t GetNearbyIndustryTileInformation(uint8_t parameter, TileIndex tile, IndustryID index, bool signed_offsets, bool grf_version8)
 {
 	if (parameter != 0) tile = GetNearbyTile(parameter, tile, signed_offsets); // only perform if it is required
 	bool is_same_industry = (IsTileType(tile, MP_INDUSTRY) && GetIndustryIndex(tile) == index);
@@ -50,15 +50,15 @@ uint32 GetNearbyIndustryTileInformation(byte parameter, TileIndex tile, Industry
  * @param tile TileIndex of the tile to evaluate
  * @param ind_tile northernmost tile of the industry
  */
-uint32 GetRelativePosition(TileIndex tile, TileIndex ind_tile)
+uint32_t GetRelativePosition(TileIndex tile, TileIndex ind_tile)
 {
-	byte x = TileX(tile) - TileX(ind_tile);
-	byte y = TileY(tile) - TileY(ind_tile);
+	uint8_t x = TileX(tile) - TileX(ind_tile);
+	uint8_t y = TileY(tile) - TileY(ind_tile);
 
 	return ((y & 0xF) << 20) | ((x & 0xF) << 16) | (y << 8) | x;
 }
 
-/* virtual */ uint32 IndustryTileScopeResolver::GetVariable(byte variable, uint32 parameter, bool *available) const
+/* virtual */ uint32_t IndustryTileScopeResolver::GetVariable(uint8_t variable, [[maybe_unused]] uint32_t parameter, bool &available) const
 {
 	switch (variable) {
 		/* Construction state of the tile: a value between 0 and 3 */
@@ -78,7 +78,7 @@ uint32 GetRelativePosition(TileIndex tile, TileIndex ind_tile)
 
 		/* Land info of nearby tiles */
 		case 0x60: return GetNearbyIndustryTileInformation(parameter, this->tile,
-				this->industry == nullptr ? (IndustryID)INVALID_INDUSTRY : this->industry->index, true, this->ro.grffile->grf_version >= 8);
+				this->industry == nullptr ? (IndustryID)IndustryID::Invalid() : this->industry->index, true, this->ro.grffile->grf_version >= 8);
 
 		/* Animation stage of nearby tiles */
 		case 0x61: {
@@ -93,25 +93,25 @@ uint32 GetRelativePosition(TileIndex tile, TileIndex ind_tile)
 		case 0x62: return GetIndustryIDAtOffset(GetNearbyTile(parameter, this->tile), this->industry, this->ro.grffile->grfid);
 	}
 
-	DEBUG(grf, 1, "Unhandled industry tile variable 0x%X", variable);
+	Debug(grf, 1, "Unhandled industry tile variable 0x{:X}", variable);
 
-	*available = false;
+	available = false;
 	return UINT_MAX;
 }
 
-/* virtual */ uint32 IndustryTileScopeResolver::GetRandomBits() const
+/* virtual */ uint32_t IndustryTileScopeResolver::GetRandomBits() const
 {
 	assert(this->industry != nullptr && IsValidTile(this->tile));
-	assert(this->industry->index == INVALID_INDUSTRY || IsTileType(this->tile, MP_INDUSTRY));
+	assert(this->industry->index == IndustryID::Invalid() || IsTileType(this->tile, MP_INDUSTRY));
 
-	return (this->industry->index != INVALID_INDUSTRY) ? GetIndustryRandomBits(this->tile) : 0;
+	return (this->industry->index != IndustryID::Invalid()) ? GetIndustryRandomBits(this->tile) : 0;
 }
 
-/* virtual */ uint32 IndustryTileScopeResolver::GetTriggers() const
+/* virtual */ uint32_t IndustryTileScopeResolver::GetTriggers() const
 {
 	assert(this->industry != nullptr && IsValidTile(this->tile));
-	assert(this->industry->index == INVALID_INDUSTRY || IsTileType(this->tile, MP_INDUSTRY));
-	if (this->industry->index == INVALID_INDUSTRY) return 0;
+	assert(this->industry->index == IndustryID::Invalid() || IsTileType(this->tile, MP_INDUSTRY));
+	if (this->industry->index == IndustryID::Invalid()) return 0;
 	return GetIndustryTriggers(this->tile);
 }
 
@@ -136,13 +136,13 @@ static const GRFFile *GetIndTileGrffile(IndustryGfx gfx)
  * @param callback_param2 Second parameter (var 18) of the callback.
  */
 IndustryTileResolverObject::IndustryTileResolverObject(IndustryGfx gfx, TileIndex tile, Industry *indus,
-			CallbackID callback, uint32 callback_param1, uint32 callback_param2)
+			CallbackID callback, uint32_t callback_param1, uint32_t callback_param2)
 	: ResolverObject(GetIndTileGrffile(gfx), callback, callback_param1, callback_param2),
 	indtile_scope(*this, indus, tile),
 	ind_scope(*this, tile, indus, indus->type),
 	gfx(gfx)
 {
-	this->root_spritegroup = GetIndustryTileSpec(gfx)->grf_prop.spritegroup[0];
+	this->root_spritegroup = GetIndustryTileSpec(gfx)->grf_prop.GetSpriteGroup();
 }
 
 GrfSpecFeature IndustryTileResolverObject::GetFeature() const
@@ -150,12 +150,12 @@ GrfSpecFeature IndustryTileResolverObject::GetFeature() const
 	return GSF_INDUSTRYTILES;
 }
 
-uint32 IndustryTileResolverObject::GetDebugID() const
+uint32_t IndustryTileResolverObject::GetDebugID() const
 {
 	return GetIndustryTileSpec(gfx)->grf_prop.local_id;
 }
 
-static void IndustryDrawTileLayout(const TileInfo *ti, const TileLayoutSpriteGroup *group, byte rnd_colour, byte stage, IndustryGfx gfx)
+static void IndustryDrawTileLayout(const TileInfo *ti, const TileLayoutSpriteGroup *group, uint8_t rnd_colour, uint8_t stage)
 {
 	const DrawTileSprites *dts = group->ProcessRegisters(&stage);
 
@@ -178,10 +178,10 @@ static void IndustryDrawTileLayout(const TileInfo *ti, const TileLayoutSpriteGro
 	DrawNewGRFTileSeq(ti, dts, TO_INDUSTRIES, stage, GENERAL_SPRITE_COLOUR(rnd_colour));
 }
 
-uint16 GetIndustryTileCallback(CallbackID callback, uint32 param1, uint32 param2, IndustryGfx gfx_id, Industry *industry, TileIndex tile)
+uint16_t GetIndustryTileCallback(CallbackID callback, uint32_t param1, uint32_t param2, IndustryGfx gfx_id, Industry *industry, TileIndex tile)
 {
 	assert(industry != nullptr && IsValidTile(tile));
-	assert(industry->index == INVALID_INDUSTRY || IsTileType(tile, MP_INDUSTRY));
+	assert(industry->index == IndustryID::Invalid() || IsTileType(tile, MP_INDUSTRY));
 
 	IndustryTileResolverObject object(gfx_id, tile, industry, callback, param1, param2);
 	return object.ResolveCallback();
@@ -191,9 +191,9 @@ bool DrawNewIndustryTile(TileInfo *ti, Industry *i, IndustryGfx gfx, const Indus
 {
 	if (ti->tileh != SLOPE_FLAT) {
 		bool draw_old_one = true;
-		if (HasBit(inds->callback_mask, CBM_INDT_DRAW_FOUNDATIONS)) {
+		if (inds->callback_mask.Test(IndustryTileCallbackMask::DrawFoundations)) {
 			/* Called to determine the type (if any) of foundation to draw for industry tile */
-			uint32 callback_res = GetIndustryTileCallback(CBID_INDTILE_DRAW_FOUNDATIONS, 0, 0, gfx, i, ti->tile);
+			uint32_t callback_res = GetIndustryTileCallback(CBID_INDTILE_DRAW_FOUNDATIONS, 0, 0, gfx, i, ti->tile);
 			if (callback_res != CALLBACK_FAILED) draw_old_one = ConvertBooleanCallback(inds->grf_prop.grffile, CBID_INDTILE_DRAW_FOUNDATIONS, callback_res);
 		}
 
@@ -207,8 +207,8 @@ bool DrawNewIndustryTile(TileInfo *ti, Industry *i, IndustryGfx gfx, const Indus
 
 	/* Limit the building stage to the number of stages supplied. */
 	const TileLayoutSpriteGroup *tlgroup = (const TileLayoutSpriteGroup *)group;
-	byte stage = GetIndustryConstructionStage(ti->tile);
-	IndustryDrawTileLayout(ti, tlgroup, i->random_colour, stage, gfx);
+	uint8_t stage = GetIndustryConstructionStage(ti->tile);
+	IndustryDrawTileLayout(ti, tlgroup, i->random_colour, stage);
 	return true;
 }
 
@@ -227,42 +227,42 @@ extern bool IsSlopeRefused(Slope current, Slope refused);
  * @param creation_type The circumstances the industry is created under.
  * @return Succeeded or failed command.
  */
-CommandCost PerformIndustryTileSlopeCheck(TileIndex ind_base_tile, TileIndex ind_tile, const IndustryTileSpec *its, IndustryType type, IndustryGfx gfx, size_t layout_index, uint16 initial_random_bits, Owner founder, IndustryAvailabilityCallType creation_type)
+CommandCost PerformIndustryTileSlopeCheck(TileIndex ind_base_tile, TileIndex ind_tile, const IndustryTileSpec *its, IndustryType type, IndustryGfx gfx, size_t layout_index, uint16_t initial_random_bits, Owner founder, IndustryAvailabilityCallType creation_type)
 {
 	Industry ind;
-	ind.index = INVALID_INDUSTRY;
+	ind.index = IndustryID::Invalid();
 	ind.location.tile = ind_base_tile;
 	ind.location.w = 0;
 	ind.type = type;
 	ind.random = initial_random_bits;
 	ind.founder = founder;
 
-	uint16 callback_res = GetIndustryTileCallback(CBID_INDTILE_SHAPE_CHECK, 0, creation_type << 8 | (uint32)layout_index, gfx, &ind, ind_tile);
+	uint16_t callback_res = GetIndustryTileCallback(CBID_INDTILE_SHAPE_CHECK, 0, creation_type << 8 | (uint32_t)layout_index, gfx, &ind, ind_tile);
 	if (callback_res == CALLBACK_FAILED) {
 		if (!IsSlopeRefused(GetTileSlope(ind_tile), its->slopes_refused)) return CommandCost();
-		return_cmd_error(STR_ERROR_SITE_UNSUITABLE);
+		return CommandCost(STR_ERROR_SITE_UNSUITABLE);
 	}
 	if (its->grf_prop.grffile->grf_version < 7) {
 		if (callback_res != 0) return CommandCost();
-		return_cmd_error(STR_ERROR_SITE_UNSUITABLE);
+		return CommandCost(STR_ERROR_SITE_UNSUITABLE);
 	}
 
 	return GetErrorMessageFromLocationCallbackResult(callback_res, its->grf_prop.grffile, STR_ERROR_SITE_UNSUITABLE);
 }
 
 /* Simple wrapper for GetHouseCallback to keep the animation unified. */
-uint16 GetSimpleIndustryCallback(CallbackID callback, uint32 param1, uint32 param2, const IndustryTileSpec *spec, Industry *ind, TileIndex tile, int extra_data)
+uint16_t GetSimpleIndustryCallback(CallbackID callback, uint32_t param1, uint32_t param2, const IndustryTileSpec *spec, Industry *ind, TileIndex tile, int)
 {
 	return GetIndustryTileCallback(callback, param1, param2, spec - GetIndustryTileSpec(0), ind, tile);
 }
 
 /** Helper class for animation control. */
-struct IndustryAnimationBase : public AnimationBase<IndustryAnimationBase, IndustryTileSpec, Industry, int, GetSimpleIndustryCallback> {
-	static const CallbackID cb_animation_speed      = CBID_INDTILE_ANIMATION_SPEED;
-	static const CallbackID cb_animation_next_frame = CBID_INDTILE_ANIM_NEXT_FRAME;
+struct IndustryAnimationBase : public AnimationBase<IndustryAnimationBase, IndustryTileSpec, Industry, int, GetSimpleIndustryCallback, TileAnimationFrameAnimationHelper<Industry> > {
+	static constexpr CallbackID cb_animation_speed      = CBID_INDTILE_ANIMATION_SPEED;
+	static constexpr CallbackID cb_animation_next_frame = CBID_INDTILE_ANIM_NEXT_FRAME;
 
-	static const IndustryTileCallbackMask cbm_animation_speed      = CBM_INDT_ANIM_SPEED;
-	static const IndustryTileCallbackMask cbm_animation_next_frame = CBM_INDT_ANIM_NEXT_FRAME;
+	static constexpr IndustryTileCallbackMask cbm_animation_speed      = IndustryTileCallbackMask::AnimationSpeed;
+	static constexpr IndustryTileCallbackMask cbm_animation_next_frame = IndustryTileCallbackMask::AnimationNextFrame;
 };
 
 void AnimateNewIndustryTile(TileIndex tile)
@@ -270,10 +270,10 @@ void AnimateNewIndustryTile(TileIndex tile)
 	const IndustryTileSpec *itspec = GetIndustryTileSpec(GetIndustryGfx(tile));
 	if (itspec == nullptr) return;
 
-	IndustryAnimationBase::AnimateTile(itspec, Industry::GetByTile(tile), tile, (itspec->special_flags & INDTILE_SPECIAL_NEXTFRAME_RANDOMBITS) != 0);
+	IndustryAnimationBase::AnimateTile(itspec, Industry::GetByTile(tile), tile, itspec->special_flags.Test(IndustryTileSpecialFlag::NextFrameRandomBits));
 }
 
-bool StartStopIndustryTileAnimation(TileIndex tile, IndustryAnimationTrigger iat, uint32 random)
+bool StartStopIndustryTileAnimation(TileIndex tile, IndustryAnimationTrigger iat, uint32_t random)
 {
 	const IndustryTileSpec *itspec = GetIndustryTileSpec(GetIndustryGfx(tile));
 
@@ -286,8 +286,8 @@ bool StartStopIndustryTileAnimation(TileIndex tile, IndustryAnimationTrigger iat
 bool StartStopIndustryTileAnimation(const Industry *ind, IndustryAnimationTrigger iat)
 {
 	bool ret = true;
-	uint32 random = Random();
-	TILE_AREA_LOOP(tile, ind->location) {
+	uint32_t random = Random();
+	for (TileIndex tile : ind->location) {
 		if (ind->TileBelongsToIndustry(tile)) {
 			if (StartStopIndustryTileAnimation(tile, iat, random)) {
 				SB(random, 0, 16, Random());
@@ -307,14 +307,14 @@ bool StartStopIndustryTileAnimation(const Industry *ind, IndustryAnimationTrigge
  * @param ind Industry of the tile.
  * @param[in,out] reseed_industry Collects bits to reseed for the industry.
  */
-static void DoTriggerIndustryTile(TileIndex tile, IndustryTileTrigger trigger, Industry *ind, uint32 &reseed_industry)
+static void DoTriggerIndustryTile(TileIndex tile, IndustryTileTrigger trigger, Industry *ind, uint32_t &reseed_industry)
 {
 	assert(IsValidTile(tile) && IsTileType(tile, MP_INDUSTRY));
 
 	IndustryGfx gfx = GetIndustryGfx(tile);
 	const IndustryTileSpec *itspec = GetIndustryTileSpec(gfx);
 
-	if (itspec->grf_prop.spritegroup[0] == nullptr) return;
+	if (itspec->grf_prop.GetSpriteGroup() == nullptr) return;
 
 	IndustryTileResolverObject object(gfx, tile, ind, CBID_RANDOM_TRIGGER);
 	object.waiting_triggers = GetIndustryTriggers(tile) | trigger;
@@ -327,8 +327,8 @@ static void DoTriggerIndustryTile(TileIndex tile, IndustryTileTrigger trigger, I
 	SetIndustryTriggers(tile, object.GetRemainingTriggers());
 
 	/* Rerandomise tile bits */
-	byte new_random_bits = Random();
-	byte random_bits = GetIndustryRandomBits(tile);
+	uint8_t new_random_bits = Random();
+	uint8_t random_bits = GetIndustryRandomBits(tile);
 	random_bits &= ~object.reseed[VSG_SCOPE_SELF];
 	random_bits |= new_random_bits & object.reseed[VSG_SCOPE_SELF];
 	SetIndustryRandomBits(tile, random_bits);
@@ -342,11 +342,11 @@ static void DoTriggerIndustryTile(TileIndex tile, IndustryTileTrigger trigger, I
  * @param ind Industry.
  * @param reseed Bits to reseed.
  */
-static void DoReseedIndustry(Industry *ind, uint32 reseed)
+static void DoReseedIndustry(Industry *ind, uint32_t reseed)
 {
 	if (reseed == 0 || ind == nullptr) return;
 
-	uint16 random_bits = Random();
+	uint16_t random_bits = Random();
 	ind->random &= reseed;
 	ind->random |= random_bits & reseed;
 }
@@ -358,7 +358,7 @@ static void DoReseedIndustry(Industry *ind, uint32 reseed)
  */
 void TriggerIndustryTile(TileIndex tile, IndustryTileTrigger trigger)
 {
-	uint32 reseed_industry = 0;
+	uint32_t reseed_industry = 0;
 	Industry *ind = Industry::GetByTile(tile);
 	DoTriggerIndustryTile(tile, trigger, ind, reseed_industry);
 	DoReseedIndustry(ind, reseed_industry);
@@ -371,8 +371,8 @@ void TriggerIndustryTile(TileIndex tile, IndustryTileTrigger trigger)
  */
 void TriggerIndustry(Industry *ind, IndustryTileTrigger trigger)
 {
-	uint32 reseed_industry = 0;
-	TILE_AREA_LOOP(tile, ind->location) {
+	uint32_t reseed_industry = 0;
+	for (TileIndex tile : ind->location) {
 		if (ind->TileBelongsToIndustry(tile)) {
 			DoTriggerIndustryTile(tile, trigger, ind, reseed_industry);
 		}

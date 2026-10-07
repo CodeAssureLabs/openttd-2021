@@ -14,17 +14,16 @@
 #include "viewport_type.h"
 #include "core/pool_type.hpp"
 #include "company_type.h"
-#include <string>
 
-typedef Pool<Sign, SignID, 16, 64000> SignPool;
+typedef Pool<Sign, SignID, 16> SignPool;
 extern SignPool _sign_pool;
 
 struct Sign : SignPool::PoolItem<&_sign_pool> {
 	std::string         name;
 	TrackedViewportSign sign;
-	int32               x;
-	int32               y;
-	int32               z;
+	int32_t               x;
+	int32_t               y;
+	int32_t               z;
 	Owner               owner; // placed by this company. Anyone can delete them though. OWNER_NONE for gray signs from old games.
 
 	Sign(Owner owner = INVALID_OWNER);
