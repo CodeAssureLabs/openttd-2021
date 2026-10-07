@@ -23,7 +23,7 @@ public:
 	/**
 	 * Destroy the handler. Must be given due to virtual Run.
 	 */
-	virtual ~ComponentHandler() {}
+	virtual ~ComponentHandler() = default;
 
 	/**
 	 * Run the handler. A link graph handler must not read or write any data
@@ -39,7 +39,7 @@ private:
 	~LinkGraphSchedule();
 	typedef std::list<LinkGraph *> GraphList;
 	typedef std::list<LinkGraphJob *> JobList;
-	friend const SaveLoad *GetLinkGraphScheduleDesc();
+	friend SaveLoadTable GetLinkGraphScheduleDesc();
 
 protected:
 	ComponentHandler *handlers[6]; ///< Handlers to be run for each job.
@@ -58,7 +58,7 @@ public:
 	bool IsJoinWithUnfinishedJobDue() const;
 	void JoinNext();
 	void SpawnAll();
-	void ShiftDates(int interval);
+	void ShiftDates(TimerGameEconomy::Date interval);
 
 	/**
 	 * Queue a link graph for execution.
