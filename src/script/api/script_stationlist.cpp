@@ -18,16 +18,21 @@
 
 ScriptStationList::ScriptStationList(ScriptStation::StationType station_type)
 {
-	for (Station *st : Station::Iterate()) {
-		if ((st->owner == ScriptObject::GetCompany() || ScriptObject::GetCompany() == OWNER_DEITY) && (st->facilities & station_type) != 0) this->AddItem(st->index);
-	}
+	EnforceDeityOrCompanyModeValid_Void();
+	bool is_deity = ScriptCompanyMode::IsDeity();
+	CompanyID owner = ScriptObject::GetCompany();
+	ScriptList::FillList<Station>(this,
+		[is_deity, owner, station_type](const Station *st) {
+			return (is_deity || st->owner == owner) && (st->facilities & static_cast<StationFacility>(station_type)) != 0;
+		}
+	);
 }
 
 ScriptStationList_Vehicle::ScriptStationList_Vehicle(VehicleID vehicle_id)
 {
-	if (!ScriptVehicle::IsValidVehicle(vehicle_id)) return;
+	if (!ScriptVehicle::IsPrimaryVehicle(vehicle_id)) return;
 
-	Vehicle *v = ::Vehicle::Get(vehicle_id);
+	const Vehicle *v = ::Vehicle::Get(vehicle_id);
 
 	for (Order *o = v->GetFirstOrder(); o != nullptr; o = o->next) {
 		if (o->IsType(OT_GOTO_STATION)) this->AddItem(o->GetDestination());
@@ -100,7 +105,7 @@ public:
 			StationID other);
 	~CargoCollector() ;
 
-	template<ScriptStationList_Cargo::CargoSelector Tselector>
+	template <ScriptStationList_Cargo::CargoSelector Tselector>
 	void Update(StationID from, StationID via, uint amount);
 	const GoodsEntry *GE() const { return ge; }
 
@@ -141,20 +146,20 @@ void CargoCollector::SetValue()
 	}
 }
 
-template<ScriptStationList_Cargo::CargoSelector Tselector>
+template <ScriptStationList_Cargo::CargoSelector Tselector>
 void CargoCollector::Update(StationID from, StationID via, uint amount)
 {
 	StationID key = INVALID_STATION;
 	switch (Tselector) {
 		case ScriptStationList_Cargo::CS_VIA_BY_FROM:
 			if (via != this->other_station) return;
-			FALLTHROUGH;
+			[[fallthrough]];
 		case ScriptStationList_Cargo::CS_BY_FROM:
 			key = from;
 			break;
 		case ScriptStationList_Cargo::CS_FROM_BY_VIA:
 			if (from != this->other_station) return;
-			FALLTHROUGH;
+			[[fallthrough]];
 		case ScriptStationList_Cargo::CS_BY_VIA:
 			key = via;
 			break;
@@ -169,28 +174,30 @@ void CargoCollector::Update(StationID from, StationID via, uint amount)
 }
 
 
-template<ScriptStationList_Cargo::CargoSelector Tselector>
+template <ScriptStationList_Cargo::CargoSelector Tselector>
 void ScriptStationList_CargoWaiting::Add(StationID station_id, CargoID cargo, StationID other_station)
 {
 	CargoCollector collector(this, station_id, cargo, other_station);
 	if (collector.GE() == nullptr) return;
+	if (!collector.GE()->HasData()) return;
 
-	StationCargoList::ConstIterator iter = collector.GE()->cargo.Packets()->begin();
-	StationCargoList::ConstIterator end = collector.GE()->cargo.Packets()->end();
+	StationCargoList::ConstIterator iter = collector.GE()->GetData().cargo.Packets()->begin();
+	StationCargoList::ConstIterator end = collector.GE()->GetData().cargo.Packets()->end();
 	for (; iter != end; ++iter) {
-		collector.Update<Tselector>((*iter)->SourceStation(), iter.GetKey(), (*iter)->Count());
+		collector.Update<Tselector>((*iter)->GetFirstStation(), iter.GetKey(), (*iter)->Count());
 	}
 }
 
 
-template<ScriptStationList_Cargo::CargoSelector Tselector>
+template <ScriptStationList_Cargo::CargoSelector Tselector>
 void ScriptStationList_CargoPlanned::Add(StationID station_id, CargoID cargo, StationID other_station)
 {
 	CargoCollector collector(this, station_id, cargo, other_station);
 	if (collector.GE() == nullptr) return;
+	if (!collector.GE()->HasData()) return;
 
-	FlowStatMap::const_iterator iter = collector.GE()->flows.begin();
-	FlowStatMap::const_iterator end = collector.GE()->flows.end();
+	FlowStatMap::const_iterator iter = collector.GE()->GetData().flows.begin();
+	FlowStatMap::const_iterator end = collector.GE()->GetData().flows.end();
 	for (; iter != end; ++iter) {
 		const FlowStat::SharesMap *shares = iter->second.GetShares();
 		uint prev = 0;
@@ -213,11 +220,12 @@ ScriptStationList_CargoWaitingViaByFrom::ScriptStationList_CargoWaitingViaByFrom
 {
 	CargoCollector collector(this, station_id, cargo, via);
 	if (collector.GE() == nullptr) return;
+	if (!collector.GE()->HasData()) return;
 
 	std::pair<StationCargoList::ConstIterator, StationCargoList::ConstIterator> range =
-			collector.GE()->cargo.Packets()->equal_range(via);
+			collector.GE()->GetData().cargo.Packets()->equal_range(via);
 	for (StationCargoList::ConstIterator iter = range.first; iter != range.second; ++iter) {
-		collector.Update<CS_VIA_BY_FROM>((*iter)->SourceStation(), iter.GetKey(), (*iter)->Count());
+		collector.Update<CS_VIA_BY_FROM>((*iter)->GetFirstStation(), iter.GetKey(), (*iter)->Count());
 	}
 }
 
@@ -259,9 +267,10 @@ ScriptStationList_CargoPlannedFromByVia::ScriptStationList_CargoPlannedFromByVia
 {
 	CargoCollector collector(this, station_id, cargo, from);
 	if (collector.GE() == nullptr) return;
+	if (!collector.GE()->HasData()) return;
 
-	FlowStatMap::const_iterator iter = collector.GE()->flows.find(from);
-	if (iter == collector.GE()->flows.end()) return;
+	FlowStatMap::const_iterator iter = collector.GE()->GetData().flows.find(from);
+	if (iter == collector.GE()->GetData().flows.end()) return;
 	const FlowStat::SharesMap *shares = iter->second.GetShares();
 	uint prev = 0;
 	for (FlowStat::SharesMap::const_iterator flow_iter = shares->begin();
