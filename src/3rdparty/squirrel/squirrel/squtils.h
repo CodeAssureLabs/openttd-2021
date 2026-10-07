@@ -2,6 +2,9 @@
 #ifndef _SQUTILS_H_
 #define _SQUTILS_H_
 
+#include "../../fmt/format.h"
+#include "../../../script/script_fatalerror.hpp"
+
 void *sq_vm_malloc(SQUnsignedInteger size);
 void *sq_vm_realloc(void *p,SQUnsignedInteger oldsize,SQUnsignedInteger size);
 void sq_vm_free(void *p,SQUnsignedInteger size);
@@ -18,7 +21,7 @@ template<typename T> class sqvector
 public:
 	sqvector()
 	{
-		_vals = NULL;
+		_vals = nullptr;
 		_size = 0;
 		_allocated = 0;
 	}
@@ -102,6 +105,10 @@ private:
 	void _realloc(SQUnsignedInteger newsize)
 	{
 		newsize = (newsize > 0)?newsize:4;
+		if (newsize > SIZE_MAX / sizeof(T)) {
+			std::string msg = fmt::format("cannot resize to {}", newsize);
+			throw Script_FatalError(msg);
+		}
 		_vals = (T*)SQ_REALLOC(_vals, _allocated * sizeof(T), newsize * sizeof(T));
 		_allocated = (size_t)newsize;
 	}

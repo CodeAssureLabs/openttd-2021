@@ -10,10 +10,6 @@
 #ifndef TAR_TYPE_H
 #define TAR_TYPE_H
 
-#include <map>
-#include <string>
-#include <array>
-
 #include "fileio_type.h"
 
 
@@ -23,11 +19,9 @@ struct TarFileListEntry {
 	size_t position;
 };
 
-typedef std::map<std::string, std::string> TarList; ///< Map of tar file to tar directory.
-typedef std::map<std::string, TarFileListEntry> TarFileList;
+using TarList = std::map<std::string, std::string, std::less<>>; ///< Map of tar file to tar directory.
+using TarFileList = std::map<std::string, TarFileListEntry, std::less<>> ;
 extern std::array<TarList, NUM_SUBDIRS> _tar_list;
 extern TarFileList _tar_filelist[NUM_SUBDIRS];
-
-#define FOR_ALL_TARS(tar, sd) for (tar = _tar_filelist[sd].begin(); tar != _tar_filelist[sd].end(); tar++)
 
 #endif /* TAR_TYPE_H */
