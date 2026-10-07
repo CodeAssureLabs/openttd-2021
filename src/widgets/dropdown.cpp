@@ -65,25 +65,19 @@ StringID DropDownListParamStringItem::String() const
 
 StringID DropDownListCharStringItem::String() const
 {
-	SetDParamStr(0, this->raw_string.c_str());
+	SetDParamStr(0, this->raw_string);
 	return this->string;
 }
 
 DropDownListIconItem::DropDownListIconItem(SpriteID sprite, PaletteID pal, StringID string, int result, bool masked) : DropDownListParamStringItem(string, result, masked), sprite(sprite), pal(pal)
 {
 	this->dim = GetSpriteSize(sprite);
-	if (this->dim.height < (uint)FONT_HEIGHT_NORMAL) {
-		this->sprite_y = (FONT_HEIGHT_NORMAL - dim.height) / 2;
-		this->text_y = 0;
-	} else {
-		this->sprite_y = 0;
-		this->text_y = (dim.height - FONT_HEIGHT_NORMAL) / 2;
-	}
+	this->sprite_y = dim.height;
 }
 
 uint DropDownListIconItem::Height(uint width) const
 {
-	return max(this->dim.height, (uint)FONT_HEIGHT_NORMAL);
+	return std::max(this->dim.height, (uint)FONT_HEIGHT_NORMAL);
 }
 
 uint DropDownListIconItem::Width() const
@@ -94,8 +88,8 @@ uint DropDownListIconItem::Width() const
 void DropDownListIconItem::Draw(int left, int right, int top, int bottom, bool sel, Colours bg_colour) const
 {
 	bool rtl = _current_text_dir == TD_RTL;
-	DrawSprite(this->sprite, this->pal, rtl ? right - this->dim.width - WD_FRAMERECT_RIGHT : left + WD_FRAMERECT_LEFT, top + this->sprite_y);
-	DrawString(left + WD_FRAMERECT_LEFT + (rtl ? 0 : (this->dim.width + WD_FRAMERECT_LEFT)), right - WD_FRAMERECT_RIGHT - (rtl ? (this->dim.width + WD_FRAMERECT_RIGHT) : 0), top + this->text_y, this->String(), sel ? TC_WHITE : TC_BLACK);
+	DrawSprite(this->sprite, this->pal, rtl ? right - this->dim.width - WD_FRAMERECT_RIGHT : left + WD_FRAMERECT_LEFT, CenterBounds(top, bottom, this->sprite_y));
+	DrawString(left + WD_FRAMERECT_LEFT + (rtl ? 0 : (this->dim.width + WD_FRAMERECT_LEFT)), right - WD_FRAMERECT_RIGHT - (rtl ? (this->dim.width + WD_FRAMERECT_RIGHT) : 0), CenterBounds(top, bottom, FONT_HEIGHT_NORMAL), this->String(), sel ? TC_WHITE : TC_BLACK);
 }
 
 void DropDownListIconItem::SetDimension(Dimension d)
@@ -159,7 +153,7 @@ struct DropdownWindow : Window {
 
 		uint items_width = size.width - (scroll ? NWidgetScrollbar::GetVerticalDimension().width : 0);
 		NWidgetCore *nwi = this->GetWidget<NWidgetCore>(WID_DM_ITEMS);
-		nwi->SetMinimalSize(items_width, size.height + 4);
+		nwi->SetMinimalSizeAbsolute(items_width, size.height + 4);
 		nwi->colour = wi_colour;
 
 		nwi = this->GetWidget<NWidgetCore>(WID_DM_SCROLL);
@@ -381,7 +375,7 @@ void ShowDropDownListAt(Window *w, DropDownList &&list, int selected, int button
 
 	for (const auto &item : list) {
 		height += item->Height(width);
-		if (auto_width) max_item_width = max(max_item_width, item->Width() + 5);
+		if (auto_width) max_item_width = std::max(max_item_width, item->Width() + 5);
 	}
 
 	/* Scrollbar needed? */
@@ -391,12 +385,12 @@ void ShowDropDownListAt(Window *w, DropDownList &&list, int selected, int button
 	bool above = false;
 
 	/* Available height below (or above, if the dropdown is placed above the widget). */
-	uint available_height = (uint)max(GetMainViewBottom() - top - 4, 0);
+	uint available_height = std::max(GetMainViewBottom() - top - 4, 0);
 
 	/* If the dropdown doesn't fully fit below the widget... */
 	if (height > available_height) {
 
-		uint available_height_above = (uint)max(w->top + wi_rect.top - GetMainViewTop() - 4, 0);
+		uint available_height_above = std::max(w->top + wi_rect.top - GetMainViewTop() - 4, 0);
 
 		/* Put the dropdown above if there is more available space. */
 		if (available_height_above > available_height) {
@@ -426,7 +420,7 @@ void ShowDropDownListAt(Window *w, DropDownList &&list, int selected, int button
 		}
 	}
 
-	if (auto_width) width = max(width, max_item_width);
+	if (auto_width) width = std::max(width, max_item_width);
 
 	Point dw_pos = { w->left + (_current_text_dir == TD_RTL ? wi_rect.right + 1 - (int)width : wi_rect.left), top};
 	Dimension dw_size = {width, height};
@@ -511,8 +505,7 @@ void ShowDropDownMenu(Window *w, const StringID *strings, int selected, int butt
  */
 int HideDropDownMenu(Window *pw)
 {
-	Window *w;
-	FOR_ALL_WINDOWS_FROM_BACK(w) {
+	for (Window *w : Window::IterateFromBack()) {
 		if (w->window_class != WC_DROPDOWN_MENU) continue;
 
 		DropdownWindow *dw = dynamic_cast<DropdownWindow*>(w);

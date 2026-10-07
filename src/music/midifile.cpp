@@ -14,7 +14,6 @@
 #include "../core/endian_func.hpp"
 #include "../base_media_base.h"
 #include "midi.h"
-#include <algorithm>
 
 #include "../console_func.h"
 #include "../console_internal.h"
@@ -1143,7 +1142,7 @@ static void RegisterConsoleMidiCommands()
 {
 	static bool registered = false;
 	if (!registered) {
-		IConsoleCmdRegister("dumpsmf", CmdDumpSMF);
+		IConsole::CmdRegister("dumpsmf", CmdDumpSMF);
 		registered = true;
 	}
 }

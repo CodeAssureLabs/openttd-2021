@@ -38,7 +38,7 @@
 #include "sound_func.h"
 #include "company_func.h"
 #include "rev.h"
-#if defined(WITH_FREETYPE) || defined(_WIN32)
+#if defined(WITH_FREETYPE) || defined(_WIN32) || defined(WITH_COCOA)
 #include "fontcache.h"
 #endif
 #include "textbuf_gui.h"
@@ -63,11 +63,12 @@
 #include "roadveh.h"
 #include "fios.h"
 #include "strings_func.h"
+#include "vehicle_func.h"
 
 #include "void_map.h"
 #include "station_base.h"
 
-#if defined(WITH_FREETYPE) || defined(_WIN32)
+#if defined(WITH_FREETYPE) || defined(_WIN32) || defined(WITH_COCOA)
 #define HAS_TRUETYPE_FONT
 #endif
 
@@ -86,7 +87,7 @@ typedef std::list<ErrorMessageData> ErrorList;
 static ErrorList _settings_error_list; ///< Errors while loading minimal settings.
 
 
-typedef void SettingDescProc(IniFile *ini, const SettingDesc *desc, const char *grpname, void *object);
+typedef void SettingDescProc(IniFile *ini, const SettingDesc *desc, const char *grpname, void *object, bool only_startup);
 typedef void SettingDescProcList(IniFile *ini, const char *grpname, StringList &list);
 
 static bool IsSignedVarMemType(VarType vt);
@@ -495,14 +496,68 @@ static void Write_ValidateSetting(void *ptr, const SettingDesc *sd, int32 val)
 }
 
 /**
+ * Set the string value of a setting.
+ * @param ptr Pointer to the storage location (might be a pointer to a pointer).
+ * @param sld Pointer to the information for the conversions and limitations to apply.
+ * @param p   The string to save.
+ */
+static void Write_ValidateString(void *ptr, const SaveLoad *sld, const char *p)
+{
+	switch (GetVarMemType(sld->conv)) {
+		case SLE_VAR_STRB:
+		case SLE_VAR_STRBQ:
+			if (p != nullptr) {
+				char *begin = (char*)ptr;
+				char *end = begin + sld->length - 1;
+				strecpy(begin, p, end);
+				str_validate(begin, end, SVS_NONE);
+			}
+			break;
+
+		case SLE_VAR_STR:
+		case SLE_VAR_STRQ:
+			free(*(char**)ptr);
+			*(char**)ptr = p == nullptr ? nullptr : stredup(p);
+			break;
+
+		default: NOT_REACHED();
+	}
+}
+
+/**
+ * Set the string value of a setting.
+ * @param ptr Pointer to the std::string.
+ * @param sld Pointer to the information for the conversions and limitations to apply.
+ * @param p   The string to save.
+ */
+static void Write_ValidateStdString(void *ptr, const SaveLoad *sld, const char *p)
+{
+	std::string *dst = reinterpret_cast<std::string *>(ptr);
+
+	switch (GetVarMemType(sld->conv)) {
+		case SLE_VAR_STR:
+		case SLE_VAR_STRQ:
+			if (p != nullptr) {
+				dst->assign(p);
+			} else {
+				dst->clear();
+			}
+			break;
+
+		default: NOT_REACHED();
+	}
+}
+
+/**
  * Load values from a group of an IniFile structure into the internal representation
  * @param ini pointer to IniFile structure that holds administrative information
  * @param sd pointer to SettingDesc structure whose internally pointed variables will
  *        be given values
  * @param grpname the group of the IniFile to search in for the new values
  * @param object pointer to the object been loaded
+ * @param only_startup load only the startup settings set
  */
-static void IniLoadSettings(IniFile *ini, const SettingDesc *sd, const char *grpname, void *object)
+static void IniLoadSettings(IniFile *ini, const SettingDesc *sd, const char *grpname, void *object, bool only_startup)
 {
 	IniGroup *group;
 	IniGroup *group_def = ini->GetGroup(grpname);
@@ -512,6 +567,7 @@ static void IniLoadSettings(IniFile *ini, const SettingDesc *sd, const char *grp
 		const SaveLoad        *sld = &sd->save;
 
 		if (!SlIsObjectCurrentlyValid(sld->version_from, sld->version_to)) continue;
+		if (sd->desc.startup != only_startup) continue;
 
 		/* For settings.xx.yy load the settings from [xx] yy = ? */
 		std::string s{ sdb->name };
@@ -548,38 +604,11 @@ static void IniLoadSettings(IniFile *ini, const SettingDesc *sd, const char *grp
 				break;
 
 			case SDT_STRING:
-				switch (GetVarMemType(sld->conv)) {
-					case SLE_VAR_STRB:
-					case SLE_VAR_STRBQ:
-						if (p != nullptr) strecpy((char*)ptr, (const char*)p, (char*)ptr + sld->length - 1);
-						break;
-
-					case SLE_VAR_STR:
-					case SLE_VAR_STRQ:
-						free(*(char**)ptr);
-						*(char**)ptr = p == nullptr ? nullptr : stredup((const char*)p);
-						break;
-
-					case SLE_VAR_CHAR: if (p != nullptr) *(char *)ptr = *(const char *)p; break;
-
-					default: NOT_REACHED();
-				}
+				Write_ValidateString(ptr, sld, (const char *)p);
 				break;
 
 			case SDT_STDSTRING:
-				switch (GetVarMemType(sld->conv)) {
-					case SLE_VAR_STR:
-					case SLE_VAR_STRQ:
-						if (p != nullptr) {
-							reinterpret_cast<std::string *>(ptr)->assign((const char *)p);
-						} else {
-							reinterpret_cast<std::string *>(ptr)->clear();
-						}
-						break;
-
-					default: NOT_REACHED();
-				}
-
+				Write_ValidateStdString(ptr, sld, (const char *)p);
 				break;
 
 			case SDT_INTLIST: {
@@ -612,7 +641,7 @@ static void IniLoadSettings(IniFile *ini, const SettingDesc *sd, const char *grp
  * values are reloaded when saving). If settings indeed have changed, we get
  * these and save them.
  */
-static void IniSaveSettings(IniFile *ini, const SettingDesc *sd, const char *grpname, void *object)
+static void IniSaveSettings(IniFile *ini, const SettingDesc *sd, const char *grpname, void *object, bool)
 {
 	IniGroup *group_def = nullptr, *group;
 	IniItem *item;
@@ -713,7 +742,6 @@ static void IniSaveSettings(IniFile *ini, const SettingDesc *sd, const char *grp
 						}
 						break;
 
-					case SLE_VAR_CHAR: buf[0] = *(char*)ptr; buf[1] = '\0'; break;
 					default: NOT_REACHED();
 				}
 				break;
@@ -797,7 +825,7 @@ static void IniSaveSettingList(IniFile *ini, const char *grpname, StringList &li
  */
 void IniLoadWindowSettings(IniFile *ini, const char *grpname, void *desc)
 {
-	IniLoadSettings(ini, _window_settings, grpname, desc);
+	IniLoadSettings(ini, _window_settings, grpname, desc, false);
 }
 
 /**
@@ -808,7 +836,7 @@ void IniLoadWindowSettings(IniFile *ini, const char *grpname, void *desc)
  */
 void IniSaveWindowSettings(IniFile *ini, const char *grpname, void *desc)
 {
-	IniSaveSettings(ini, _window_settings, grpname, desc);
+	IniSaveSettings(ini, _window_settings, grpname, desc, false);
 }
 
 /**
@@ -824,6 +852,7 @@ bool SettingDesc::IsEditable(bool do_command) const
 	if ((this->desc.flags & SGF_NEWGAME_ONLY) &&
 			(_game_mode == GM_NORMAL ||
 			(_game_mode == GM_EDITOR && !(this->desc.flags & SGF_SCENEDIT_TOO)))) return false;
+	if ((this->desc.flags & SGF_SCENEDIT_ONLY) && _game_mode != GM_EDITOR) return false;
 	return true;
 }
 
@@ -1125,6 +1154,13 @@ static bool ZoomMinMaxChanged(int32 p1)
 	return true;
 }
 
+static bool SpriteZoomMinChanged(int32 p1) {
+	GfxClearSpriteCache();
+	/* Force all sprites to redraw at the new chosen zoom level */
+	MarkWholeScreenDirty();
+	return true;
+}
+
 /**
  * Update any possible saveload window and delete any newgrf dialogue as
  * its widget parts might change. Reinit all windows as it allows access to the
@@ -1136,13 +1172,14 @@ static bool InvalidateNewGRFChangeWindows(int32 p1)
 {
 	InvalidateWindowClassesData(WC_SAVELOAD);
 	DeleteWindowByClass(WC_GAME_OPTIONS);
-	ReInitAllWindows();
+	ReInitAllWindows(_gui_zoom_cfg);
 	return true;
 }
 
 static bool InvalidateCompanyLiveryWindow(int32 p1)
 {
 	InvalidateWindowClassesData(WC_COMPANY_COLOUR, -1);
+	ResetVehicleColourMap();
 	return RedrawScreen(p1);
 }
 
@@ -1379,6 +1416,7 @@ static bool UpdateServerPassword(int32 p1)
 		_settings_client.network.server_password[0] = '\0';
 	}
 
+	NetworkServerUpdateGameInfo();
 	return true;
 }
 
@@ -1393,6 +1431,7 @@ static bool UpdateRconPassword(int32 p1)
 
 static bool UpdateClientConfigValues(int32 p1)
 {
+	NetworkServerUpdateGameInfo();
 	if (_network_server) NetworkServerSendConfigUpdate();
 
 	return true;
@@ -1592,7 +1631,7 @@ static GRFConfig *GRFLoadConfig(IniFile *ini, const char *grpname, bool is_stati
 				SetDParam(1, STR_CONFIG_ERROR_INVALID_GRF_UNKNOWN);
 			}
 
-			SetDParamStr(0, StrEmpty(filename) ? item->name.c_str() : filename);
+			SetDParamStr(0, StrEmpty(filename) ? item->name : filename);
 			ShowErrorMessage(STR_CONFIG_ERROR, STR_CONFIG_ERROR_INVALID_GRF, WL_CRITICAL);
 			delete c;
 			continue;
@@ -1713,20 +1752,18 @@ static void GRFSaveConfig(IniFile *ini, const char *grpname, const GRFConfig *li
 }
 
 /* Common handler for saving/loading variables to the configuration file */
-static void HandleSettingDescs(IniFile *ini, SettingDescProc *proc, SettingDescProcList *proc_list, bool basic_settings = true, bool other_settings = true)
+static void HandleSettingDescs(IniFile *ini, SettingDescProc *proc, SettingDescProcList *proc_list, bool only_startup = false)
 {
-	if (basic_settings) {
-		proc(ini, (const SettingDesc*)_misc_settings,    "misc",  nullptr);
+	proc(ini, (const SettingDesc*)_misc_settings,    "misc",  nullptr, only_startup);
 #if defined(_WIN32) && !defined(DEDICATED)
-		proc(ini, (const SettingDesc*)_win32_settings,   "win32", nullptr);
+	proc(ini, (const SettingDesc*)_win32_settings,   "win32", nullptr, only_startup);
 #endif /* _WIN32 */
-	}
 
-	if (other_settings) {
-		proc(ini, _settings,         "patches",  &_settings_newgame);
-		proc(ini, _currency_settings,"currency", &_custom_currency);
-		proc(ini, _company_settings, "company",  &_settings_client.company);
+	proc(ini, _settings,         "patches",  &_settings_newgame, only_startup);
+	proc(ini, _currency_settings,"currency", &_custom_currency, only_startup);
+	proc(ini, _company_settings, "company",  &_settings_client.company, only_startup);
 
+	if (!only_startup) {
 		proc_list(ini, "server_bind_addresses", _network_bind_list);
 		proc_list(ini, "servers", _network_host_list);
 		proc_list(ini, "bans",    _network_ban_list);
@@ -1742,24 +1779,24 @@ static IniFile *IniLoadConfig()
 
 /**
  * Load the values from the configuration files
- * @param minimal Load the minimal amount of the configuration to "bootstrap" the blitter and such.
+ * @param startup Load the minimal amount of the configuration to "bootstrap" the blitter and such.
  */
-void LoadFromConfig(bool minimal)
+void LoadFromConfig(bool startup)
 {
 	IniFile *ini = IniLoadConfig();
-	if (!minimal) ResetCurrencies(false); // Initialize the array of currencies, without preserving the custom one
+	if (!startup) ResetCurrencies(false); // Initialize the array of currencies, without preserving the custom one
 
 	/* Load basic settings only during bootstrap, load other settings not during bootstrap */
-	HandleSettingDescs(ini, IniLoadSettings, IniLoadSettingList, minimal, !minimal);
+	HandleSettingDescs(ini, IniLoadSettings, IniLoadSettingList, startup);
 
-	if (!minimal) {
+	if (!startup) {
 		_grfconfig_newgame = GRFLoadConfig(ini, "newgrf", false);
 		_grfconfig_static  = GRFLoadConfig(ini, "newgrf-static", true);
 		AILoadConfig(ini, "ai_players");
 		GameLoadConfig(ini, "game_scripts");
 
 		PrepareOldDiffCustom();
-		IniLoadSettings(ini, _gameopt_settings, "gameopt", &_settings_newgame);
+		IniLoadSettings(ini, _gameopt_settings, "gameopt", &_settings_newgame, false);
 		HandleOldDiffCustom(false);
 
 		ValidateSettings();
@@ -2075,13 +2112,13 @@ bool SetSettingValue(uint index, const char *value, bool force_newgame)
 	const SettingDesc *sd = &_settings[index];
 	assert(sd->save.conv & SLF_NO_NETWORK_SYNC);
 
-	if (GetVarMemType(sd->save.conv) == SLE_VAR_STRQ) {
-		char **var = (char**)GetVariableAddress((_game_mode == GM_MENU || force_newgame) ? &_settings_newgame : &_settings_game, &sd->save);
-		free(*var);
-		*var = strcmp(value, "(null)") == 0 ? nullptr : stredup(value);
-	} else {
-		char *var = (char*)GetVariableAddress(nullptr, &sd->save);
-		strecpy(var, value, &var[sd->save.length - 1]);
+	if (GetVarMemType(sd->save.conv) == SLE_VAR_STRQ && strcmp(value, "(null)") == 0) {
+		value = nullptr;
+	}
+
+	void *ptr = GetVariableAddress((_game_mode == GM_MENU || force_newgame) ? &_settings_newgame : &_settings_game, &sd->save);
+	if (sd->desc.cmd == SDT_STRING) {
+		Write_ValidateString(ptr, &sd->save, value);
 	}
 	if (sd->desc.proc != nullptr) sd->desc.proc(0);
 
