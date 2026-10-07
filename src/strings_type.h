@@ -13,7 +13,7 @@
 /**
  * Numeric value that represents a string, independent of the selected language.
  */
-typedef uint32 StringID;
+typedef uint32_t StringID;
 static const StringID INVALID_STRING_ID = 0xFFFF; ///< Constant representing an invalid string (16bit in case it is used in savegames)
 static const int MAX_CHAR_LENGTH        = 4;      ///< Max. length of UTF-8 encoded unicode character
 static const uint MAX_LANG              = 0x7F;   ///< Maximum number of languages supported by the game, and the NewGRF specs
@@ -86,13 +86,8 @@ enum SpecialStrings {
 	SPECSTR_SILLY_NAME         = 0x70E5,
 	SPECSTR_ANDCO_NAME         = 0x70E6,
 	SPECSTR_PRESIDENT_NAME     = 0x70E7,
-
-	/* reserve MAX_LANG strings for the *.lng files */
-	SPECSTR_LANGUAGE_START     = 0x7100,
-	SPECSTR_LANGUAGE_END       = SPECSTR_LANGUAGE_START + MAX_LANG - 1,
-
-	/* reserve strings for various screen resolutions MUST BE THE LAST VALUE IN THIS ENUM */
-	SPECSTR_RESOLUTION_START   = SPECSTR_LANGUAGE_END + 1,
 };
+
+using StringParameterData = std::variant<uint64_t, std::string>;
 
 #endif /* STRINGS_TYPE_H */
