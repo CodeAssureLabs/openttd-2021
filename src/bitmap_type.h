@@ -2,15 +2,14 @@
  * This file is part of OpenTTD.
  * OpenTTD is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, version 2.
  * OpenTTD is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with OpenTTD. If not, see <http://www.gnu.org/licenses/>.
+ * See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with OpenTTD. If not, see <https://www.gnu.org/licenses/old-licenses/gpl-2.0>.
  */
 
-/** @file bitmap_type.hpp Bitmap functions. */
+/** @file bitmap_type.h Bitmap functions. */
 
 #ifndef BITMAP_TYPE_HPP
 #define BITMAP_TYPE_HPP
 
-#include <vector>
 
 /** Represents a tile area containing containing individually set tiles.
  * Each tile must be contained within the preallocated area.
@@ -53,13 +52,13 @@ public:
 
 	/**
 	 * Initialize the BitmapTileArea with the specified Rect.
-	 * @param rect Rect to use.
+	 * @param r Rect to use.
 	 */
 	void Initialize(const Rect &r)
 	{
 		this->tile = TileXY(r.left, r.top);
-		this->w = r.right - r.left + 1;
-		this->h = r.bottom - r.top + 1;
+		this->w = r.Width();
+		this->h = r.Height();
 		this->data.clear();
 		this->data.resize(Index(w, h));
 	}
@@ -117,18 +116,18 @@ public:
 		if (!this->bitmap->HasTile(TileIndex(this->tile))) ++(*this);
 	}
 
-	inline TileIterator& operator ++()
+	inline TileIterator& operator ++() override
 	{
-		(*this).OrthogonalTileIterator::operator++();
+		this->OrthogonalTileIterator::operator++();
 		while (this->tile != INVALID_TILE && !this->bitmap->HasTile(TileIndex(this->tile))) {
-			(*this).OrthogonalTileIterator::operator++();
+			this->OrthogonalTileIterator::operator++();
 		}
 		return *this;
 	}
 
-	virtual TileIterator *Clone() const
+	std::unique_ptr<TileIterator> Clone() const override
 	{
-		return new BitmapTileIterator(*this);
+		return std::make_unique<BitmapTileIterator>(*this);
 	}
 };
 
