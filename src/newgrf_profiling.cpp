@@ -8,18 +8,18 @@
  /** @file newgrf_profiling.cpp Profiling of NewGRF action 2 handling. */
 
 #include "newgrf_profiling.h"
-#include "date_func.h"
 #include "fileio_func.h"
 #include "string_func.h"
 #include "console_func.h"
 #include "spritecache.h"
+#include "3rdparty/fmt/chrono.h"
+#include "timer/timer.h"
+#include "timer/timer_game_tick.h"
 
 #include <chrono>
-#include <time.h>
 
 
 std::vector<NewGRFProfiler> _newgrf_profilers;
-Date _newgrf_profile_end_date;
 
 
 /**
@@ -47,8 +47,8 @@ void NewGRFProfiler::BeginResolve(const ResolverObject &resolver)
 	using namespace std::chrono;
 	this->cur_call.root_sprite = resolver.root_spritegroup->nfo_line;
 	this->cur_call.subs = 0;
-	this->cur_call.time = (uint32)time_point_cast<microseconds>(high_resolution_clock::now()).time_since_epoch().count();
-	this->cur_call.tick = _tick_counter;
+	this->cur_call.time = (uint32_t)time_point_cast<microseconds>(high_resolution_clock::now()).time_since_epoch().count();
+	this->cur_call.tick = TimerGameTick::counter;
 	this->cur_call.cb = resolver.callback;
 	this->cur_call.feat = resolver.GetFeature();
 	this->cur_call.item = resolver.GetDebugID();
@@ -60,7 +60,7 @@ void NewGRFProfiler::BeginResolve(const ResolverObject &resolver)
 void NewGRFProfiler::EndResolve(const SpriteGroup *result)
 {
 	using namespace std::chrono;
-	this->cur_call.time = (uint32)time_point_cast<microseconds>(high_resolution_clock::now()).time_since_epoch().count() - this->cur_call.time;
+	this->cur_call.time = (uint32_t)time_point_cast<microseconds>(high_resolution_clock::now()).time_since_epoch().count() - this->cur_call.time;
 
 	if (result == nullptr) {
 		this->cur_call.result = 0;
@@ -87,34 +87,35 @@ void NewGRFProfiler::Start()
 {
 	this->Abort();
 	this->active = true;
-	this->start_tick = _tick_counter;
+	this->start_tick = TimerGameTick::counter;
 }
 
-uint32 NewGRFProfiler::Finish()
+uint32_t NewGRFProfiler::Finish()
 {
 	if (!this->active) return 0;
 
 	if (this->calls.empty()) {
-		IConsolePrintF(CC_DEBUG, "Finished profile of NewGRF [%08X], no events collected, not writing a file", BSWAP32(this->grffile->grfid));
+		IConsolePrint(CC_DEBUG, "Finished profile of NewGRF [{:08X}], no events collected, not writing a file.", BSWAP32(this->grffile->grfid));
+
+		this->Abort();
 		return 0;
 	}
 
 	std::string filename = this->GetOutputFilename();
-	IConsolePrintF(CC_DEBUG, "Finished profile of NewGRF [%08X], writing %u events to %s", BSWAP32(this->grffile->grfid), (uint)this->calls.size(), filename.c_str());
+	IConsolePrint(CC_DEBUG, "Finished profile of NewGRF [{:08X}], writing {} events to '{}'.", BSWAP32(this->grffile->grfid), this->calls.size(), filename);
 
 	FILE *f = FioFOpenFile(filename, "wt", Subdirectory::NO_DIRECTORY);
 	FileCloser fcloser(f);
 
-	uint32 total_microseconds = 0;
+	uint32_t total_microseconds = 0;
 
-	fputs("Tick,Sprite,Feature,Item,CallbackID,Microseconds,Depth,Result\n", f);
+	fmt::print(f, "Tick,Sprite,Feature,Item,CallbackID,Microseconds,Depth,Result\n");
 	for (const Call &c : this->calls) {
-		fprintf(f, "%u,%u,0x%X,%u,0x%X,%u,%u,%u\n", c.tick, c.root_sprite, c.feat, c.item, (uint)c.cb, c.time, c.subs, c.result);
+		fmt::print(f, "{},{},{:#X},{},{:#X},{},{},{}\n", c.tick, c.root_sprite, c.feat, c.item, (uint)c.cb, c.time, c.subs, c.result);
 		total_microseconds += c.time;
 	}
 
 	this->Abort();
-
 	return total_microseconds;
 }
 
@@ -130,33 +131,49 @@ void NewGRFProfiler::Abort()
  */
 std::string NewGRFProfiler::GetOutputFilename() const
 {
-	time_t write_time = time(nullptr);
-
-	char timestamp[16] = {};
-	strftime(timestamp, lengthof(timestamp), "%Y%m%d-%H%M", localtime(&write_time));
-
-	char filepath[MAX_PATH] = {};
-	seprintf(filepath, lastof(filepath), "%sgrfprofile-%s-%08X.csv", FiosGetScreenshotDir(), timestamp, BSWAP32(this->grffile->grfid));
-
-	return std::string(filepath);
+	return fmt::format("{}grfprofile-{:%Y%m%d-%H%M}-{:08X}.csv", FiosGetScreenshotDir(), fmt::localtime(time(nullptr)), BSWAP32(this->grffile->grfid));
 }
 
-uint32 NewGRFProfiler::FinishAll()
+/* static */ uint32_t NewGRFProfiler::FinishAll()
 {
-	int max_ticks = 0;
-	uint32 total_microseconds = 0;
+	NewGRFProfiler::AbortTimer();
+
+	uint64_t max_ticks = 0;
+	uint32_t total_microseconds = 0;
 	for (NewGRFProfiler &pr : _newgrf_profilers) {
 		if (pr.active) {
 			total_microseconds += pr.Finish();
-			max_ticks = max(max_ticks, _tick_counter - pr.start_tick);
+			max_ticks = std::max(max_ticks, TimerGameTick::counter - pr.start_tick);
 		}
 	}
 
 	if (total_microseconds > 0 && max_ticks > 0) {
-		IConsolePrintF(CC_DEBUG, "Total NewGRF callback processing: %u microseconds over %d ticks", total_microseconds, max_ticks);
+		IConsolePrint(CC_DEBUG, "Total NewGRF callback processing: {} microseconds over {} ticks.", total_microseconds, max_ticks);
 	}
 
-	_newgrf_profile_end_date = MAX_DAY;
-
 	return total_microseconds;
+}
+
+/**
+ * Check whether profiling is active and should be finished.
+ */
+static TimeoutTimer<TimerGameTick> _profiling_finish_timeout(0, []()
+{
+	NewGRFProfiler::FinishAll();
+});
+
+/**
+ * Start the timeout timer that will finish all profiling sessions.
+ */
+/* static */ void NewGRFProfiler::StartTimer(uint64_t ticks)
+{
+	_profiling_finish_timeout.Reset(ticks);
+}
+
+/**
+ * Abort the timeout timer, so the timer callback is never called.
+ */
+/* static */ void NewGRFProfiler::AbortTimer()
+{
+	_profiling_finish_timeout.Abort();
 }
