@@ -13,16 +13,25 @@
 
 #include "../../safeguards.h"
 
-ScriptCompanyMode::ScriptCompanyMode(int company)
+ScriptCompanyMode::ScriptCompanyMode(ScriptCompany::CompanyID company)
 {
-	if (company < OWNER_BEGIN || company >= MAX_COMPANIES) company = INVALID_COMPANY;
-	if (!::Company::IsValidID(company)) company = INVALID_COMPANY;
+	company = ScriptCompany::ResolveCompanyID(company);
 
 	this->last_company = ScriptObject::GetCompany();
-	ScriptObject::SetCompany((CompanyID)company);
+	ScriptObject::SetCompany(ScriptCompany::FromScriptCompanyID(company));
 }
 
 ScriptCompanyMode::~ScriptCompanyMode()
 {
 	ScriptObject::SetCompany(this->last_company);
+}
+
+/* static */ bool ScriptCompanyMode::IsValid()
+{
+	return ::Company::IsValidID(ScriptObject::GetCompany());
+}
+
+/* static */ bool ScriptCompanyMode::IsDeity()
+{
+	return ScriptObject::GetCompany() == OWNER_DEITY;
 }
