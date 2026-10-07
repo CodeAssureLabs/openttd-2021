@@ -12,7 +12,6 @@
 #include <sqstdmath.h>
 #include "../debug.h"
 #include "squirrel_std.hpp"
-#include "../core/alloc_func.hpp"
 #include "../core/math_func.hpp"
 #include "../string_func.h"
 
@@ -25,7 +24,7 @@ SQInteger SquirrelStd::min(HSQUIRRELVM vm)
 
 	sq_getinteger(vm, 2, &tmp1);
 	sq_getinteger(vm, 3, &tmp2);
-	sq_pushinteger(vm, ::min(tmp1, tmp2));
+	sq_pushinteger(vm, std::min(tmp1, tmp2));
 	return 1;
 }
 
@@ -35,7 +34,7 @@ SQInteger SquirrelStd::max(HSQUIRRELVM vm)
 
 	sq_getinteger(vm, 2, &tmp1);
 	sq_getinteger(vm, 3, &tmp2);
-	sq_pushinteger(vm, ::max(tmp1, tmp2));
+	sq_pushinteger(vm, std::max(tmp1, tmp2));
 	return 1;
 }
 
@@ -50,22 +49,18 @@ SQInteger SquirrelStd::require(HSQUIRRELVM vm)
 	SQStackInfos si;
 	sq_stackinfos(vm, 1, &si);
 	if (si.source == nullptr) {
-		DEBUG(misc, 0, "[squirrel] Couldn't detect the script-name of the 'require'-caller; this should never happen!");
+		Debug(misc, 0, "[squirrel] Couldn't detect the script-name of the 'require'-caller; this should never happen!");
 		return SQ_ERROR;
 	}
 
-	char path[MAX_PATH];
-	strecpy(path, si.source, lastof(path));
 	/* Keep the dir, remove the rest */
-	SQChar *s = strrchr(path, PATHSEPCHAR);
-	if (s != nullptr) {
-		/* Keep the PATHSEPCHAR there, remove the rest */
-		s++;
-		*s = '\0';
-	}
-	strecat(path, filename, lastof(path));
+	std::string path = si.source;
+	auto p = path.find_last_of(PATHSEPCHAR);
+	/* Keep the PATHSEPCHAR there, remove the rest */
+	if (p != std::string::npos) path.erase(p + 1);
+	path += filename;
 #if (PATHSEPCHAR != '/')
-	for (char *n = path; *n != '\0'; n++) if (*n == '/') *n = PATHSEPCHAR;
+	std::transform(path.begin(), path.end(), path.begin(), [](char &c) { return c == '/' ? PATHSEPCHAR : c; });
 #endif
 
 	Squirrel *engine = (Squirrel *)sq_getforeignptr(vm);
