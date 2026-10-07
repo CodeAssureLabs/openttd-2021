@@ -24,7 +24,7 @@
  * @param f Bitmask of the climates
  * @note the 5 between b and f is the load amount
  */
-#define MT(a, b, c, d, e, f) { DAYS_TILL_ORIGINAL_BASE_YEAR + a, c, d, b, 5, f, e, 0, 8, 1 << EF_RAIL_FLIPS, 0, 0, STR_EMPTY, CARGO_AGING_TICKS }
+#define MT(a, b, c, d, e, f) { CalendarTime::DAYS_TILL_ORIGINAL_BASE_YEAR + a, c, d, b, 5, f, INVALID_CARGO, e, 0, 8, 0, 0, 0, ExtraEngineFlags::None, STR_EMPTY, Ticks::CARGO_AGING_TICKS, INVALID_ENGINE }
 
 /**
  * Writes the properties of a multiple-unit train into the EngineInfo struct.
@@ -37,7 +37,7 @@
  * @param f Bitmask of the climates
  * @note the 5 between b and f is the load amount
  */
-#define MM(a, b, c, d, e, f) { DAYS_TILL_ORIGINAL_BASE_YEAR + a, c, d, b, 5, f, e, 0, 8, 1 << EF_RAIL_FLIPS | 1 << EF_RAIL_IS_MU, 0, 0, STR_EMPTY, CARGO_AGING_TICKS }
+#define MM(a, b, c, d, e, f) { CalendarTime::DAYS_TILL_ORIGINAL_BASE_YEAR + a, c, d, b, 5, f, INVALID_CARGO, e, 0, 8, 1 << EF_RAIL_IS_MU, 0, 0, ExtraEngineFlags::None, STR_EMPTY, Ticks::CARGO_AGING_TICKS, INVALID_ENGINE }
 
 /**
  * Writes the properties of a train carriage into the EngineInfo struct.
@@ -50,7 +50,7 @@
  * @see MT
  * @note the 5 between b and f is the load amount
  */
-#define MW(a, b, c, d, e, f) { DAYS_TILL_ORIGINAL_BASE_YEAR + a, c, d, b, 5, f, e, 0, 8, 1 << EF_RAIL_FLIPS, 0, 0, STR_EMPTY, CARGO_AGING_TICKS }
+#define MW(a, b, c, d, e, f) { CalendarTime::DAYS_TILL_ORIGINAL_BASE_YEAR + a, c, d, b, 5, f, INVALID_CARGO, e, 0, 8, 0, 0, 0, ExtraEngineFlags::None, STR_EMPTY, Ticks::CARGO_AGING_TICKS, INVALID_ENGINE }
 
 /**
  * Writes the properties of a road vehicle into the EngineInfo struct.
@@ -63,7 +63,7 @@
  * @param f Bitmask of the climates
  * @note the 5 between b and f is the load amount
  */
-#define MR(a, b, c, d, e, f) { DAYS_TILL_ORIGINAL_BASE_YEAR + a, c, d, b, 5, f, e, 0, 8, 0, 0, 0, STR_EMPTY, CARGO_AGING_TICKS }
+#define MR(a, b, c, d, e, f) { CalendarTime::DAYS_TILL_ORIGINAL_BASE_YEAR + a, c, d, b, 5, f, INVALID_CARGO, e, 0, 8, 0, 0, 0, ExtraEngineFlags::None, STR_EMPTY, Ticks::CARGO_AGING_TICKS, INVALID_ENGINE }
 
 /**
  * Writes the properties of a ship into the EngineInfo struct.
@@ -75,7 +75,7 @@
  * @param f Bitmask of the climates
  * @note the 10 between b and f is the load amount
  */
-#define MS(a, b, c, d, e, f) { DAYS_TILL_ORIGINAL_BASE_YEAR + a, c, d, b, 10, f, e, 0, 8, 0, 0, 0, STR_EMPTY, CARGO_AGING_TICKS }
+#define MS(a, b, c, d, e, f) { CalendarTime::DAYS_TILL_ORIGINAL_BASE_YEAR + a, c, d, b, 10, f, INVALID_CARGO, e, 0, 8, 0, 0, 0, ExtraEngineFlags::None, STR_EMPTY, Ticks::CARGO_AGING_TICKS, INVALID_ENGINE }
 
 /**
  * Writes the properties of an aeroplane into the EngineInfo struct.
@@ -86,7 +86,7 @@
  * @param e Bitmask of the climates
  * @note the 20 between b and e is the load amount
  */
-#define MA(a, b, c, d, e) { DAYS_TILL_ORIGINAL_BASE_YEAR + a, c, d, b, 20, e, CT_INVALID, 0, 8, 0, 0, 0, STR_EMPTY, CARGO_AGING_TICKS }
+#define MA(a, b, c, d, e) { CalendarTime::DAYS_TILL_ORIGINAL_BASE_YEAR + a, c, d, b, 20, e, INVALID_CARGO, CT_INVALID, 0, 8, 0, 0, 0, ExtraEngineFlags::None, STR_EMPTY, Ticks::CARGO_AGING_TICKS, INVALID_ENGINE }
 
 /* Climates
  * T = Temperate
@@ -97,49 +97,49 @@
 #define A 2
 #define S 4
 #define Y 8
-static const EngineInfo _orig_engine_info[] = {
+static constexpr EngineInfo _orig_engine_info[] = {
 	/*      base_intro     base_life
 	 *      |    decay_speed         cargo_type
 	 *      |    |    lifelength     |         climates
 	 *      |    |    |    |         |         | */
-	MT(  1827,  20,  15,  30, 0              , T      ), //   0 Kirby Paul Tank (Steam)
-	MT( 12784,  20,  22,  30, 0              ,   A|S  ), //   1 MJS 250 (Diesel)
-	MT(  9497,  20,  20,  50, 0              ,       Y), //   2 Ploddyphut Choo-Choo
-	MT( 11688,  20,  20,  30, 0              ,       Y), //   3 Powernaut Choo-Choo
-	MT( 16802,  20,  20,  30, 0              ,       Y), //   4 Mightymover Choo-Choo
-	MT( 18993,  20,  20,  30, 0              ,       Y), //   5 Ploddyphut Diesel
-	MT( 20820,  20,  20,  30, 0              ,       Y), //   6 Powernaut Diesel
-	MT(  8766,  20,  20,  30, 0              ,   A|S  ), //   7 Wills 2-8-0 (Steam)
-	MT(  5114,  20,  21,  30, 0              , T      ), //   8 Chaney 'Jubilee' (Steam)
-	MT(  5479,  20,  20,  30, 0              , T      ), //   9 Ginzu 'A4' (Steam)
-	MT( 12419,  20,  23,  25, 0              , T      ), //  10 SH '8P' (Steam)
+	MT(  1827,  20,  15,  30, CT_NONE        , T      ), //   0 Kirby Paul Tank (Steam)
+	MT( 12784,  20,  22,  30, CT_NONE        ,   A|S  ), //   1 MJS 250 (Diesel)
+	MT(  9497,  20,  20,  50, CT_NONE        ,       Y), //   2 Ploddyphut Choo-Choo
+	MT( 11688,  20,  20,  30, CT_NONE        ,       Y), //   3 Powernaut Choo-Choo
+	MT( 16802,  20,  20,  30, CT_NONE        ,       Y), //   4 Mightymover Choo-Choo
+	MT( 18993,  20,  20,  30, CT_NONE        ,       Y), //   5 Ploddyphut Diesel
+	MT( 20820,  20,  20,  30, CT_NONE        ,       Y), //   6 Powernaut Diesel
+	MT(  8766,  20,  20,  30, CT_NONE        ,   A|S  ), //   7 Wills 2-8-0 (Steam)
+	MT(  5114,  20,  21,  30, CT_NONE        , T      ), //   8 Chaney 'Jubilee' (Steam)
+	MT(  5479,  20,  20,  30, CT_NONE        , T      ), //   9 Ginzu 'A4' (Steam)
+	MT( 12419,  20,  23,  25, CT_NONE        , T      ), //  10 SH '8P' (Steam)
 	MM( 13149,  20,  12,  30, CT_PASSENGERS  , T      ), //  11 Manley-Morel DMU (Diesel)
 	MM( 23376,  20,  15,  35, CT_PASSENGERS  , T      ), //  12 'Dash' (Diesel)
-	MT( 14976,  20,  18,  28, 0              , T      ), //  13 SH/Hendry '25' (Diesel)
-	MT( 14245,  20,  20,  30, 0              , T      ), //  14 UU '37' (Diesel)
-	MT( 15341,  20,  22,  33, 0              , T      ), //  15 Floss '47' (Diesel)
-	MT( 14976,  20,  20,  25, 0              ,   A|S  ), //  16 CS 4000 (Diesel)
-	MT( 16437,  20,  20,  30, 0              ,   A|S  ), //  17 CS 2400 (Diesel)
-	MT( 18993,  20,  22,  30, 0              ,   A|S  ), //  18 Centennial (Diesel)
-	MT( 13880,  20,  22,  30, 0              ,   A|S  ), //  19 Kelling 3100 (Diesel)
-	MM( 20454,  20,  22,  30, 0              ,   A|S  ), //  20 Turner Turbo (Diesel)
-	MT( 16071,  20,  22,  30, 0              ,   A|S  ), //  21 MJS 1000 (Diesel)
+	MT( 14976,  20,  18,  28, CT_NONE        , T      ), //  13 SH/Hendry '25' (Diesel)
+	MT( 14245,  20,  20,  30, CT_NONE        , T      ), //  14 UU '37' (Diesel)
+	MT( 15341,  20,  22,  33, CT_NONE        , T      ), //  15 Floss '47' (Diesel)
+	MT( 14976,  20,  20,  25, CT_NONE        ,   A|S  ), //  16 CS 4000 (Diesel)
+	MT( 16437,  20,  20,  30, CT_NONE        ,   A|S  ), //  17 CS 2400 (Diesel)
+	MT( 18993,  20,  22,  30, CT_NONE        ,   A|S  ), //  18 Centennial (Diesel)
+	MT( 13880,  20,  22,  30, CT_NONE        ,   A|S  ), //  19 Kelling 3100 (Diesel)
+	MM( 20454,  20,  22,  30, CT_NONE        ,   A|S  ), //  20 Turner Turbo (Diesel)
+	MT( 16071,  20,  22,  30, CT_NONE        ,   A|S  ), //  21 MJS 1000 (Diesel)
 	MT( 20820,  20,  20,  25, CT_MAIL        , T      ), //  22 SH '125' (Diesel)
-	MT( 16437,  20,  23,  30, 0              , T      ), //  23 SH '30' (Electric)
-	MT( 19359,  20,  23,  80, 0              , T      ), //  24 SH '40' (Electric)
-	MM( 23376,  20,  25,  30, 0              , T      ), //  25 'T.I.M.' (Electric)
-	MM( 26298,  20,  25,  50, 0              , T      ), //  26 'AsiaStar' (Electric)
+	MT( 16437,  20,  23,  30, CT_NONE        , T      ), //  23 SH '30' (Electric)
+	MT( 19359,  20,  23,  80, CT_NONE        , T      ), //  24 SH '40' (Electric)
+	MM( 23376,  20,  25,  30, CT_NONE        , T      ), //  25 'T.I.M.' (Electric)
+	MM( 26298,  20,  25,  50, CT_NONE        , T      ), //  26 'AsiaStar' (Electric)
 	MW(  1827,  20,  20,  50, CT_PASSENGERS  , T|A|S|Y), //  27 Passenger Carriage
 	MW(  1827,  20,  20,  50, CT_MAIL        , T|A|S|Y), //  28 Mail Van
 	MW(  1827,  20,  20,  50, CT_COAL        , T|A    ), //  29 Coal Truck
 	MW(  1827,  20,  20,  50, CT_OIL         , T|A|S  ), //  30 Oil Tanker
 	MW(  1827,  20,  20,  50, CT_LIVESTOCK   , T|A    ), //  31 Livestock Van
 	MW(  1827,  20,  20,  50, CT_GOODS       , T|A|S  ), //  32 Goods Van
-	MW(  1827,  20,  20,  50, CT_GRAIN       , T|A|S  ), //  33 Grain Hopper
+	MW(  1827,  20,  20,  50, MCT_GRAIN_WHEAT_MAIZE, T|A|S  ), //  33 Grain Hopper
 	MW(  1827,  20,  20,  50, CT_WOOD        , T|A|S  ), //  34 Wood Truck
 	MW(  1827,  20,  20,  50, CT_IRON_ORE    , T      ), //  35 Iron Ore Hopper
 	MW(  1827,  20,  20,  50, CT_STEEL       , T      ), //  36 Steel Truck
-	MW(  1827,  20,  20,  50, CT_VALUABLES   , T|A|S  ), //  37 Armoured Van
+	MW(  1827,  20,  20,  50, MCT_VALUABLES_GOLD_DIAMONDS, T|A|S  ), //  37 Armoured Van
 	MW(  1827,  20,  20,  50, CT_FOOD        ,   A|S  ), //  38 Food Van
 	MW(  1827,  20,  20,  50, CT_PAPER       ,   A    ), //  39 Paper Truck
 	MW(  1827,  20,  20,  50, CT_COPPER_ORE  ,     S  ), //  40 Copper Ore Hopper
@@ -156,20 +156,20 @@ static const EngineInfo _orig_engine_info[] = {
 	MW(  1827,  20,  20,  50, CT_BATTERIES   ,       Y), //  51 Battery Truck
 	MW(  1827,  20,  20,  50, CT_FIZZY_DRINKS,       Y), //  52 Fizzy Drink Truck
 	MW(  1827,  20,  20,  50, CT_PLASTIC     ,       Y), //  53 Plastic Truck
-	MT( 28490,  20,  20,  50, 0              , T|A|S  ), //  54 'X2001' (Electric)
+	MT( 28490,  20,  20,  50, CT_NONE        , T|A|S  ), //  54 'X2001' (Electric)
 	MT( 31047,  20,  20,  50, CT_PASSENGERS  , T|A|S  ), //  55 'Millennium Z1' (Electric)
-	MT( 28855,  20,  20,  50, 0              ,       Y), //  56 Wizzowow Z99
+	MT( 28855,  20,  20,  50, CT_NONE        ,       Y), //  56 Wizzowow Z99
 	MW(  1827,  20,  20,  50, CT_PASSENGERS  , T|A|S|Y), //  57 Passenger Carriage
 	MW(  1827,  20,  20,  50, CT_MAIL        , T|A|S|Y), //  58 Mail Van
 	MW(  1827,  20,  20,  50, CT_COAL        , T|A    ), //  59 Coal Truck
 	MW(  1827,  20,  20,  50, CT_OIL         , T|A|S  ), //  60 Oil Tanker
 	MW(  1827,  20,  20,  50, CT_LIVESTOCK   , T|A    ), //  61 Livestock Van
 	MW(  1827,  20,  20,  50, CT_GOODS       , T|A|S  ), //  62 Goods Van
-	MW(  1827,  20,  20,  50, CT_GRAIN       , T|A|S  ), //  63 Grain Hopper
+	MW(  1827,  20,  20,  50, MCT_GRAIN_WHEAT_MAIZE, T|A|S  ), //  63 Grain Hopper
 	MW(  1827,  20,  20,  50, CT_WOOD        , T|A|S  ), //  64 Wood Truck
 	MW(  1827,  20,  20,  50, CT_IRON_ORE    , T      ), //  65 Iron Ore Hopper
 	MW(  1827,  20,  20,  50, CT_STEEL       , T      ), //  66 Steel Truck
-	MW(  1827,  20,  20,  50, CT_VALUABLES   , T|A|S  ), //  67 Armoured Van
+	MW(  1827,  20,  20,  50, MCT_VALUABLES_GOLD_DIAMONDS, T|A|S  ), //  67 Armoured Van
 	MW(  1827,  20,  20,  50, CT_FOOD        ,   A|S  ), //  68 Food Van
 	MW(  1827,  20,  20,  50, CT_PAPER       ,   A    ), //  69 Paper Truck
 	MW(  1827,  20,  20,  50, CT_COPPER_ORE  ,     S  ), //  70 Copper Ore Hopper
@@ -186,22 +186,22 @@ static const EngineInfo _orig_engine_info[] = {
 	MW(  1827,  20,  20,  50, CT_BATTERIES   ,       Y), //  81 Battery Truck
 	MW(  1827,  20,  20,  50, CT_FIZZY_DRINKS,       Y), //  82 Fizzy Drink Truck
 	MW(  1827,  20,  20,  50, CT_PLASTIC     ,       Y), //  83 Plastic Truck
-	MT( 36525,  20,  20,  50, 0              , T|A|S  ), //  84 Lev1 'Leviathan' (Electric)
-	MT( 39447,  20,  20,  50, 0              , T|A|S  ), //  85 Lev2 'Cyclops' (Electric)
-	MT( 42004,  20,  20,  50, 0              , T|A|S  ), //  86 Lev3 'Pegasus' (Electric)
-	MT( 42735,  20,  20,  50, 0              , T|A|S  ), //  87 Lev4 'Chimaera' (Electric)
-	MT( 36891,  20,  20,  60, 0              ,       Y), //  88 Wizzowow Rocketeer
+	MT( 36525,  20,  20,  50, CT_NONE        , T|A|S  ), //  84 Lev1 'Leviathan' (Electric)
+	MT( 39447,  20,  20,  50, CT_NONE        , T|A|S  ), //  85 Lev2 'Cyclops' (Electric)
+	MT( 42004,  20,  20,  50, CT_NONE        , T|A|S  ), //  86 Lev3 'Pegasus' (Electric)
+	MT( 42735,  20,  20,  50, CT_NONE        , T|A|S  ), //  87 Lev4 'Chimaera' (Electric)
+	MT( 36891,  20,  20,  60, CT_NONE        ,       Y), //  88 Wizzowow Rocketeer
 	MW(  1827,  20,  20,  50, CT_PASSENGERS  , T|A|S|Y), //  89 Passenger Carriage
 	MW(  1827,  20,  20,  50, CT_MAIL        , T|A|S|Y), //  90 Mail Van
 	MW(  1827,  20,  20,  50, CT_COAL        , T|A    ), //  91 Coal Truck
 	MW(  1827,  20,  20,  50, CT_OIL         , T|A|S  ), //  92 Oil Tanker
 	MW(  1827,  20,  20,  50, CT_LIVESTOCK   , T|A    ), //  93 Livestock Van
 	MW(  1827,  20,  20,  50, CT_GOODS       , T|A|S  ), //  94 Goods Van
-	MW(  1827,  20,  20,  50, CT_GRAIN       , T|A|S  ), //  95 Grain Hopper
+	MW(  1827,  20,  20,  50, MCT_GRAIN_WHEAT_MAIZE, T|A|S  ), //  95 Grain Hopper
 	MW(  1827,  20,  20,  50, CT_WOOD        , T|A|S  ), //  96 Wood Truck
 	MW(  1827,  20,  20,  50, CT_IRON_ORE    , T      ), //  97 Iron Ore Hopper
 	MW(  1827,  20,  20,  50, CT_STEEL       , T      ), //  98 Steel Truck
-	MW(  1827,  20,  20,  50, CT_VALUABLES   , T|A|S  ), //  99 Armoured Van
+	MW(  1827,  20,  20,  50, MCT_VALUABLES_GOLD_DIAMONDS, T|A|S  ), //  99 Armoured Van
 	MW(  1827,  20,  20,  50, CT_FOOD        ,   A|S  ), // 100 Food Van
 	MW(  1827,  20,  20,  50, CT_PAPER       ,   A    ), // 101 Paper Truck
 	MW(  1827,  20,  20,  50, CT_COPPER_ORE  ,     S  ), // 102 Copper Ore Hopper
@@ -243,9 +243,9 @@ static const EngineInfo _orig_engine_info[] = {
 	MR(  5479,  20,  15,  55, CT_GOODS       , T|A|S  ), // 138 Balogh Goods Truck
 	MR( 19724,  20,  15,  55, CT_GOODS       , T|A|S  ), // 139 Craighead Goods Truck
 	MR( 31047,  20,  15,  85, CT_GOODS       , T|A|S  ), // 140 Goss Goods Truck
-	MR(  5479,  20,  15,  55, CT_GRAIN       , T|A|S  ), // 141 Hereford Grain Truck
-	MR( 21185,  20,  15,  55, CT_GRAIN       , T|A|S  ), // 142 Thomas Grain Truck
-	MR( 32873,  20,  15,  85, CT_GRAIN       , T|A|S  ), // 143 Goss Grain Truck
+	MR(  5479,  20,  15,  55, MCT_GRAIN_WHEAT_MAIZE, T|A|S  ), // 141 Hereford Grain Truck
+	MR( 21185,  20,  15,  55, MCT_GRAIN_WHEAT_MAIZE, T|A|S  ), // 142 Thomas Grain Truck
+	MR( 32873,  20,  15,  85, MCT_GRAIN_WHEAT_MAIZE, T|A|S  ), // 143 Goss Grain Truck
 	MR(  5479,  20,  15,  55, CT_WOOD        , T|A|S  ), // 144 Witcombe Wood Truck
 	MR( 19724,  20,  15,  55, CT_WOOD        , T|A|S  ), // 145 Foster Wood Truck
 	MR( 35430,  20,  15,  85, CT_WOOD        , T|A|S  ), // 146 Moreland Wood Truck
@@ -255,9 +255,9 @@ static const EngineInfo _orig_engine_info[] = {
 	MR(  5479,  20,  15,  55, CT_STEEL       , T      ), // 150 Balogh Steel Truck
 	MR( 21185,  20,  15,  55, CT_STEEL       , T      ), // 151 Uhl Steel Truck
 	MR( 31777,  20,  15,  85, CT_STEEL       , T      ), // 152 Kelling Steel Truck
-	MR(  5479,  20,  15,  55, CT_VALUABLES   , T|A|S  ), // 153 Balogh Armoured Truck
-	MR( 22281,  20,  15,  55, CT_VALUABLES   , T|A|S  ), // 154 Uhl Armoured Truck
-	MR( 33603,  20,  15,  85, CT_VALUABLES   , T|A|S  ), // 155 Foster Armoured Truck
+	MR(  5479,  20,  15,  55, MCT_VALUABLES_GOLD_DIAMONDS, T|A|S  ), // 153 Balogh Armoured Truck
+	MR( 22281,  20,  15,  55, MCT_VALUABLES_GOLD_DIAMONDS, T|A|S  ), // 154 Uhl Armoured Truck
+	MR( 33603,  20,  15,  85, MCT_VALUABLES_GOLD_DIAMONDS, T|A|S  ), // 155 Foster Armoured Truck
 	MR(  5479,  20,  15,  55, CT_FOOD        ,   A|S  ), // 156 Foster Food Van
 	MR( 18628,  20,  15,  55, CT_FOOD        ,   A|S  ), // 157 Perry Food Van
 	MR( 30681,  20,  15,  85, CT_FOOD        ,   A|S  ), // 158 Chippy Food Van
@@ -386,7 +386,7 @@ static const EngineInfo _orig_engine_info[] = {
  * Tractive effort coefficient by default is the same as TTDPatch, 0.30*256=76
  * Air drag value depends on the top speed of the vehicle.
  */
-#define RVI(a, b, c, d, e, f, g, h, i, j, k) { a, b, c, j, d, e, f, g, h, k, i, 0, 0, 0, VE_DEFAULT, 0, 76, 0, 0 }
+#define RVI(a, b, c, d, e, f, g, h, i, j, k) { a, b, c, j, j, 0, d, e, f, g, h, k, i, 0, 0, VE_DEFAULT, 0, 76, 0, 0, 0 }
 #define M RAILVEH_MULTIHEAD
 #define W RAILVEH_WAGON
 #define G RAILVEH_SINGLEHEAD
@@ -408,7 +408,7 @@ static const EngineInfo _orig_engine_info[] = {
 #define RC_E PR_RUNNING_TRAIN_ELECTRIC
 #define RC_W INVALID_PRICE
 
-static const RailVehicleInfo _orig_rail_vehicle_info[] = {
+static constexpr RailVehicleInfo _orig_rail_vehicle_info[] = {
 	/*   image_index  max_speed          running_cost      engclass
 	 *   |  type      |        power       |  running_cost_class
 	 *   |  |    cost_factor   |    weight |  |      capacity
@@ -557,29 +557,30 @@ static const RailVehicleInfo _orig_rail_vehicle_info[] = {
  * @see ShipVehicleInfo
  * @param a image_index
  * @param b cost_factor
- * @param c max_speed (1 unit = 1/3.2 mph = 0.5 km-ish/h)
- * @param d capacity (persons, bags, tons, pieces, items, cubic metres, ...)
- * @param e running_cost
- * @param f sound effect
- * @param g refittable
+ * @param c acceleration (1 unit = 1/3.2 mph per tick = 0.5 km-ish/h per tick)
+ * @param d max_speed (1 unit = 1/3.2 mph = 0.5 km-ish/h)
+ * @param e capacity (persons, bags, tons, pieces, items, cubic metres, ...)
+ * @param f running_cost
+ * @param g sound effect
+ * @param h refittable
  */
-#define SVI(a, b, c, d, e, f, g) { a, b, c, d, e, f, g, VE_DEFAULT, 0, 0 }
-static const ShipVehicleInfo _orig_ship_vehicle_info[] = {
-	/*   image_index    capacity                   refittable
-	 *   |    cost_factor    running_cost          |
-	 *   |    |    max_speed |  sfx                |
-	 *   |    |    |    |    |  |                  | */
-	SVI( 1, 160,  48, 220, 140, SND_06_SHIP_HORN,  0 ), //  0 MPS Oil Tanker
-	SVI( 1, 176,  80, 350, 125, SND_06_SHIP_HORN,  0 ), //  1 CS-Inc. Oil Tanker
-	SVI( 2,  96,  64, 100,  90, SND_07_FERRY_HORN, 0 ), //  2 MPS Passenger Ferry
-	SVI( 2, 112, 128, 130,  80, SND_07_FERRY_HORN, 0 ), //  3 FFP Passenger Ferry
-	SVI( 3, 148, 224, 100, 190, SND_07_FERRY_HORN, 0 ), //  4 Bakewell 300 Hovercraft
-	SVI( 2,  96,  64, 100,  90, SND_07_FERRY_HORN, 0 ), //  5 Chugger-Chug Passenger Ferry
-	SVI( 2, 112, 128, 130,  80, SND_07_FERRY_HORN, 0 ), //  6 Shivershake Passenger Ferry
-	SVI( 0, 128,  48, 160, 150, SND_06_SHIP_HORN,  1 ), //  7 Yate Cargo ship
-	SVI( 0, 144,  80, 190, 113, SND_06_SHIP_HORN,  1 ), //  8 Bakewell Cargo ship
-	SVI( 0, 128,  48, 160, 150, SND_06_SHIP_HORN,  1 ), //  9 Mightymover Cargo ship
-	SVI( 0, 144,  80, 190, 113, SND_06_SHIP_HORN,  1 ), // 10 Powernaut Cargo ship
+#define SVI(a, b, c, d, e, f, g, h) { a, b, f, c, d, e, g, h, VE_DEFAULT, 0, 0 }
+static constexpr ShipVehicleInfo _orig_ship_vehicle_info[] = {
+	/*   image_index  max_speed         sfx                      refittable
+	 *   |    cost_factor  capacity     |                        |
+	 *   |    |  acceleration   running_cost                     |
+	 *   |    |  |    |    |    |       |                        | */
+	SVI( 1, 160, 1,  48, 220, 140, SND_06_DEPARTURE_CARGO_SHIP,  0 ), //  0 MPS Oil Tanker
+	SVI( 1, 176, 1,  80, 350, 125, SND_06_DEPARTURE_CARGO_SHIP,  0 ), //  1 CS-Inc. Oil Tanker
+	SVI( 2,  96, 1,  64, 100,  90, SND_07_DEPARTURE_FERRY,       0 ), //  2 MPS Passenger Ferry
+	SVI( 2, 112, 1, 128, 130,  80, SND_07_DEPARTURE_FERRY,       0 ), //  3 FFP Passenger Ferry
+	SVI( 3, 148, 1, 224, 100, 190, SND_07_DEPARTURE_FERRY,       0 ), //  4 Bakewell 300 Hovercraft
+	SVI( 2,  96, 1,  64, 100,  90, SND_07_DEPARTURE_FERRY,       0 ), //  5 Chugger-Chug Passenger Ferry
+	SVI( 2, 112, 1, 128, 130,  80, SND_07_DEPARTURE_FERRY,       0 ), //  6 Shivershake Passenger Ferry
+	SVI( 0, 128, 1,  48, 160, 150, SND_06_DEPARTURE_CARGO_SHIP,  1 ), //  7 Yate Cargo ship
+	SVI( 0, 144, 1,  80, 190, 113, SND_06_DEPARTURE_CARGO_SHIP,  1 ), //  8 Bakewell Cargo ship
+	SVI( 0, 128, 1,  48, 160, 150, SND_06_DEPARTURE_CARGO_SHIP,  1 ), //  9 Mightymover Cargo ship
+	SVI( 0, 144, 1,  80, 190, 113, SND_06_DEPARTURE_CARGO_SHIP,  1 ), // 10 Powernaut Cargo ship
 };
 #undef SVI
 
@@ -596,57 +597,57 @@ static const ShipVehicleInfo _orig_ship_vehicle_info[] = {
  * @param h mail_capacity (bags)
  * @param i passenger_capacity (persons)
  */
-#define AVI(a, b, c, d, e, f, g, h, i) { a, b, c, d, e, f, (g * 128) / 10, h, i, 0 }
+#define AVI(a, b, c, d, e, f, g, h, i) { a, b, c, d, e, (g * 128) / 10, f, h, i, 0 }
 #define H AIR_HELI
 #define P AIR_CTOL
 #define J AIR_CTOL | AIR_FAST
-static const AircraftVehicleInfo _orig_aircraft_vehicle_info[] = {
-	/*    image_index         sfx                         acceleration
-	 *    |   cost_factor     |                           |   max_speed
-	 *    |   |    running_cost                           |   |    mail_capacity
-	 *    |   |    |  subtype |                           |   |    |    passenger_capacity
-	 *    |   |    |  |       |                           |   |    |    | */
-	AVI(  1, 14,  85, P, SND_08_PLANE_TAKE_OFF,          18,  37,  4,  25 ), //  0 Sampson U52
-	AVI(  0, 15, 100, P, SND_08_PLANE_TAKE_OFF,          20,  37,  8,  65 ), //  1 Coleman Count
-	AVI(  2, 16, 130, J, SND_09_JET,                     35,  74, 10,  90 ), //  2 FFP Dart
-	AVI(  8, 75, 250, J, SND_3B_JET_OVERHEAD,            50, 181, 20, 100 ), //  3 Yate Haugan
-	AVI(  5, 15,  98, P, SND_08_PLANE_TAKE_OFF,          20,  37,  6,  30 ), //  4 Bakewell Cotswald LB-3
-	AVI(  6, 18, 240, J, SND_09_JET,                     40,  74, 30, 200 ), //  5 Bakewell Luckett LB-8
-	AVI(  2, 17, 150, P, SND_09_JET,                     35,  74, 15, 100 ), //  6 Bakewell Luckett LB-9
-	AVI(  2, 18, 245, J, SND_09_JET,                     40,  74, 30, 150 ), //  7 Bakewell Luckett LB80
-	AVI(  3, 19, 192, J, SND_09_JET,                     40,  74, 40, 220 ), //  8 Bakewell Luckett LB-10
-	AVI(  3, 20, 190, J, SND_09_JET,                     40,  74, 25, 230 ), //  9 Bakewell Luckett LB-11
-	AVI(  2, 16, 135, J, SND_09_JET,                     35,  74, 10,  95 ), // 10 Yate Aerospace YAC 1-11
-	AVI(  2, 18, 240, J, SND_09_JET,                     40,  74, 35, 170 ), // 11 Darwin 100
-	AVI(  4, 17, 155, J, SND_09_JET,                     40,  74, 15, 110 ), // 12 Darwin 200
-	AVI(  7, 30, 253, J, SND_3D_ANOTHER_JET_OVERHEAD,    40,  74, 50, 300 ), // 13 Darwin 300
-	AVI(  4, 18, 210, J, SND_09_JET,                     40,  74, 25, 200 ), // 14 Darwin 400
-	AVI(  4, 19, 220, J, SND_09_JET,                     40,  74, 25, 240 ), // 15 Darwin 500
-	AVI(  4, 27, 230, J, SND_09_JET,                     40,  74, 40, 260 ), // 16 Darwin 600
-	AVI(  3, 25, 225, J, SND_09_JET,                     40,  74, 35, 240 ), // 17 Guru Galaxy
-	AVI(  4, 20, 235, J, SND_09_JET,                     40,  74, 30, 260 ), // 18 Airtaxi A21
-	AVI(  4, 19, 220, J, SND_09_JET,                     40,  74, 25, 210 ), // 19 Airtaxi A31
-	AVI(  4, 18, 170, J, SND_09_JET,                     40,  74, 20, 160 ), // 20 Airtaxi A32
-	AVI(  4, 26, 210, J, SND_09_JET,                     40,  74, 20, 220 ), // 21 Airtaxi A33
-	AVI(  6, 16, 125, P, SND_09_JET,                     50,  74, 10,  80 ), // 22 Yate Aerospace YAe46
-	AVI(  2, 17, 145, P, SND_09_JET,                     40,  74, 10,  85 ), // 23 Dinger 100
-	AVI( 11, 16, 130, P, SND_09_JET,                     40,  74, 10,  75 ), // 24 AirTaxi A34-1000
-	AVI( 10, 16, 149, P, SND_09_JET,                     40,  74, 10,  85 ), // 25 Yate Z-Shuttle
-	AVI( 15, 17, 170, P, SND_09_JET,                     40,  74, 18,  65 ), // 26 Kelling K1
-	AVI( 12, 18, 210, J, SND_09_JET,                     40,  74, 25, 110 ), // 27 Kelling K6
-	AVI( 13, 20, 230, J, SND_09_JET,                     40,  74, 60, 180 ), // 28 Kelling K7
-	AVI( 14, 21, 220, J, SND_09_JET,                     40,  74, 65, 150 ), // 29 Darwin 700
-	AVI( 16, 19, 160, J, SND_09_JET,                     40, 181, 45,  85 ), // 30 FFP Hyperdart 2
-	AVI( 17, 24, 248, J, SND_3D_ANOTHER_JET_OVERHEAD,    40,  74, 80, 400 ), // 31 Dinger 200
-	AVI( 18, 80, 251, J, SND_3B_JET_OVERHEAD,            50, 181, 45, 130 ), // 32 Dinger 1000
-	AVI( 20, 13,  85, P, SND_45_PLANE_CRASHING,          18,  37,  5,  25 ), // 33 Ploddyphut 100
-	AVI( 21, 18, 100, P, SND_46_PLANE_ENGINE_SPUTTERING, 20,  37,  9,  60 ), // 34 Ploddyphut 500
-	AVI( 22, 25, 140, P, SND_09_JET,                     40,  74, 12,  90 ), // 35 Flashbang X1
-	AVI( 23, 32, 220, J, SND_3D_ANOTHER_JET_OVERHEAD,    40,  74, 40, 200 ), // 36 Juggerplane M1
-	AVI( 24, 80, 255, J, SND_3B_JET_OVERHEAD,            50, 181, 30, 100 ), // 37 Flashbang Wizzer
-	AVI(  9, 15,  81, H, SND_09_JET,                     20,  25, 15,  40 ), // 38 Tricario Helicopter
-	AVI( 19, 17,  77, H, SND_09_JET,                     20,  40, 20,  55 ), // 39 Guru X2 Helicopter
-	AVI( 25, 15,  80, H, SND_09_JET,                     20,  25, 10,  40 ), // 40 Powernaut Helicopter
+static constexpr AircraftVehicleInfo _orig_aircraft_vehicle_info[] = {
+	/*    image_index         sfx                             acceleration
+	 *    |   cost_factor     |                               |    max_speed
+	 *    |   |    running_cost                               |    |   mail_capacity
+	 *    |   |    |  subtype |                               |    |   |    passenger_capacity
+	 *    |   |    |  |       |                               |    |   |    | */
+	AVI(  1, 14,  85, P, SND_08_TAKEOFF_PROPELLER,           18,  37,  4,  25 ), //  0 Sampson U52
+	AVI(  0, 15, 100, P, SND_08_TAKEOFF_PROPELLER,           20,  37,  8,  65 ), //  1 Coleman Count
+	AVI(  2, 16, 130, J, SND_09_TAKEOFF_JET,                 35,  74, 10,  90 ), //  2 FFP Dart
+	AVI(  8, 75, 250, J, SND_3B_TAKEOFF_JET_FAST,            50, 181, 20, 100 ), //  3 Yate Haugan
+	AVI(  5, 15,  98, P, SND_08_TAKEOFF_PROPELLER,           20,  37,  6,  30 ), //  4 Bakewell Cotswald LB-3
+	AVI(  6, 18, 240, J, SND_09_TAKEOFF_JET,                 40,  74, 30, 200 ), //  5 Bakewell Luckett LB-8
+	AVI(  2, 17, 150, P, SND_09_TAKEOFF_JET,                 35,  74, 15, 100 ), //  6 Bakewell Luckett LB-9
+	AVI(  2, 18, 245, J, SND_09_TAKEOFF_JET,                 40,  74, 30, 150 ), //  7 Bakewell Luckett LB80
+	AVI(  3, 19, 192, J, SND_09_TAKEOFF_JET,                 40,  74, 40, 220 ), //  8 Bakewell Luckett LB-10
+	AVI(  3, 20, 190, J, SND_09_TAKEOFF_JET,                 40,  74, 25, 230 ), //  9 Bakewell Luckett LB-11
+	AVI(  2, 16, 135, J, SND_09_TAKEOFF_JET,                 35,  74, 10,  95 ), // 10 Yate Aerospace YAC 1-11
+	AVI(  2, 18, 240, J, SND_09_TAKEOFF_JET,                 40,  74, 35, 170 ), // 11 Darwin 100
+	AVI(  4, 17, 155, J, SND_09_TAKEOFF_JET,                 40,  74, 15, 110 ), // 12 Darwin 200
+	AVI(  7, 30, 253, J, SND_3D_TAKEOFF_JET_BIG,             40,  74, 50, 300 ), // 13 Darwin 300
+	AVI(  4, 18, 210, J, SND_09_TAKEOFF_JET,                 40,  74, 25, 200 ), // 14 Darwin 400
+	AVI(  4, 19, 220, J, SND_09_TAKEOFF_JET,                 40,  74, 25, 240 ), // 15 Darwin 500
+	AVI(  4, 27, 230, J, SND_09_TAKEOFF_JET,                 40,  74, 40, 260 ), // 16 Darwin 600
+	AVI(  3, 25, 225, J, SND_09_TAKEOFF_JET,                 40,  74, 35, 240 ), // 17 Guru Galaxy
+	AVI(  4, 20, 235, J, SND_09_TAKEOFF_JET,                 40,  74, 30, 260 ), // 18 Airtaxi A21
+	AVI(  4, 19, 220, J, SND_09_TAKEOFF_JET,                 40,  74, 25, 210 ), // 19 Airtaxi A31
+	AVI(  4, 18, 170, J, SND_09_TAKEOFF_JET,                 40,  74, 20, 160 ), // 20 Airtaxi A32
+	AVI(  4, 26, 210, J, SND_09_TAKEOFF_JET,                 40,  74, 20, 220 ), // 21 Airtaxi A33
+	AVI(  6, 16, 125, P, SND_09_TAKEOFF_JET,                 50,  74, 10,  80 ), // 22 Yate Aerospace YAe46
+	AVI(  2, 17, 145, P, SND_09_TAKEOFF_JET,                 40,  74, 10,  85 ), // 23 Dinger 100
+	AVI( 11, 16, 130, P, SND_09_TAKEOFF_JET,                 40,  74, 10,  75 ), // 24 AirTaxi A34-1000
+	AVI( 10, 16, 149, P, SND_09_TAKEOFF_JET,                 40,  74, 10,  85 ), // 25 Yate Z-Shuttle
+	AVI( 15, 17, 170, P, SND_09_TAKEOFF_JET,                 40,  74, 18,  65 ), // 26 Kelling K1
+	AVI( 12, 18, 210, J, SND_09_TAKEOFF_JET,                 40,  74, 25, 110 ), // 27 Kelling K6
+	AVI( 13, 20, 230, J, SND_09_TAKEOFF_JET,                 40,  74, 60, 180 ), // 28 Kelling K7
+	AVI( 14, 21, 220, J, SND_09_TAKEOFF_JET,                 40,  74, 65, 150 ), // 29 Darwin 700
+	AVI( 16, 19, 160, J, SND_09_TAKEOFF_JET,                 40, 181, 45,  85 ), // 30 FFP Hyperdart 2
+	AVI( 17, 24, 248, J, SND_3D_TAKEOFF_JET_BIG,             40,  74, 80, 400 ), // 31 Dinger 200
+	AVI( 18, 80, 251, J, SND_3B_TAKEOFF_JET_FAST,            50, 181, 45, 130 ), // 32 Dinger 1000
+	AVI( 20, 13,  85, P, SND_45_TAKEOFF_PROPELLER_TOYLAND_1, 18,  37,  5,  25 ), // 33 Ploddyphut 100
+	AVI( 21, 18, 100, P, SND_46_TAKEOFF_PROPELLER_TOYLAND_2, 20,  37,  9,  60 ), // 34 Ploddyphut 500
+	AVI( 22, 25, 140, P, SND_09_TAKEOFF_JET,                 40,  74, 12,  90 ), // 35 Flashbang X1
+	AVI( 23, 32, 220, J, SND_3D_TAKEOFF_JET_BIG,             40,  74, 40, 200 ), // 36 Juggerplane M1
+	AVI( 24, 80, 255, J, SND_3B_TAKEOFF_JET_FAST,            50, 181, 30, 100 ), // 37 Flashbang Wizzer
+	AVI(  9, 15,  81, H, SND_09_TAKEOFF_JET,                 20,  25, 15,  40 ), // 38 Tricario Helicopter
+	AVI( 19, 17,  77, H, SND_09_TAKEOFF_JET,                 20,  40, 20,  55 ), // 39 Guru X2 Helicopter
+	AVI( 25, 15,  80, H, SND_09_TAKEOFF_JET,                 20,  25, 10,  40 ), // 40 Powernaut Helicopter
 };
 #undef J
 #undef P
@@ -668,99 +669,99 @@ static const AircraftVehicleInfo _orig_aircraft_vehicle_info[] = {
  * Air drag value depends on the top speed of the vehicle.
  */
 #define ROV(a, b, c, d, e, f, g, h) { a, b, c, PR_RUNNING_ROADVEH, d, e, f, g, h, 76, 0, VE_DEFAULT, 0, ROADTYPE_ROAD }
-static const RoadVehicleInfo _orig_road_vehicle_info[] = {
-	/*    image_index       sfx                                 max_speed    power
-	 *    |    cost_factor  |                                   |   capacity |
-	 *    |    |    running_cost                                |   |    weight
-	 *    |    |    |       |                                   |   |    |   |*/
-	ROV(  0, 120,  91, SND_19_BUS_START_PULL_AWAY,            112, 31,  42,  9), //  0 MPS Regal Bus
-	ROV( 17, 140, 128, SND_1C_TRUCK_START_2,                  176, 35,  60, 12), //  1 Hereford Leopard Bus
-	ROV( 17, 150, 178, SND_1B_TRUCK_START,                    224, 37,  70, 15), //  2 Foster Bus
-	ROV( 34, 160, 240, SND_1B_TRUCK_START,                    255, 40, 100, 25), //  3 Foster MkII Superbus
-	ROV( 51, 120,  91, SND_3C_COMEDY_CAR,                     112, 30,  42,  9), //  4 Ploddyphut MkI Bus
-	ROV( 51, 140, 171, SND_3E_COMEDY_CAR_2,                   192, 35,  60, 15), //  5 Ploddyphut MkII Bus
-	ROV( 51, 160, 240, SND_3C_COMEDY_CAR,                     240, 38,  90, 25), //  6 Ploddyphut MkIII Bus
-	ROV(  1, 108,  90, SND_19_BUS_START_PULL_AWAY,             96, 20,  38, 12), //  7 Balogh Coal Truck
-	ROV( 18, 128, 168, SND_19_BUS_START_PULL_AWAY,            176, 25,  48, 22), //  8 Uhl Coal Truck
-	ROV( 35, 138, 240, SND_19_BUS_START_PULL_AWAY,            224, 28,  69, 45), //  9 DW Coal Truck
-	ROV(  2, 115,  90, SND_19_BUS_START_PULL_AWAY,             96, 22,  38, 12), // 10 MPS Mail Truck
-	ROV( 19, 135, 168, SND_19_BUS_START_PULL_AWAY,            176, 28,  48, 22), // 11 Reynard Mail Truck
-	ROV( 36, 145, 240, SND_19_BUS_START_PULL_AWAY,            224, 30,  69, 45), // 12 Perry Mail Truck
-	ROV( 57, 115,  90, SND_3E_COMEDY_CAR_2,                    96, 22,  38, 12), // 13 MightyMover Mail Truck
-	ROV( 57, 135, 168, SND_3C_COMEDY_CAR,                     176, 28,  48, 22), // 14 Powernaught Mail Truck
-	ROV( 57, 145, 240, SND_3E_COMEDY_CAR_2,                   224, 30,  69, 45), // 15 Wizzowow Mail Truck
-	ROV(  3, 110,  90, SND_19_BUS_START_PULL_AWAY,             96, 21,  38, 12), // 16 Witcombe Oil Tanker
-	ROV( 20, 140, 168, SND_19_BUS_START_PULL_AWAY,            176, 25,  48, 22), // 17 Foster Oil Tanker
-	ROV( 37, 150, 240, SND_19_BUS_START_PULL_AWAY,            224, 27,  69, 45), // 18 Perry Oil Tanker
-	ROV(  4, 105,  90, SND_19_BUS_START_PULL_AWAY,             96, 14,  38, 12), // 19 Talbott Livestock Van
-	ROV( 21, 130, 168, SND_19_BUS_START_PULL_AWAY,            176, 16,  48, 22), // 20 Uhl Livestock Van
-	ROV( 38, 140, 240, SND_19_BUS_START_PULL_AWAY,            224, 18,  69, 45), // 21 Foster Livestock Van
-	ROV(  5, 107,  90, SND_19_BUS_START_PULL_AWAY,             96, 14,  38, 12), // 22 Balogh Goods Truck
-	ROV( 22, 130, 168, SND_19_BUS_START_PULL_AWAY,            176, 16,  48, 22), // 23 Craighead Goods Truck
-	ROV( 39, 140, 240, SND_19_BUS_START_PULL_AWAY,            224, 18,  69, 45), // 24 Goss Goods Truck
-	ROV(  6, 114,  90, SND_19_BUS_START_PULL_AWAY,             96, 20,  38, 12), // 25 Hereford Grain Truck
-	ROV( 23, 133, 168, SND_19_BUS_START_PULL_AWAY,            176, 25,  48, 22), // 26 Thomas Grain Truck
-	ROV( 40, 143, 240, SND_19_BUS_START_PULL_AWAY,            224, 30,  69, 45), // 27 Goss Grain Truck
-	ROV(  7, 118,  90, SND_19_BUS_START_PULL_AWAY,             96, 20,  38, 12), // 28 Witcombe Wood Truck
-	ROV( 24, 137, 168, SND_19_BUS_START_PULL_AWAY,            176, 22,  48, 22), // 29 Foster Wood Truck
-	ROV( 41, 147, 240, SND_19_BUS_START_PULL_AWAY,            224, 24,  69, 45), // 30 Moreland Wood Truck
-	ROV(  8, 121,  90, SND_19_BUS_START_PULL_AWAY,             96, 22,  38, 12), // 31 MPS Iron Ore Truck
-	ROV( 25, 140, 168, SND_19_BUS_START_PULL_AWAY,            176, 25,  48, 22), // 32 Uhl Iron Ore Truck
-	ROV( 42, 150, 240, SND_19_BUS_START_PULL_AWAY,            224, 27,  69, 45), // 33 Chippy Iron Ore Truck
-	ROV(  9, 112,  90, SND_19_BUS_START_PULL_AWAY,             96, 15,  38, 12), // 34 Balogh Steel Truck
-	ROV( 26, 135, 168, SND_19_BUS_START_PULL_AWAY,            176, 18,  48, 22), // 35 Uhl Steel Truck
-	ROV( 43, 145, 240, SND_19_BUS_START_PULL_AWAY,            224, 20,  69, 45), // 36 Kelling Steel Truck
-	ROV( 10, 145,  90, SND_19_BUS_START_PULL_AWAY,             96, 12,  38, 12), // 37 Balogh Armoured Truck
-	ROV( 27, 170, 168, SND_19_BUS_START_PULL_AWAY,            176, 15,  48, 22), // 38 Uhl Armoured Truck
-	ROV( 44, 180, 240, SND_19_BUS_START_PULL_AWAY,            224, 16,  69, 45), // 39 Foster Armoured Truck
-	ROV( 11, 112,  90, SND_19_BUS_START_PULL_AWAY,             96, 17,  38, 12), // 40 Foster Food Van
-	ROV( 28, 134, 168, SND_19_BUS_START_PULL_AWAY,            176, 20,  48, 22), // 41 Perry Food Van
-	ROV( 45, 144, 240, SND_19_BUS_START_PULL_AWAY,            224, 22,  69, 45), // 42 Chippy Food Van
-	ROV( 12, 112,  90, SND_19_BUS_START_PULL_AWAY,             96, 15,  38, 12), // 43 Uhl Paper Truck
-	ROV( 29, 135, 168, SND_19_BUS_START_PULL_AWAY,            176, 18,  48, 22), // 44 Balogh Paper Truck
-	ROV( 46, 145, 240, SND_19_BUS_START_PULL_AWAY,            224, 20,  69, 45), // 45 MPS Paper Truck
-	ROV( 13, 121,  90, SND_19_BUS_START_PULL_AWAY,             96, 22,  38, 12), // 46 MPS Copper Ore Truck
-	ROV( 30, 140, 168, SND_19_BUS_START_PULL_AWAY,            176, 25,  48, 22), // 47 Uhl Copper Ore Truck
-	ROV( 47, 150, 240, SND_19_BUS_START_PULL_AWAY,            224, 27,  69, 45), // 48 Goss Copper Ore Truck
-	ROV( 14, 111,  90, SND_19_BUS_START_PULL_AWAY,             96, 21,  38, 12), // 49 Uhl Water Tanker
-	ROV( 31, 141, 168, SND_19_BUS_START_PULL_AWAY,            176, 25,  48, 22), // 50 Balogh Water Tanker
-	ROV( 48, 151, 240, SND_19_BUS_START_PULL_AWAY,            224, 27,  69, 45), // 51 MPS Water Tanker
-	ROV( 15, 118,  90, SND_19_BUS_START_PULL_AWAY,             96, 18,  38, 12), // 52 Balogh Fruit Truck
-	ROV( 32, 148, 168, SND_19_BUS_START_PULL_AWAY,            176, 20,  48, 22), // 53 Uhl Fruit Truck
-	ROV( 49, 158, 240, SND_19_BUS_START_PULL_AWAY,            224, 23,  69, 45), // 54 Kelling Fruit Truck
-	ROV( 16, 117,  90, SND_19_BUS_START_PULL_AWAY,             96, 17,  38, 12), // 55 Balogh Rubber Truck
-	ROV( 33, 147, 168, SND_19_BUS_START_PULL_AWAY,            176, 19,  48, 22), // 56 Uhl Rubber Truck
-	ROV( 50, 157, 240, SND_19_BUS_START_PULL_AWAY,            224, 22,  69, 45), // 57 RMT Rubber Truck
-	ROV( 52, 117,  90, SND_3F_COMEDY_CAR_3,                    96, 17,  38, 12), // 58 MightyMover Sugar Truck
-	ROV( 52, 147, 168, SND_40_COMEDY_CAR_START_AND_PULL_AWAY, 176, 19,  48, 22), // 59 Powernaught Sugar Truck
-	ROV( 52, 157, 240, SND_3F_COMEDY_CAR_3,                   224, 22,  69, 45), // 60 Wizzowow Sugar Truck
-	ROV( 53, 117,  90, SND_40_COMEDY_CAR_START_AND_PULL_AWAY,  96, 17,  38, 12), // 61 MightyMover Cola Truck
-	ROV( 53, 147, 168, SND_3F_COMEDY_CAR_3,                   176, 19,  48, 22), // 62 Powernaught Cola Truck
-	ROV( 53, 157, 240, SND_40_COMEDY_CAR_START_AND_PULL_AWAY, 224, 22,  69, 45), // 63 Wizzowow Cola Truck
-	ROV( 54, 117,  90, SND_3F_COMEDY_CAR_3,                    96, 17,  38, 12), // 64 MightyMover Candyfloss Truck
-	ROV( 54, 147, 168, SND_40_COMEDY_CAR_START_AND_PULL_AWAY, 176, 19,  48, 22), // 65 Powernaught Candyfloss Truck
-	ROV( 54, 157, 240, SND_3F_COMEDY_CAR_3,                   224, 22,  69, 45), // 66 Wizzowow Candyfloss Truck
-	ROV( 55, 117,  90, SND_40_COMEDY_CAR_START_AND_PULL_AWAY,  96, 17,  38, 12), // 67 MightyMover Toffee Truck
-	ROV( 55, 147, 168, SND_3F_COMEDY_CAR_3,                   176, 19,  48, 22), // 68 Powernaught Toffee Truck
-	ROV( 55, 157, 240, SND_40_COMEDY_CAR_START_AND_PULL_AWAY, 224, 22,  69, 45), // 69 Wizzowow Toffee Truck
-	ROV( 56, 117,  90, SND_3F_COMEDY_CAR_3,                    96, 17,  38, 12), // 70 MightyMover Toy Van
-	ROV( 56, 147, 168, SND_40_COMEDY_CAR_START_AND_PULL_AWAY, 176, 19,  48, 22), // 71 Powernaught Toy Van
-	ROV( 56, 157, 240, SND_3F_COMEDY_CAR_3,                   224, 22,  69, 45), // 72 Wizzowow Toy Van
-	ROV( 58, 117,  90, SND_40_COMEDY_CAR_START_AND_PULL_AWAY,  96, 17,  38, 12), // 73 MightyMover Sweet Truck
-	ROV( 58, 147, 168, SND_3F_COMEDY_CAR_3,                   176, 19,  48, 22), // 74 Powernaught Sweet Truck
-	ROV( 58, 157, 240, SND_40_COMEDY_CAR_START_AND_PULL_AWAY, 224, 22,  69, 45), // 75 Wizzowow Sweet Truck
-	ROV( 59, 117,  90, SND_3F_COMEDY_CAR_3,                    96, 17,  38, 12), // 76 MightyMover Battery Truck
-	ROV( 59, 147, 168, SND_40_COMEDY_CAR_START_AND_PULL_AWAY, 176, 19,  48, 22), // 77 Powernaught Battery Truck
-	ROV( 59, 157, 240, SND_3F_COMEDY_CAR_3,                   224, 22,  69, 45), // 78 Wizzowow Battery Truck
-	ROV( 60, 117,  90, SND_40_COMEDY_CAR_START_AND_PULL_AWAY,  96, 17,  38, 12), // 79 MightyMover Fizzy Drink Truck
-	ROV( 60, 147, 168, SND_3F_COMEDY_CAR_3,                   176, 19,  48, 22), // 80 Powernaught Fizzy Drink Truck
-	ROV( 60, 157, 240, SND_40_COMEDY_CAR_START_AND_PULL_AWAY, 224, 22,  69, 45), // 81 Wizzowow Fizzy Drink Truck
-	ROV( 61, 117,  90, SND_3F_COMEDY_CAR_3,                    96, 17,  38, 12), // 82 MightyMover Plastic Truck
-	ROV( 61, 147, 168, SND_40_COMEDY_CAR_START_AND_PULL_AWAY, 176, 19,  48, 22), // 83 Powernaught Plastic Truck
-	ROV( 61, 157, 240, SND_3F_COMEDY_CAR_3,                   224, 22,  69, 45), // 84 Wizzowow Plastic Truck
-	ROV( 62, 117,  90, SND_40_COMEDY_CAR_START_AND_PULL_AWAY,  96, 17,  38, 12), // 85 MightyMover Bubble Truck
-	ROV( 62, 147, 168, SND_3F_COMEDY_CAR_3,                   176, 19,  48, 22), // 86 Powernaught Bubble Truck
-	ROV( 62, 157, 240, SND_40_COMEDY_CAR_START_AND_PULL_AWAY, 224, 22,  69, 45), // 87 Wizzowow Bubble Truck
+static constexpr RoadVehicleInfo _orig_road_vehicle_info[] = {
+	/*    image_index       sfx                            max_speed    power
+	 *    |    cost_factor  |                              |   capacity |
+	 *    |    |    running_cost                           |   |    weight
+	 *    |    |    |       |                              |   |    |   |*/
+	ROV(  0, 120,  91, SND_19_DEPARTURE_OLD_RV_1,        112, 31,  42,  9), //  0 MPS Regal Bus
+	ROV( 17, 140, 128, SND_1C_DEPARTURE_OLD_BUS,         176, 35,  60, 12), //  1 Hereford Leopard Bus
+	ROV( 17, 150, 178, SND_1B_DEPARTURE_MODERN_BUS,      224, 37,  70, 15), //  2 Foster Bus
+	ROV( 34, 160, 240, SND_1B_DEPARTURE_MODERN_BUS,      255, 40, 100, 25), //  3 Foster MkII Superbus
+	ROV( 51, 120,  91, SND_3C_DEPARTURE_BUS_TOYLAND_1,   112, 30,  42,  9), //  4 Ploddyphut MkI Bus
+	ROV( 51, 140, 171, SND_3E_DEPARTURE_BUS_TOYLAND_2,   192, 35,  60, 15), //  5 Ploddyphut MkII Bus
+	ROV( 51, 160, 240, SND_3C_DEPARTURE_BUS_TOYLAND_1,   240, 38,  90, 25), //  6 Ploddyphut MkIII Bus
+	ROV(  1, 108,  90, SND_19_DEPARTURE_OLD_RV_1,         96, 20,  38, 12), //  7 Balogh Coal Truck
+	ROV( 18, 128, 168, SND_19_DEPARTURE_OLD_RV_1,        176, 25,  48, 22), //  8 Uhl Coal Truck
+	ROV( 35, 138, 240, SND_19_DEPARTURE_OLD_RV_1,        224, 28,  69, 45), //  9 DW Coal Truck
+	ROV(  2, 115,  90, SND_19_DEPARTURE_OLD_RV_1,         96, 22,  38, 12), // 10 MPS Mail Truck
+	ROV( 19, 135, 168, SND_19_DEPARTURE_OLD_RV_1,        176, 28,  48, 22), // 11 Reynard Mail Truck
+	ROV( 36, 145, 240, SND_19_DEPARTURE_OLD_RV_1,        224, 30,  69, 45), // 12 Perry Mail Truck
+	ROV( 57, 115,  90, SND_3E_DEPARTURE_BUS_TOYLAND_2,    96, 22,  38, 12), // 13 MightyMover Mail Truck
+	ROV( 57, 135, 168, SND_3C_DEPARTURE_BUS_TOYLAND_1,   176, 28,  48, 22), // 14 Powernaught Mail Truck
+	ROV( 57, 145, 240, SND_3E_DEPARTURE_BUS_TOYLAND_2,   224, 30,  69, 45), // 15 Wizzowow Mail Truck
+	ROV(  3, 110,  90, SND_19_DEPARTURE_OLD_RV_1,         96, 21,  38, 12), // 16 Witcombe Oil Tanker
+	ROV( 20, 140, 168, SND_19_DEPARTURE_OLD_RV_1,        176, 25,  48, 22), // 17 Foster Oil Tanker
+	ROV( 37, 150, 240, SND_19_DEPARTURE_OLD_RV_1,        224, 27,  69, 45), // 18 Perry Oil Tanker
+	ROV(  4, 105,  90, SND_19_DEPARTURE_OLD_RV_1,         96, 14,  38, 12), // 19 Talbott Livestock Van
+	ROV( 21, 130, 168, SND_19_DEPARTURE_OLD_RV_1,        176, 16,  48, 22), // 20 Uhl Livestock Van
+	ROV( 38, 140, 240, SND_19_DEPARTURE_OLD_RV_1,        224, 18,  69, 45), // 21 Foster Livestock Van
+	ROV(  5, 107,  90, SND_19_DEPARTURE_OLD_RV_1,         96, 14,  38, 12), // 22 Balogh Goods Truck
+	ROV( 22, 130, 168, SND_19_DEPARTURE_OLD_RV_1,        176, 16,  48, 22), // 23 Craighead Goods Truck
+	ROV( 39, 140, 240, SND_19_DEPARTURE_OLD_RV_1,        224, 18,  69, 45), // 24 Goss Goods Truck
+	ROV(  6, 114,  90, SND_19_DEPARTURE_OLD_RV_1,         96, 20,  38, 12), // 25 Hereford Grain Truck
+	ROV( 23, 133, 168, SND_19_DEPARTURE_OLD_RV_1,        176, 25,  48, 22), // 26 Thomas Grain Truck
+	ROV( 40, 143, 240, SND_19_DEPARTURE_OLD_RV_1,        224, 30,  69, 45), // 27 Goss Grain Truck
+	ROV(  7, 118,  90, SND_19_DEPARTURE_OLD_RV_1,         96, 20,  38, 12), // 28 Witcombe Wood Truck
+	ROV( 24, 137, 168, SND_19_DEPARTURE_OLD_RV_1,        176, 22,  48, 22), // 29 Foster Wood Truck
+	ROV( 41, 147, 240, SND_19_DEPARTURE_OLD_RV_1,        224, 24,  69, 45), // 30 Moreland Wood Truck
+	ROV(  8, 121,  90, SND_19_DEPARTURE_OLD_RV_1,         96, 22,  38, 12), // 31 MPS Iron Ore Truck
+	ROV( 25, 140, 168, SND_19_DEPARTURE_OLD_RV_1,        176, 25,  48, 22), // 32 Uhl Iron Ore Truck
+	ROV( 42, 150, 240, SND_19_DEPARTURE_OLD_RV_1,        224, 27,  69, 45), // 33 Chippy Iron Ore Truck
+	ROV(  9, 112,  90, SND_19_DEPARTURE_OLD_RV_1,         96, 15,  38, 12), // 34 Balogh Steel Truck
+	ROV( 26, 135, 168, SND_19_DEPARTURE_OLD_RV_1,        176, 18,  48, 22), // 35 Uhl Steel Truck
+	ROV( 43, 145, 240, SND_19_DEPARTURE_OLD_RV_1,        224, 20,  69, 45), // 36 Kelling Steel Truck
+	ROV( 10, 145,  90, SND_19_DEPARTURE_OLD_RV_1,         96, 12,  38, 12), // 37 Balogh Armoured Truck
+	ROV( 27, 170, 168, SND_19_DEPARTURE_OLD_RV_1,        176, 15,  48, 22), // 38 Uhl Armoured Truck
+	ROV( 44, 180, 240, SND_19_DEPARTURE_OLD_RV_1,        224, 16,  69, 45), // 39 Foster Armoured Truck
+	ROV( 11, 112,  90, SND_19_DEPARTURE_OLD_RV_1,         96, 17,  38, 12), // 40 Foster Food Van
+	ROV( 28, 134, 168, SND_19_DEPARTURE_OLD_RV_1,        176, 20,  48, 22), // 41 Perry Food Van
+	ROV( 45, 144, 240, SND_19_DEPARTURE_OLD_RV_1,        224, 22,  69, 45), // 42 Chippy Food Van
+	ROV( 12, 112,  90, SND_19_DEPARTURE_OLD_RV_1,         96, 15,  38, 12), // 43 Uhl Paper Truck
+	ROV( 29, 135, 168, SND_19_DEPARTURE_OLD_RV_1,        176, 18,  48, 22), // 44 Balogh Paper Truck
+	ROV( 46, 145, 240, SND_19_DEPARTURE_OLD_RV_1,        224, 20,  69, 45), // 45 MPS Paper Truck
+	ROV( 13, 121,  90, SND_19_DEPARTURE_OLD_RV_1,         96, 22,  38, 12), // 46 MPS Copper Ore Truck
+	ROV( 30, 140, 168, SND_19_DEPARTURE_OLD_RV_1,        176, 25,  48, 22), // 47 Uhl Copper Ore Truck
+	ROV( 47, 150, 240, SND_19_DEPARTURE_OLD_RV_1,        224, 27,  69, 45), // 48 Goss Copper Ore Truck
+	ROV( 14, 111,  90, SND_19_DEPARTURE_OLD_RV_1,         96, 21,  38, 12), // 49 Uhl Water Tanker
+	ROV( 31, 141, 168, SND_19_DEPARTURE_OLD_RV_1,        176, 25,  48, 22), // 50 Balogh Water Tanker
+	ROV( 48, 151, 240, SND_19_DEPARTURE_OLD_RV_1,        224, 27,  69, 45), // 51 MPS Water Tanker
+	ROV( 15, 118,  90, SND_19_DEPARTURE_OLD_RV_1,         96, 18,  38, 12), // 52 Balogh Fruit Truck
+	ROV( 32, 148, 168, SND_19_DEPARTURE_OLD_RV_1,        176, 20,  48, 22), // 53 Uhl Fruit Truck
+	ROV( 49, 158, 240, SND_19_DEPARTURE_OLD_RV_1,        224, 23,  69, 45), // 54 Kelling Fruit Truck
+	ROV( 16, 117,  90, SND_19_DEPARTURE_OLD_RV_1,         96, 17,  38, 12), // 55 Balogh Rubber Truck
+	ROV( 33, 147, 168, SND_19_DEPARTURE_OLD_RV_1,        176, 19,  48, 22), // 56 Uhl Rubber Truck
+	ROV( 50, 157, 240, SND_19_DEPARTURE_OLD_RV_1,        224, 22,  69, 45), // 57 RMT Rubber Truck
+	ROV( 52, 117,  90, SND_3F_DEPARTURE_TRUCK_TOYLAND_1,  96, 17,  38, 12), // 58 MightyMover Sugar Truck
+	ROV( 52, 147, 168, SND_40_DEPARTURE_TRUCK_TOYLAND_2, 176, 19,  48, 22), // 59 Powernaught Sugar Truck
+	ROV( 52, 157, 240, SND_3F_DEPARTURE_TRUCK_TOYLAND_1, 224, 22,  69, 45), // 60 Wizzowow Sugar Truck
+	ROV( 53, 117,  90, SND_40_DEPARTURE_TRUCK_TOYLAND_2,  96, 17,  38, 12), // 61 MightyMover Cola Truck
+	ROV( 53, 147, 168, SND_3F_DEPARTURE_TRUCK_TOYLAND_1, 176, 19,  48, 22), // 62 Powernaught Cola Truck
+	ROV( 53, 157, 240, SND_40_DEPARTURE_TRUCK_TOYLAND_2, 224, 22,  69, 45), // 63 Wizzowow Cola Truck
+	ROV( 54, 117,  90, SND_3F_DEPARTURE_TRUCK_TOYLAND_1,  96, 17,  38, 12), // 64 MightyMover Candyfloss Truck
+	ROV( 54, 147, 168, SND_40_DEPARTURE_TRUCK_TOYLAND_2, 176, 19,  48, 22), // 65 Powernaught Candyfloss Truck
+	ROV( 54, 157, 240, SND_3F_DEPARTURE_TRUCK_TOYLAND_1, 224, 22,  69, 45), // 66 Wizzowow Candyfloss Truck
+	ROV( 55, 117,  90, SND_40_DEPARTURE_TRUCK_TOYLAND_2,  96, 17,  38, 12), // 67 MightyMover Toffee Truck
+	ROV( 55, 147, 168, SND_3F_DEPARTURE_TRUCK_TOYLAND_1, 176, 19,  48, 22), // 68 Powernaught Toffee Truck
+	ROV( 55, 157, 240, SND_40_DEPARTURE_TRUCK_TOYLAND_2, 224, 22,  69, 45), // 69 Wizzowow Toffee Truck
+	ROV( 56, 117,  90, SND_3F_DEPARTURE_TRUCK_TOYLAND_1,  96, 17,  38, 12), // 70 MightyMover Toy Van
+	ROV( 56, 147, 168, SND_40_DEPARTURE_TRUCK_TOYLAND_2, 176, 19,  48, 22), // 71 Powernaught Toy Van
+	ROV( 56, 157, 240, SND_3F_DEPARTURE_TRUCK_TOYLAND_1, 224, 22,  69, 45), // 72 Wizzowow Toy Van
+	ROV( 58, 117,  90, SND_40_DEPARTURE_TRUCK_TOYLAND_2,  96, 17,  38, 12), // 73 MightyMover Sweet Truck
+	ROV( 58, 147, 168, SND_3F_DEPARTURE_TRUCK_TOYLAND_1, 176, 19,  48, 22), // 74 Powernaught Sweet Truck
+	ROV( 58, 157, 240, SND_40_DEPARTURE_TRUCK_TOYLAND_2, 224, 22,  69, 45), // 75 Wizzowow Sweet Truck
+	ROV( 59, 117,  90, SND_3F_DEPARTURE_TRUCK_TOYLAND_1,  96, 17,  38, 12), // 76 MightyMover Battery Truck
+	ROV( 59, 147, 168, SND_40_DEPARTURE_TRUCK_TOYLAND_2, 176, 19,  48, 22), // 77 Powernaught Battery Truck
+	ROV( 59, 157, 240, SND_3F_DEPARTURE_TRUCK_TOYLAND_1, 224, 22,  69, 45), // 78 Wizzowow Battery Truck
+	ROV( 60, 117,  90, SND_40_DEPARTURE_TRUCK_TOYLAND_2,  96, 17,  38, 12), // 79 MightyMover Fizzy Drink Truck
+	ROV( 60, 147, 168, SND_3F_DEPARTURE_TRUCK_TOYLAND_1, 176, 19,  48, 22), // 80 Powernaught Fizzy Drink Truck
+	ROV( 60, 157, 240, SND_40_DEPARTURE_TRUCK_TOYLAND_2, 224, 22,  69, 45), // 81 Wizzowow Fizzy Drink Truck
+	ROV( 61, 117,  90, SND_3F_DEPARTURE_TRUCK_TOYLAND_1,  96, 17,  38, 12), // 82 MightyMover Plastic Truck
+	ROV( 61, 147, 168, SND_40_DEPARTURE_TRUCK_TOYLAND_2, 176, 19,  48, 22), // 83 Powernaught Plastic Truck
+	ROV( 61, 157, 240, SND_3F_DEPARTURE_TRUCK_TOYLAND_1, 224, 22,  69, 45), // 84 Wizzowow Plastic Truck
+	ROV( 62, 117,  90, SND_40_DEPARTURE_TRUCK_TOYLAND_2,  96, 17,  38, 12), // 85 MightyMover Bubble Truck
+	ROV( 62, 147, 168, SND_3F_DEPARTURE_TRUCK_TOYLAND_1, 176, 19,  48, 22), // 86 Powernaught Bubble Truck
+	ROV( 62, 157, 240, SND_40_DEPARTURE_TRUCK_TOYLAND_2, 224, 22,  69, 45), // 87 Wizzowow Bubble Truck
 };
 #undef ROV
 

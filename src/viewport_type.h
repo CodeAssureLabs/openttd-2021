@@ -31,23 +31,17 @@ struct Viewport {
 	int virtual_height;  ///< height << zoom
 
 	ZoomLevel zoom; ///< The zoom level of the viewport.
-	LinkGraphOverlay *overlay;
-};
-
-/** Margins for the viewport sign */
-enum ViewportSignMargin {
-	VPSM_LEFT   = 1, ///< Left margin
-	VPSM_RIGHT  = 1, ///< Right margin
-	VPSM_TOP    = 1, ///< Top margin
-	VPSM_BOTTOM = 1, ///< Bottom margin
+	std::shared_ptr<LinkGraphOverlay> overlay;
 };
 
 /** Location information about a sign as seen on the viewport */
 struct ViewportSign {
-	int32 center;        ///< The center position of the sign
-	int32 top;           ///< The top of the sign
-	uint16 width_normal; ///< The width when not zoomed out (normal font)
-	uint16 width_small;  ///< The width when zoomed out (small font)
+	int32_t center;        ///< The center position of the sign
+	int32_t top;           ///< The top of the sign
+	uint16_t width_normal; ///< The width when not zoomed out (normal font)
+	uint16_t width_small;  ///< The width when zoomed out (small font)
+
+	auto operator<=>(const ViewportSign &) const = default;
 
 	void UpdatePosition(int center, int top, StringID str, StringID str_small = STR_NULL);
 	void MarkDirty(ZoomLevel maxzoom = ZOOM_LVL_MAX) const;
@@ -56,6 +50,8 @@ struct ViewportSign {
 /** Specialised ViewportSign that tracks whether it is valid for entering into a Kdtree */
 struct TrackedViewportSign : ViewportSign {
 	bool kdtree_valid; ///< Are the sign data valid for use with the _viewport_sign_kdtree?
+
+	auto operator<=>(const TrackedViewportSign &) const = default;
 
 	/**
 	 * Update the position of the viewport sign.
@@ -123,6 +119,7 @@ enum ViewportDragDropSelectionProcess {
 	DDSP_CREATE_RIVER,         ///< Create rivers
 	DDSP_PLANT_TREES,          ///< Plant trees
 	DDSP_BUILD_BRIDGE,         ///< Bridge placement
+	DDSP_BUILD_OBJECT,         ///< Build an object
 
 	/* Rail specific actions */
 	DDSP_PLACE_RAIL,           ///< Rail placement
@@ -135,8 +132,10 @@ enum ViewportDragDropSelectionProcess {
 	DDSP_PLACE_ROAD_X_DIR,     ///< Road placement (X axis)
 	DDSP_PLACE_ROAD_Y_DIR,     ///< Road placement (Y axis)
 	DDSP_PLACE_AUTOROAD,       ///< Road placement (auto)
+	DDSP_BUILD_ROAD_WAYPOINT,  ///< Road stop placement (waypoint)
 	DDSP_BUILD_BUSSTOP,        ///< Road stop placement (buses)
 	DDSP_BUILD_TRUCKSTOP,      ///< Road stop placement (trucks)
+	DDSP_REMOVE_ROAD_WAYPOINT, ///< Road stop removal (waypoint)
 	DDSP_REMOVE_BUSSTOP,       ///< Road stop removal (buses)
 	DDSP_REMOVE_TRUCKSTOP,     ///< Road stop removal (trucks)
 	DDSP_CONVERT_ROAD,         ///< Road conversion
@@ -146,7 +145,7 @@ enum ViewportDragDropSelectionProcess {
 /**
  * Target of the viewport scrolling GS method
  */
-enum ViewportScrollTarget {
+enum ViewportScrollTarget : uint8_t {
 	VST_EVERYONE, ///< All players
 	VST_COMPANY,  ///< All players in specific company
 	VST_CLIENT,   ///< Single player

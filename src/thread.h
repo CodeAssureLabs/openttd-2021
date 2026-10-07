@@ -11,12 +11,11 @@
 #define THREAD_H
 
 #include "debug.h"
+#include "crashlog.h"
+#include "error_func.h"
 #include <system_error>
 #include <thread>
-
-/** Signal used for signalling we knowingly want to end the thread. */
-class OTTDThreadExitSignal { };
-
+#include <mutex>
 
 /**
  * Sleep on the current thread for a defined time.
@@ -47,14 +46,25 @@ void SetCurrentThreadName(const char *name);
 template<class TFn, class... TArgs>
 inline bool StartNewThread(std::thread *thr, const char *name, TFn&& _Fx, TArgs&&... _Ax)
 {
-#ifndef NO_THREADS
 	try {
+		static std::mutex thread_startup_mutex;
+		std::lock_guard<std::mutex> lock(thread_startup_mutex);
+
 		std::thread t([] (const char *name, TFn&& F, TArgs&&... A) {
+				/* Delay starting the thread till the main thread is finished
+				 * with the administration. This prevent race-conditions on
+				 * startup. */
+				{
+					std::lock_guard<std::mutex> lock(thread_startup_mutex);
+				}
+
 				SetCurrentThreadName(name);
+				CrashLog::InitThread();
 				try {
 					/* Call user function with the given arguments. */
 					F(A...);
-				} catch (OTTDThreadExitSignal&) {
+				} catch (std::exception &e) {
+					FatalError("Unhandled exception in {} thread: {}", name, e.what());
 				} catch (...) {
 					NOT_REACHED();
 				}
@@ -67,11 +77,10 @@ inline bool StartNewThread(std::thread *thr, const char *name, TFn&& _Fx, TArgs&
 		}
 
 		return true;
-	} catch (const std::system_error& e) {
+	} catch (const std::system_error &e) {
 		/* Something went wrong, the system we are running on might not support threads. */
-		DEBUG(misc, 1, "Can't create thread '%s': %s", name, e.what());
+		Debug(misc, 1, "Can't create thread '{}': {}", name, e.what());
 	}
-#endif
 
 	return false;
 }

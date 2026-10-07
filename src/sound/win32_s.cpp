@@ -17,6 +17,7 @@
 #include "win32_s.h"
 #include <windows.h>
 #include <mmsystem.h>
+#include <versionhelpers.h>
 #include "../os/windows/win32.h"
 #include "../thread.h"
 
@@ -39,16 +40,16 @@ static void PrepareHeader(WAVEHDR *hdr)
 	if (waveOutPrepareHeader(_waveout, hdr, sizeof(WAVEHDR)) != MMSYSERR_NOERROR) throw "waveOutPrepareHeader failed";
 }
 
-static DWORD WINAPI SoundThread(LPVOID arg)
+static DWORD WINAPI SoundThread(LPVOID)
 {
 	SetCurrentThreadName("ottd:win-sound");
 
 	do {
-		for (WAVEHDR *hdr = _wave_hdr; hdr != endof(_wave_hdr); hdr++) {
-			if ((hdr->dwFlags & WHDR_INQUEUE) != 0) continue;
-			MxMixSamples(hdr->lpData, hdr->dwBufferLength / 4);
-			if (waveOutWrite(_waveout, hdr, sizeof(WAVEHDR)) != MMSYSERR_NOERROR) {
-				MessageBox(nullptr, _T("Sounds are disabled until restart."), _T("waveOutWrite failed"), MB_ICONINFORMATION);
+		for (auto &hdr : _wave_hdr) {
+			if ((hdr.dwFlags & WHDR_INQUEUE) != 0) continue;
+			MxMixSamples(hdr.lpData, hdr.dwBufferLength / 4);
+			if (waveOutWrite(_waveout, &hdr, sizeof(WAVEHDR)) != MMSYSERR_NOERROR) {
+				MessageBox(nullptr, L"Sounds are disabled until restart.", L"waveOutWrite failed", MB_ICONINFORMATION);
 				return 0;
 			}
 		}
@@ -58,7 +59,7 @@ static DWORD WINAPI SoundThread(LPVOID arg)
 	return 0;
 }
 
-const char *SoundDriver_Win32::Start(const StringList &parm)
+std::optional<std::string_view> SoundDriver_Win32::Start(const StringList &parm)
 {
 	WAVEFORMATEX wfex;
 	wfex.wFormatTag = WAVE_FORMAT_PCM;
@@ -69,8 +70,8 @@ const char *SoundDriver_Win32::Start(const StringList &parm)
 	wfex.nAvgBytesPerSec = wfex.nSamplesPerSec * wfex.nBlockAlign;
 
 	/* Limit buffer size to prevent overflows. */
-	_bufsize = GetDriverParamInt(parm, "bufsize", (GB(GetVersion(), 0, 8) > 5) ? 8192 : 4096);
-	_bufsize = min(_bufsize, UINT16_MAX);
+	_bufsize = GetDriverParamInt(parm, "samples", 1024);
+	_bufsize = std::min<int>(_bufsize, UINT16_MAX);
 
 	try {
 		if (nullptr == (_event = CreateEvent(nullptr, FALSE, FALSE, nullptr))) throw "Failed to create event";
@@ -88,7 +89,7 @@ const char *SoundDriver_Win32::Start(const StringList &parm)
 		return error;
 	}
 
-	return nullptr;
+	return std::nullopt;
 }
 
 void SoundDriver_Win32::Stop()
@@ -97,8 +98,7 @@ void SoundDriver_Win32::Stop()
 
 	/* Stop the sound thread. */
 	_waveout = nullptr;
-	SetEvent(_event);
-	WaitForSingleObject(_thread, INFINITE);
+	SignalObjectAndWait(_event, _thread, INFINITE, FALSE);
 
 	/* Close the sound device. */
 	waveOutReset(waveout);
