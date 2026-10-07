@@ -144,14 +144,14 @@ void AyStar::CheckTile(AyStarNode *current, OpenListNode *parent)
 		/* Re-add it in the openlist_queue. */
 		this->openlist_queue.Push(check, new_f);
 	} else {
-		/* A new node, add him to the OpenList */
+		/* A new node, add it to the OpenList */
 		this->OpenListAdd(closedlist_parent, current, new_f, new_g);
 	}
 }
 
 /**
  * This function is the core of %AyStar. It handles one item and checks
- * his neighbour items. If they are valid, they are added to be checked too.
+ * its neighbour items. If they are valid, they are added to be checked too.
  * @return Possible values:
  *  - #AYSTAR_EMPTY_OPENLIST : indicates all items are tested, and no path has been found.
  *  - #AYSTAR_LIMIT_REACHED : Indicates that the max_search_nodes limit has been reached.
@@ -211,7 +211,7 @@ void AyStar::Free()
 	this->openlist_hash.Delete(true);
 	this->closedlist_hash.Delete(true);
 #ifdef AYSTAR_DEBUG
-	printf("[AyStar] Memory free'd\n");
+	Debug(misc, 0, "[AyStar] Memory free'd");
 #endif
 }
 
@@ -229,7 +229,7 @@ void AyStar::Clear()
 	this->closedlist_hash.Clear(true);
 
 #ifdef AYSTAR_DEBUG
-	printf("[AyStar] Cleared AyStar\n");
+	Debug(misc, 0, "[AyStar] Cleared AyStar");
 #endif
 }
 
@@ -250,9 +250,9 @@ int AyStar::Main()
 	while ((r = this->Loop()) == AYSTAR_STILL_BUSY && (this->loops_per_tick == 0 || ++i < this->loops_per_tick)) { }
 #ifdef AYSTAR_DEBUG
 	switch (r) {
-		case AYSTAR_FOUND_END_NODE: printf("[AyStar] Found path!\n"); break;
-		case AYSTAR_EMPTY_OPENLIST: printf("[AyStar] OpenList run dry, no path found\n"); break;
-		case AYSTAR_LIMIT_REACHED:  printf("[AyStar] Exceeded search_nodes, no path found\n"); break;
+		case AYSTAR_FOUND_END_NODE: Debug(misc, 0, "[AyStar] Found path!"); break;
+		case AYSTAR_EMPTY_OPENLIST: Debug(misc, 0, "[AyStar] OpenList run dry, no path found"); break;
+		case AYSTAR_LIMIT_REACHED:  Debug(misc, 0, "[AyStar] Exceeded search_nodes, no path found"); break;
 		default: break;
 	}
 #endif
@@ -280,7 +280,7 @@ int AyStar::Main()
 void AyStar::AddStartNode(AyStarNode *start_node, uint g)
 {
 #ifdef AYSTAR_DEBUG
-	printf("[AyStar] Starting A* Algorithm from node (%d, %d, %d)\n",
+	Debug(misc, 0, "[AyStar] Starting A* Algorithm from node ({}, {}, {})\n",
 		TileX(start_node->tile), TileY(start_node->tile), start_node->direction);
 #endif
 	this->OpenListAdd(nullptr, start_node, 0, g);
@@ -301,4 +301,7 @@ void AyStar::Init(Hash_HashProc hash, uint num_buckets)
 	 *  When that one gets full it reserves another one, till this number
 	 *  That is why it can stay this high */
 	this->openlist_queue.Init(102400);
+
+	/* Set a reasonable default limit */
+	this->max_search_nodes = AYSTAR_DEF_MAX_SEARCH_NODES;
 }

@@ -16,6 +16,7 @@
 #include "tcp.h"
 #include "../network_type.h"
 #include "../../core/pool_type.hpp"
+#include <chrono>
 
 /**
  * Enum with all types of TCP packets.
@@ -23,7 +24,7 @@
  */
 enum PacketGameType {
 	/*
-	 * These first three pair of packets (thus six in
+	 * These first four pair of packets (thus eight in
 	 * total) must remain in this order for backward
 	 * and forward compatibility between clients that
 	 * are trying to join directly.
@@ -37,9 +38,13 @@ enum PacketGameType {
 	PACKET_CLIENT_JOIN,                  ///< The client telling the server it wants to join.
 	PACKET_SERVER_ERROR,                 ///< Server sending an error message to the client.
 
-	/* Packets used for the pre-game lobby. */
-	PACKET_CLIENT_COMPANY_INFO,          ///< Request information about all companies.
-	PACKET_SERVER_COMPANY_INFO,          ///< Information about a single company.
+	/* Unused packet types, formerly used for the pre-game lobby. */
+	PACKET_CLIENT_UNUSED,                ///< Unused.
+	PACKET_SERVER_UNUSED,                ///< Unused.
+
+	/* Packets used to get the game info. */
+	PACKET_SERVER_GAME_INFO,             ///< Information about the server.
+	PACKET_CLIENT_GAME_INFO,             ///< Request information about the server.
 
 	/*
 	 * Packets after here assume that the client
@@ -94,6 +99,7 @@ enum PacketGameType {
 	/* Human communication! */
 	PACKET_CLIENT_CHAT,                  ///< Client said something that should be distributed.
 	PACKET_SERVER_CHAT,                  ///< Server distributing the message of a client (or itself).
+	PACKET_SERVER_EXTERNAL_CHAT,         ///< Server distributing the message from external source.
 
 	/* Remote console. */
 	PACKET_CLIENT_RCON,                  ///< Client asks the server to execute some command.
@@ -148,7 +154,8 @@ public:
 class NetworkGameSocketHandler : public NetworkTCPSocketHandler {
 /* TODO: rewrite into a proper class */
 private:
-	NetworkClientInfo *info;  ///< Client info related to this socket
+	NetworkClientInfo *info;          ///< Client info related to this socket
+	bool is_pending_deletion = false; ///< Whether this socket is pending deletion
 
 protected:
 	NetworkRecvStatus ReceiveInvalidPacket(PacketGameType type);
@@ -169,57 +176,36 @@ protected:
 	 * Try to join the server:
 	 * string  OpenTTD revision (norev000 if no revision).
 	 * string  Name of the client (max NETWORK_NAME_LENGTH).
-	 * uint8   ID of the company to play as (1..MAX_COMPANIES).
-	 * uint8   ID of the clients Language.
+	 * uint8_t   ID of the company to play as (1..MAX_COMPANIES).
+	 * uint8_t   ID of the clients Language.
 	 * @param p The packet that was just received.
 	 */
 	virtual NetworkRecvStatus Receive_CLIENT_JOIN(Packet *p);
 
 	/**
 	 * The client made an error:
-	 * uint8   Error code caused (see NetworkErrorCode).
+	 * uint8_t   Error code caused (see NetworkErrorCode).
 	 * @param p The packet that was just received.
 	 */
 	virtual NetworkRecvStatus Receive_SERVER_ERROR(Packet *p);
 
 	/**
-	 * Request company information (in detail).
+	 * Request game information.
 	 * @param p The packet that was just received.
 	 */
-	virtual NetworkRecvStatus Receive_CLIENT_COMPANY_INFO(Packet *p);
+	virtual NetworkRecvStatus Receive_CLIENT_GAME_INFO(Packet *p);
 
 	/**
-	 * Sends information about the companies (one packet per company):
-	 * uint8   Version of the structure of this packet (NETWORK_COMPANY_INFO_VERSION).
-	 * bool    Contains data (false marks the end of updates).
-	 * uint8   ID of the company.
-	 * string  Name of the company.
-	 * uint32  Year the company was inaugurated.
-	 * uint64  Value.
-	 * uint64  Money.
-	 * uint64  Income.
-	 * uint16  Performance (last quarter).
-	 * bool    Company is password protected.
-	 * uint16  Number of trains.
-	 * uint16  Number of lorries.
-	 * uint16  Number of busses.
-	 * uint16  Number of planes.
-	 * uint16  Number of ships.
-	 * uint16  Number of train stations.
-	 * uint16  Number of lorry stations.
-	 * uint16  Number of bus stops.
-	 * uint16  Number of airports and heliports.
-	 * uint16  Number of harbours.
-	 * bool    Company is an AI.
-	 * string  Client names (comma separated list)
+	 * Sends information about the game.
+	 * Serialized NetworkGameInfo. See game_info.h for details.
 	 * @param p The packet that was just received.
 	 */
-	virtual NetworkRecvStatus Receive_SERVER_COMPANY_INFO(Packet *p);
+	virtual NetworkRecvStatus Receive_SERVER_GAME_INFO(Packet *p);
 
 	/**
 	 * Send information about a client:
-	 * uint32  ID of the client (always unique on a server. 1 = server, 0 is invalid).
-	 * uint8   ID of the company the client is playing as (255 for spectators).
+	 * uint32_t  ID of the client (always unique on a server. 1 = server, 0 is invalid).
+	 * uint8_t   ID of the company the client is playing as (255 for spectators).
 	 * string  Name of the client.
 	 * @param p The packet that was just received.
 	 */
@@ -233,7 +219,7 @@ protected:
 
 	/**
 	 * Indication to the client that the server needs a company password:
-	 * uint32  Generation seed.
+	 * uint32_t  Generation seed.
 	 * string  Network ID of the server.
 	 * @param p The packet that was just received.
 	 */
@@ -241,7 +227,7 @@ protected:
 
 	/**
 	 * Send a password to the server to authorize:
-	 * uint8   Password type (see NetworkPasswordType).
+	 * uint8_t   Password type (see NetworkPasswordType).
 	 * string  The password.
 	 * @param p The packet that was just received.
 	 */
@@ -249,16 +235,16 @@ protected:
 
 	/**
 	 * Send a password to the server to authorize
-	 * uint8   Password type (see NetworkPasswordType).
+	 * uint8_t   Password type (see NetworkPasswordType).
 	 * string  The password.
 	 * @param p The packet that was just received.
 	 */
 	virtual NetworkRecvStatus Receive_CLIENT_COMPANY_PASSWORD(Packet *p);
 
 	/**
-	 * The client is joined and ready to receive his map:
-	 * uint32  Own client ID.
-	 * uint32  Generation seed.
+	 * The client is joined and ready to receive their map:
+	 * uint32_t  Own client ID.
+	 * uint32_t  Generation seed.
 	 * string  Network ID of the server.
 	 * @param p The packet that was just received.
 	 */
@@ -266,28 +252,28 @@ protected:
 
 	/**
 	 * Request the map from the server.
-	 * uint32  NewGRF version (release versions of OpenTTD only).
+	 * uint32_t  NewGRF version (release versions of OpenTTD only).
 	 * @param p The packet that was just received.
 	 */
 	virtual NetworkRecvStatus Receive_CLIENT_GETMAP(Packet *p);
 
 	/**
 	 * Notification that another client is currently receiving the map:
-	 * uint8   Number of clients waiting in front of you.
+	 * uint8_t   Number of clients waiting in front of you.
 	 * @param p The packet that was just received.
 	 */
 	virtual NetworkRecvStatus Receive_SERVER_WAIT(Packet *p);
 
 	/**
 	 * Sends that the server will begin with sending the map to the client:
-	 * uint32  Current frame.
+	 * uint32_t  Current frame.
 	 * @param p The packet that was just received.
 	 */
 	virtual NetworkRecvStatus Receive_SERVER_MAP_BEGIN(Packet *p);
 
 	/**
 	 * Sends the size of the map to the client.
-	 * uint32  Size of the (compressed) map (in bytes).
+	 * uint32_t  Size of the (compressed) map (in bytes).
 	 * @param p The packet that was just received.
 	 */
 	virtual NetworkRecvStatus Receive_SERVER_MAP_SIZE(Packet *p);
@@ -313,86 +299,92 @@ protected:
 
 	/**
 	 * A client joined (PACKET_CLIENT_MAP_OK), what usually directly follows is a PACKET_SERVER_CLIENT_INFO:
-	 * uint32  ID of the client that just joined the game.
+	 * uint32_t  ID of the client that just joined the game.
 	 * @param p The packet that was just received.
 	 */
 	virtual NetworkRecvStatus Receive_SERVER_JOIN(Packet *p);
 
 	/**
 	 * Sends the current frame counter to the client:
-	 * uint32  Frame counter
-	 * uint32  Frame counter max (how far may the client walk before the server?)
-	 * uint32  General seed 1 (dependent on compile settings, not default).
-	 * uint32  General seed 2 (dependent on compile settings, not default).
-	 * uint8   Random token to validate the client is actually listening (only occasionally present).
+	 * uint32_t  Frame counter
+	 * uint32_t  Frame counter max (how far may the client walk before the server?)
+	 * uint32_t  General seed 1 (dependent on compile settings, not default).
+	 * uint32_t  General seed 2 (dependent on compile settings, not default).
+	 * uint8_t   Random token to validate the client is actually listening (only occasionally present).
 	 * @param p The packet that was just received.
 	 */
 	virtual NetworkRecvStatus Receive_SERVER_FRAME(Packet *p);
 
 	/**
 	 * Sends a sync-check to the client:
-	 * uint32  Frame counter.
-	 * uint32  General seed 1.
-	 * uint32  General seed 2 (dependent on compile settings, not default).
+	 * uint32_t  Frame counter.
+	 * uint32_t  General seed 1.
+	 * uint32_t  General seed 2 (dependent on compile settings, not default).
 	 * @param p The packet that was just received.
 	 */
 	virtual NetworkRecvStatus Receive_SERVER_SYNC(Packet *p);
 
 	/**
 	 * Tell the server we are done with this frame:
-	 * uint32  Current frame counter of the client.
-	 * uint8   The random token that the server sent in the PACKET_SERVER_FRAME packet.
+	 * uint32_t  Current frame counter of the client.
+	 * uint8_t   The random token that the server sent in the PACKET_SERVER_FRAME packet.
 	 * @param p The packet that was just received.
 	 */
 	virtual NetworkRecvStatus Receive_CLIENT_ACK(Packet *p);
 
 	/**
 	 * Send a DoCommand to the Server:
-	 * uint8   ID of the company (0..MAX_COMPANIES-1).
-	 * uint32  ID of the command (see command.h).
-	 * uint32  P1 (free variables used in DoCommand).
-	 * uint32  P2
-	 * uint32  Tile where this is taking place.
-	 * string  Text.
-	 * uint8   ID of the callback.
+	 * uint8_t   ID of the company (0..MAX_COMPANIES-1).
+	 * uint32_t  ID of the command (see command.h).
+	 * <var>   Command specific buffer with encoded parameters of variable length.
+	 *         The content differs per command and can change without notification.
+	 * uint8_t   ID of the callback.
 	 * @param p The packet that was just received.
 	 */
 	virtual NetworkRecvStatus Receive_CLIENT_COMMAND(Packet *p);
 
 	/**
 	 * Sends a DoCommand to the client:
-	 * uint8   ID of the company (0..MAX_COMPANIES-1).
-	 * uint32  ID of the command (see command.h).
-	 * uint32  P1 (free variable used in DoCommand).
-	 * uint32  P2.
-	 * uint32  Tile where this is taking place.
-	 * string  Text.
-	 * uint8   ID of the callback.
-	 * uint32  Frame of execution.
+	 * uint8_t   ID of the company (0..MAX_COMPANIES-1).
+	 * uint32_t  ID of the command (see command.h).
+	 * <var>   Command specific buffer with encoded parameters of variable length.
+	 *         The content differs per command and can change without notification.
+	 * uint8_t   ID of the callback.
+	 * uint32_t  Frame of execution.
 	 * @param p The packet that was just received.
 	 */
 	virtual NetworkRecvStatus Receive_SERVER_COMMAND(Packet *p);
 
 	/**
 	 * Sends a chat-packet to the server:
-	 * uint8   ID of the action (see NetworkAction).
-	 * uint8   ID of the destination type (see DestType).
-	 * uint32  ID of the client or company (destination of the chat).
+	 * uint8_t   ID of the action (see NetworkAction).
+	 * uint8_t   ID of the destination type (see DestType).
+	 * uint32_t  ID of the client or company (destination of the chat).
 	 * string  Message (max NETWORK_CHAT_LENGTH).
-	 * uint64  data (used e.g. for 'give money' actions).
+	 * uint64_t  data (used e.g. for 'give money' actions).
 	 * @param p The packet that was just received.
 	 */
 	virtual NetworkRecvStatus Receive_CLIENT_CHAT(Packet *p);
 
 	/**
 	 * Sends a chat-packet to the client:
-	 * uint8   ID of the action (see NetworkAction).
-	 * uint32  ID of the client (origin of the chat).
+	 * uint8_t   ID of the action (see NetworkAction).
+	 * uint32_t  ID of the client (origin of the chat).
 	 * string  Message (max NETWORK_CHAT_LENGTH).
-	 * uint64  data (used e.g. for 'give money' actions).
+	 * uint64_t  data (used e.g. for 'give money' actions).
 	 * @param p The packet that was just received.
 	 */
 	virtual NetworkRecvStatus Receive_SERVER_CHAT(Packet *p);
+
+	/**
+	 * Sends a chat-packet for external source to the client:
+	 * string  Name of the source this message came from.
+	 * uint16_t  TextColour to use for the message.
+	 * string  Name of the user who sent the messsage.
+	 * string  Message (max NETWORK_CHAT_LENGTH).
+	 * @param p The packet that was just received.
+	 */
+	virtual NetworkRecvStatus Receive_SERVER_EXTERNAL_CHAT(Packet *p);
 
 	/**
 	 * Set the password for the clients current company:
@@ -416,22 +408,22 @@ protected:
 
 	/**
 	 * The client made an error and is quitting the game.
-	 * uint8   Error of the code caused (see NetworkErrorCode).
+	 * uint8_t   Error of the code caused (see NetworkErrorCode).
 	 * @param p The packet that was just received.
 	 */
 	virtual NetworkRecvStatus Receive_CLIENT_ERROR(Packet *p);
 
 	/**
 	 * Notification that a client left the game:
-	 * uint32  ID of the client.
+	 * uint32_t  ID of the client.
 	 * @param p The packet that was just received.
 	 */
 	virtual NetworkRecvStatus Receive_SERVER_QUIT(Packet *p);
 
 	/**
 	 * Inform all clients that one client made an error and thus has quit/been disconnected:
-	 * uint32  ID of the client that caused the error.
-	 * uint8   Code of the error caused (see NetworkErrorCode).
+	 * uint32_t  ID of the client that caused the error.
+	 * uint8_t   Code of the error caused (see NetworkErrorCode).
 	 * @param p The packet that was just received.
 	 */
 	virtual NetworkRecvStatus Receive_SERVER_ERROR_QUIT(Packet *p);
@@ -450,7 +442,7 @@ protected:
 
 	/**
 	 * Send the result of an issues RCon command back to the client:
-	 * uint16  Colour code.
+	 * uint16_t  Colour code.
 	 * string  Output of the RCon command
 	 * @param p The packet that was just received.
 	 */
@@ -466,9 +458,9 @@ protected:
 
 	/**
 	 * Sends information about all used GRFs to the client:
-	 * uint8   Amount of GRFs (the following data is repeated this many times, i.e. per GRF data).
-	 * uint32  GRF ID
-	 * 16 * uint8   MD5 checksum of the GRF
+	 * uint8_t   Amount of GRFs (the following data is repeated this many times, i.e. per GRF data).
+	 * uint32_t  GRF ID
+	 * 16 * uint8_t   MD5 checksum of the GRF
 	 * @param p The packet that was just received.
 	 */
 	virtual NetworkRecvStatus Receive_SERVER_CHECK_NEWGRFS(Packet *p);
@@ -481,15 +473,15 @@ protected:
 
 	/**
 	 * Move a client from one company into another:
-	 * uint32  ID of the client.
-	 * uint8   ID of the new company.
+	 * uint32_t  ID of the client.
+	 * uint8_t   ID of the new company.
 	 * @param p The packet that was just received.
 	 */
 	virtual NetworkRecvStatus Receive_SERVER_MOVE(Packet *p);
 
 	/**
 	 * Request the server to move this client into another company:
-	 * uint8   ID of the company the client wants to join.
+	 * uint8_t   ID of the company the client wants to join.
 	 * string  Password, if the company is password protected.
 	 * @param p The packet that was just received.
 	 */
@@ -497,15 +489,15 @@ protected:
 
 	/**
 	 * Update the clients knowledge of which company is password protected:
-	 * uint16  Bitwise representation of each company
+	 * uint16_t  Bitwise representation of each company
 	 * @param p The packet that was just received.
 	 */
 	virtual NetworkRecvStatus Receive_SERVER_COMPANY_UPDATE(Packet *p);
 
 	/**
 	 * Update the clients knowledge of the max settings:
-	 * uint8   Maximum number of companies allowed.
-	 * uint8   Maximum number of spectators allowed.
+	 * uint8_t   Maximum number of companies allowed.
+	 * uint8_t   Maximum number of spectators allowed.
 	 * @param p The packet that was just received.
 	 */
 	virtual NetworkRecvStatus Receive_SERVER_CONFIG_UPDATE(Packet *p);
@@ -515,10 +507,10 @@ protected:
 	NetworkGameSocketHandler(SOCKET s);
 public:
 	ClientID client_id;          ///< Client identifier
-	uint32 last_frame;           ///< Last frame we have executed
-	uint32 last_frame_server;    ///< Last frame the server has executed
+	uint32_t last_frame;           ///< Last frame we have executed
+	uint32_t last_frame_server;    ///< Last frame the server has executed
 	CommandQueue incoming_queue; ///< The command-queue awaiting handling
-	uint last_packet;            ///< Time we received the last frame.
+	std::chrono::steady_clock::time_point last_packet; ///< Time we received the last frame.
 
 	NetworkRecvStatus CloseConnection(bool error = true) override;
 
@@ -527,7 +519,7 @@ public:
 	 * @param status The reason the connection got closed.
 	 */
 	virtual NetworkRecvStatus CloseConnection(NetworkRecvStatus status) = 0;
-	virtual ~NetworkGameSocketHandler() {}
+	virtual ~NetworkGameSocketHandler() = default;
 
 	/**
 	 * Sets the client info for this socket handler.
@@ -552,6 +544,11 @@ public:
 
 	const char *ReceiveCommand(Packet *p, CommandPacket *cp);
 	void SendCommand(Packet *p, const CommandPacket *cp);
+
+	bool IsPendingDeletion() const { return this->is_pending_deletion; }
+
+	void DeferDeletion();
+	static void ProcessDeferredDeletions();
 };
 
 #endif /* NETWORK_CORE_TCP_GAME_H */
