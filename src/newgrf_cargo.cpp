@@ -9,6 +9,7 @@
 
 #include "stdafx.h"
 #include "debug.h"
+#include "newgrf_cargo.h"
 #include "newgrf_spritegroup.h"
 
 #include "safeguards.h"
@@ -17,32 +18,20 @@
 struct CargoResolverObject : public ResolverObject {
 	const CargoSpec *cargospec;
 
-	CargoResolverObject(const CargoSpec *cs, CallbackID callback = CBID_NO_CALLBACK, uint32 callback_param1 = 0, uint32 callback_param2 = 0);
-
-	const SpriteGroup *ResolveReal(const RealSpriteGroup *group) const override;
+	CargoResolverObject(const CargoSpec *cs, CallbackID callback = CBID_NO_CALLBACK, uint32_t callback_param1 = 0, uint32_t callback_param2 = 0);
 
 	GrfSpecFeature GetFeature() const override;
-	uint32 GetDebugID() const override;
+	uint32_t GetDebugID() const override;
 };
-
-/* virtual */ const SpriteGroup *CargoResolverObject::ResolveReal(const RealSpriteGroup *group) const
-{
-	/* Cargo action 2s should always have only 1 "loaded" state, but some
-	 * times things don't follow the spec... */
-	if (group->num_loaded > 0) return group->loaded[0];
-	if (group->num_loading > 0) return group->loading[0];
-
-	return nullptr;
-}
 
 GrfSpecFeature CargoResolverObject::GetFeature() const
 {
 	return GSF_CARGOES;
 }
 
-uint32 CargoResolverObject::GetDebugID() const
+uint32_t CargoResolverObject::GetDebugID() const
 {
-	return this->cargospec->label;
+	return this->cargospec->label.base();
 }
 
 /**
@@ -52,7 +41,7 @@ uint32 CargoResolverObject::GetDebugID() const
  * @param callback_param1 First parameter (var 10) of the callback.
  * @param callback_param2 Second parameter (var 18) of the callback.
  */
-CargoResolverObject::CargoResolverObject(const CargoSpec *cs, CallbackID callback, uint32 callback_param1, uint32 callback_param2)
+CargoResolverObject::CargoResolverObject(const CargoSpec *cs, CallbackID callback, uint32_t callback_param1, uint32_t callback_param2)
 		: ResolverObject(cs->grffile, callback, callback_param1, callback_param2), cargospec(cs)
 {
 	this->root_spritegroup = cs->group;
@@ -73,7 +62,7 @@ SpriteID GetCustomCargoSprite(const CargoSpec *cs)
 }
 
 
-uint16 GetCargoCallback(CallbackID callback, uint32 param1, uint32 param2, const CargoSpec *cs)
+uint16_t GetCargoCallback(CallbackID callback, uint32_t param1, uint32_t param2, const CargoSpec *cs)
 {
 	CargoResolverObject object(cs, callback, param1, param2);
 	return object.ResolveCallback();
@@ -86,22 +75,21 @@ uint16 GetCargoCallback(CallbackID callback, uint32 param1, uint32 param2, const
  * @param usebit  Defines the meaning of \a cargo for GRF version < 7.
  *                If true, then \a cargo is a bitnum. If false, then \a cargo is a cargoslot.
  *                For GRF version >= 7 \a cargo is always a translated cargo bit.
- * @return CargoID or CT_INVALID if the cargo is not available.
+ * @return CargoID or INVALID_CARGO if the cargo is not available.
  */
-CargoID GetCargoTranslation(uint8 cargo, const GRFFile *grffile, bool usebit)
+CargoID GetCargoTranslation(uint8_t cargo, const GRFFile *grffile, bool usebit)
 {
-	/* Pre-version 7 uses the 'climate dependent' ID in callbacks and properties, i.e. cargo is the cargo ID */
-	if (grffile->grf_version < 7 && !usebit) return cargo;
-
-	/* Other cases use (possibly translated) cargobits */
-
-	if (grffile->cargo_list.size() > 0) {
-		/* ...and the cargo is in bounds, then get the cargo ID for
-		 * the label */
-		if (cargo < grffile->cargo_list.size()) return GetCargoIDByLabel(grffile->cargo_list[cargo]);
+	/* We can't use GetCargoTranslationTable here as the usebit flag changes behviour. */
+	/* Pre-version 7 uses the bitnum lookup from (standard in v8) instead of climate dependent in some places.. */
+	std::span<const CargoLabel> cargo_list;
+	if (grffile->grf_version < 7 && !usebit) {
+		cargo_list = GetClimateDependentCargoTranslationTable();
+	} else if (!grffile->cargo_list.empty()) {
+		cargo_list = grffile->cargo_list;
 	} else {
-		/* Else the cargo value is a 'climate independent' 'bitnum' */
-		return GetCargoIDByBitnum(cargo);
+		cargo_list = GetClimateIndependentCargoTranslationTable();
 	}
-	return CT_INVALID;
+
+	if (cargo < cargo_list.size()) return GetCargoIDByLabel(cargo_list[cargo]);
+	return INVALID_CARGO;
 }
