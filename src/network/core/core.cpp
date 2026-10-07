@@ -13,6 +13,7 @@
 #include "../../debug.h"
 #include "os_abstraction.h"
 #include "packet.h"
+#include "../../string_func.h"
 
 #include "../../safeguards.h"
 
@@ -48,31 +49,19 @@ void NetworkCoreShutdown()
 #endif
 }
 
-
+#if defined(_WIN32)
 /**
- * Serializes the GRFIdentifier (GRF ID and MD5 checksum) to the packet
- * @param p   the packet to write the data to
- * @param grf the GRFIdentifier to serialize
+ * Return the string representation of the given error from the OS's network functions.
+ * @param error The error number (from \c NetworkGetLastError()).
+ * @return The error message, potentially an empty string but never \c nullptr.
  */
-void NetworkSocketHandler::SendGRFIdentifier(Packet *p, const GRFIdentifier *grf)
+const char *NetworkGetErrorString(int error)
 {
-	uint j;
-	p->Send_uint32(grf->grfid);
-	for (j = 0; j < sizeof(grf->md5sum); j++) {
-		p->Send_uint8 (grf->md5sum[j]);
+	static char buffer[512];
+	if (FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, error,
+			MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buffer, sizeof(buffer), NULL) == 0) {
+		seprintf(buffer, lastof(buffer), "Unknown error %d", error);
 	}
+	return buffer;
 }
-
-/**
- * Deserializes the GRFIdentifier (GRF ID and MD5 checksum) from the packet
- * @param p   the packet to read the data from
- * @param grf the GRFIdentifier to deserialize
- */
-void NetworkSocketHandler::ReceiveGRFIdentifier(Packet *p, GRFIdentifier *grf)
-{
-	uint j;
-	grf->grfid = p->Recv_uint32();
-	for (j = 0; j < sizeof(grf->md5sum); j++) {
-		grf->md5sum[j] = p->Recv_uint8();
-	}
-}
+#endif /* defined(_WIN32) */

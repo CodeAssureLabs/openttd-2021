@@ -17,6 +17,7 @@
 #include "network/network_content.h"
 #include "screenshot.h"
 #include "string_func.h"
+#include "strings_func.h"
 #include "tar_type.h"
 #include <sys/stat.h>
 #include <functional>
@@ -308,7 +309,7 @@ bool FiosFileScanner::AddFile(const std::string &filename, size_t basepath_lengt
 	FiosItem *fios = file_list.Append();
 #ifdef _WIN32
 	// Retrieve the file modified date using GetFileTime rather than stat to work around an obscure MSVC bug that affects Windows XP
-	HANDLE fh = CreateFile(OTTD2FS(filename.c_str()), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr);
+	HANDLE fh = CreateFile(OTTD2FS(filename).c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr);
 
 	if (fh != INVALID_HANDLE_VALUE) {
 		FILETIME ft;
@@ -376,13 +377,14 @@ static void FiosGetFileList(SaveLoadOperation fop, fios_getlist_callback_proc *c
 		fios->type = FIOS_TYPE_PARENT;
 		fios->mtime = 0;
 		strecpy(fios->name, "..", lastof(fios->name));
-		strecpy(fios->title, ".. (Parent directory)", lastof(fios->title));
+		SetDParamStr(0, "..");
+		GetString(fios->title, STR_SAVELOAD_PARENT_DIRECTORY, lastof(fios->title));
 	}
 
 	/* Show subdirectories */
 	if ((dir = ttd_opendir(_fios_path->c_str())) != nullptr) {
 		while ((dirent = readdir(dir)) != nullptr) {
-			strecpy(d_name, FS2OTTD(dirent->d_name), lastof(d_name));
+			strecpy(d_name, FS2OTTD(dirent->d_name).c_str(), lastof(d_name));
 
 			/* found file must be directory, but not '.' or '..' */
 			if (FiosIsValidFile(_fios_path->c_str(), dirent, &sb) && S_ISDIR(sb.st_mode) &&
@@ -392,7 +394,9 @@ static void FiosGetFileList(SaveLoadOperation fop, fios_getlist_callback_proc *c
 				fios->type = FIOS_TYPE_DIR;
 				fios->mtime = 0;
 				strecpy(fios->name, d_name, lastof(fios->name));
-				seprintf(fios->title, lastof(fios->title), "%s" PATHSEP " (Directory)", d_name);
+				std::string dirname = std::string(d_name) + PATHSEP;
+				SetDParamStr(0, dirname.c_str());
+				GetString(fios->title, STR_SAVELOAD_DIRECTORY, lastof(fios->title));
 				str_validate(fios->title, lastof(fios->title));
 			}
 		}

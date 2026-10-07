@@ -252,7 +252,7 @@ static void SndPlayScreenCoordFx(SoundID sound, int left, int right, int top, in
 			StartSound(
 				sound,
 				panning,
-				(_settings_client.music.effect_vol * _vol_factor_by_zoom[vp->zoom - ZOOM_LVL_BEGIN]) / 256
+				_vol_factor_by_zoom[vp->zoom - ZOOM_LVL_BEGIN]
 			);
 			return;
 		}
@@ -262,8 +262,8 @@ static void SndPlayScreenCoordFx(SoundID sound, int left, int right, int top, in
 void SndPlayTileFx(SoundID sound, TileIndex tile)
 {
 	/* emits sound from center of the tile */
-	int x = min(MapMaxX() - 1, TileX(tile)) * TILE_SIZE + TILE_SIZE / 2;
-	int y = min(MapMaxY() - 1, TileY(tile)) * TILE_SIZE - TILE_SIZE / 2;
+	int x = std::min(MapMaxX() - 1, TileX(tile)) * TILE_SIZE + TILE_SIZE / 2;
+	int y = std::min(MapMaxY() - 1, TileY(tile)) * TILE_SIZE - TILE_SIZE / 2;
 	int z = (y < 0 ? 0 : GetSlopePixelZ(x, y));
 	Point pt = RemapCoords(x, y, z);
 	y += 2 * TILE_SIZE;
@@ -281,7 +281,7 @@ void SndPlayVehicleFx(SoundID sound, const Vehicle *v)
 
 void SndPlayFx(SoundID sound)
 {
-	StartSound(sound, 0.5, _settings_client.music.effect_vol);
+	StartSound(sound, 0.5, UINT8_MAX);
 }
 
 INSTANTIATE_BASE_MEDIA_METHODS(BaseMedia<SoundsSet>, SoundsSet)

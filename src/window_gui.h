@@ -140,7 +140,7 @@ enum WidgetDrawDistances {
 
 /* widget.cpp */
 void DrawFrameRect(int left, int top, int right, int bottom, Colours colour, FrameFlags flags);
-void DrawCaption(const Rect &r, Colours colour, Owner owner, StringID str);
+void DrawCaption(const Rect &r, Colours colour, Owner owner, TextColour text_colour, StringID str, StringAlignment align);
 
 /* window.cpp */
 extern Window *_z_front_window;
@@ -268,6 +268,7 @@ enum TooltipCloseCondition {
 	TCC_RIGHT_CLICK,
 	TCC_HOVER,
 	TCC_NONE,
+	TCC_EXIT_VIEWPORT,
 };
 
 /**
@@ -691,7 +692,9 @@ public:
 	virtual void OnGameTick() {}
 
 	/**
-	 * Called once every 100 (game) ticks.
+	 * Called once every 100 (game) ticks, or once every 3s, whichever comes last.
+	 * In normal game speed the frequency is 1 call every 100 ticks (can be more than 3s).
+	 * In fast-forward the frequency is 1 call every ~3s (can be more than 100 ticks).
 	 */
 	virtual void OnHundredthTick() {}
 
