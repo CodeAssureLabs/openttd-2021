@@ -25,6 +25,7 @@
 #include "newgrf_debug.h"
 #include "zoom_func.h"
 #include "guitimer_func.h"
+#include "viewport_func.h"
 #include "rev.h"
 
 #include "widgets/misc_widget.h"
@@ -46,6 +47,7 @@ static const NWidgetPart _nested_land_info_widgets[] = {
 	NWidget(NWID_HORIZONTAL),
 		NWidget(WWT_CLOSEBOX, COLOUR_GREY),
 		NWidget(WWT_CAPTION, COLOUR_GREY), SetDataTip(STR_LAND_AREA_INFORMATION_CAPTION, STR_TOOLTIP_WINDOW_TITLE_DRAG_THIS),
+		NWidget(WWT_PUSHIMGBTN, COLOUR_GREY, WID_LI_LOCATION), SetMinimalSize(12, 14), SetDataTip(SPR_GOTO_LOCATION, STR_LAND_AREA_INFORMATION_LOCATION_TOOLTIP),
 		NWidget(WWT_DEBUGBOX, COLOUR_GREY),
 	EndContainer(),
 	NWidget(WWT_PANEL, COLOUR_GREY, WID_LI_BACKGROUND), EndContainer(),
@@ -99,7 +101,7 @@ public:
 			if (StrEmpty(this->landinfo_data[i])) break;
 
 			uint width = GetStringBoundingBox(this->landinfo_data[i]).width + WD_FRAMETEXT_LEFT + WD_FRAMETEXT_RIGHT;
-			size->width = max(size->width, width);
+			size->width = std::max(size->width, width);
 
 			size->height += FONT_HEIGHT_NORMAL + WD_PAR_VSEP_NORMAL;
 			if (i == 0) size->height += 4;
@@ -107,7 +109,7 @@ public:
 
 		if (!StrEmpty(this->landinfo_data[LAND_INFO_MULTICENTER_LINE])) {
 			uint width = GetStringBoundingBox(this->landinfo_data[LAND_INFO_MULTICENTER_LINE]).width + WD_FRAMETEXT_LEFT + WD_FRAMETEXT_RIGHT;
-			size->width = max(size->width, min(300u, width));
+			size->width = std::max(size->width, std::min(300u, width));
 			SetDParamStr(0, this->landinfo_data[LAND_INFO_MULTICENTER_LINE]);
 			size->height += GetStringHeight(STR_JUST_RAW_STRING, size->width - WD_FRAMETEXT_LEFT - WD_FRAMETEXT_RIGHT);
 		}
@@ -361,6 +363,19 @@ public:
 		::ShowNewGRFInspectWindow(GetGrfSpecFeature(this->tile), this->tile);
 	}
 
+	void OnClick(Point pt, int widget, int click_count) override
+	{
+		switch (widget) {
+			case WID_LI_LOCATION:
+				if (_ctrl_pressed) {
+					ShowExtraViewportWindow(this->tile);
+				} else {
+					ScrollMainWindowToTile(this->tile);
+				}
+				break;
+		}
+	}
+
 	/**
 	 * Some data on this window has become invalid.
 	 * @param data Information about the changed data.
@@ -430,7 +445,6 @@ static const char * const _credits[] = {
 	u8"  Ingo von Borstel (planetmaker) - General, Support (since 1.1)",
 	u8"  Remko Bijker (Rubidium) - Lead coder and way more (since 0.4.5)",
 	u8"  Jos\u00e9 Soler (Terkhen) - General coding (since 1.0)",
-	u8"  Leif Linse (Zuu) - AI/Game Script (since 1.2)",
 	u8"",
 	u8"Inactive Developers:",
 	u8"  Jean-Fran\u00e7ois Claeys (Belugas) - GUI, NewGRF and more (0.4.5 - 1.0)",
@@ -443,6 +457,7 @@ static const char * const _credits[] = {
 	u8"  Christoph Mallon (Tron) - Programmer, code correctness police (0.3 - 0.5)",
 	u8"  Patric Stout (TrueBrain) - NoAI, NoGo, Network (0.3 - 1.2), sys op (active)",
 	u8"  Thijs Marinussen (Yexo) - AI Framework, General (0.6 - 1.3)",
+	u8"  Leif Linse (Zuu) - AI/Game Script (1.2 - 1.6)",
 	u8"",
 	u8"Retired Developers:",
 	u8"  Tam\u00e1s Farag\u00f3 (Darkvater) - Ex-Lead coder (0.3 - 0.5)",
@@ -482,7 +497,7 @@ struct AboutWindow : public Window {
 	int line_height;                         ///< The height of a single line
 	static const int num_visible_lines = 19; ///< The number of lines visible simultaneously
 
-	static const uint TIMER_INTERVAL = 150;  ///< Scrolling interval in ms
+	static const uint TIMER_INTERVAL = 2100; ///< Scrolling interval, scaled by line text line height. This value chosen to maintain parity: 2100 / FONT_HEIGHT_NORMAL = 150ms
 	GUITimer timer;
 
 	AboutWindow() : Window(&_about_desc)
@@ -490,12 +505,11 @@ struct AboutWindow : public Window {
 		this->InitNested(WN_GAME_OPTIONS_ABOUT);
 
 		this->text_position = this->GetWidget<NWidgetBase>(WID_A_SCROLLING_TEXT)->pos_y + this->GetWidget<NWidgetBase>(WID_A_SCROLLING_TEXT)->current_y;
-		this->timer.SetInterval(TIMER_INTERVAL);
 	}
 
 	void SetStringParameters(int widget) const override
 	{
-		if (widget == WID_A_WEBSITE) SetDParamStr(0, "Website: http://www.openttd.org");
+		if (widget == WID_A_WEBSITE) SetDParamStr(0, "Website: https://www.openttd.org");
 		if (widget == WID_A_COPYRIGHT) SetDParamStr(0, _openttd_revision_year);
 	}
 
@@ -510,9 +524,13 @@ struct AboutWindow : public Window {
 
 		d.width = 0;
 		for (uint i = 0; i < lengthof(_credits); i++) {
-			d.width = max(d.width, GetStringBoundingBox(_credits[i]).width);
+			d.width = std::max(d.width, GetStringBoundingBox(_credits[i]).width);
 		}
 		*size = maxdim(*size, d);
+
+		/* Set scroll interval based on required speed. To keep scrolling smooth,
+		 * the interval is adjusted rather than the distance moved. */
+		this->timer.SetInterval(TIMER_INTERVAL / FONT_HEIGHT_NORMAL);
 	}
 
 	void DrawWidget(const Rect &r, int widget) const override
@@ -539,7 +557,7 @@ struct AboutWindow : public Window {
 			if (this->text_position < (int)(this->GetWidget<NWidgetBase>(WID_A_SCROLLING_TEXT)->pos_y - lengthof(_credits) * this->line_height)) {
 				this->text_position = this->GetWidget<NWidgetBase>(WID_A_SCROLLING_TEXT)->pos_y + this->GetWidget<NWidgetBase>(WID_A_SCROLLING_TEXT)->current_y;
 			}
-			this->SetDirty();
+			this->SetWidgetDirty(WID_A_SCROLLING_TEXT);
 		}
 	}
 };
@@ -706,7 +724,7 @@ struct TooltipsWindow : public Window
 		 * Clamp value to below main toolbar and above statusbar. If tooltip would
 		 * go below window, flip it so it is shown above the cursor */
 		pt.y = Clamp(_cursor.pos.y + _cursor.total_size.y + _cursor.total_offs.y + 5, scr_top, scr_bot);
-		if (pt.y + sm_height > scr_bot) pt.y = min(_cursor.pos.y + _cursor.total_offs.y - 5, scr_bot) - sm_height;
+		if (pt.y + sm_height > scr_bot) pt.y = std::min(_cursor.pos.y + _cursor.total_offs.y - 5, scr_bot) - sm_height;
 		pt.x = sm_width >= _screen.width ? 0 : Clamp(_cursor.pos.x - (sm_width >> 1), 0, _screen.width - sm_width);
 
 		return pt;
@@ -717,7 +735,7 @@ struct TooltipsWindow : public Window
 		/* There is only one widget. */
 		for (uint i = 0; i != this->paramcount; i++) SetDParam(i, this->params[i]);
 
-		size->width  = min(GetStringBoundingBox(this->string_id).width, ScaleGUITrad(194));
+		size->width  = std::min<uint>(GetStringBoundingBox(this->string_id).width, ScaleGUITrad(194));
 		size->height = GetStringHeight(this->string_id, size->width);
 
 		/* Increase slightly to have some space around the box. */
@@ -751,6 +769,12 @@ struct TooltipsWindow : public Window
 			case TCC_RIGHT_CLICK: if (!_right_button_down) delete this; break;
 			case TCC_HOVER: if (!_mouse_hovering) delete this; break;
 			case TCC_NONE: break;
+
+			case TCC_EXIT_VIEWPORT: {
+				Window *w = FindWindowFromPt(_cursor.pos.x, _cursor.pos.y);
+				if (w == nullptr || IsPtInWindowViewport(w, _cursor.pos.x, _cursor.pos.y) == nullptr) delete this;
+				break;
+			}
 		}
 	}
 };
@@ -767,7 +791,7 @@ void GuiShowTooltips(Window *parent, StringID str, uint paramcount, const uint64
 {
 	DeleteWindowById(WC_TOOLTIPS, 0);
 
-	if (str == STR_NULL) return;
+	if (str == STR_NULL || !_cursor.in_window) return;
 
 	new TooltipsWindow(parent, str, paramcount, params, close_tooltip);
 }
@@ -817,7 +841,7 @@ void QueryString::DrawEditBox(const Window *w, int wid) const
 	/* We will take the current widget length as maximum width, with a small
 	 * space reserved at the end for the caret to show */
 	const Textbuf *tb = &this->text;
-	int delta = min(0, (right - left) - tb->pixels - 10);
+	int delta = std::min(0, (right - left) - tb->pixels - 10);
 
 	if (tb->caretxoffs + delta < 0) delta = -tb->caretxoffs;
 
@@ -855,7 +879,7 @@ Point QueryString::GetCaretPosition(const Window *w, int wid) const
 
 	/* Clamp caret position to be inside out current width. */
 	const Textbuf *tb = &this->text;
-	int delta = min(0, (right - left) - tb->pixels - 10);
+	int delta = std::min(0, (right - left) - tb->pixels - 10);
 	if (tb->caretxoffs + delta < 0) delta = -tb->caretxoffs;
 
 	Point pt = {left + WD_FRAMERECT_LEFT + tb->caretxoffs + delta, (int)wi->pos_y + WD_FRAMERECT_TOP};
@@ -888,7 +912,7 @@ Rect QueryString::GetBoundingRect(const Window *w, int wid, const char *from, co
 
 	/* Clamp caret position to be inside our current width. */
 	const Textbuf *tb = &this->text;
-	int delta = min(0, (right - left) - tb->pixels - 10);
+	int delta = std::min(0, (right - left) - tb->pixels - 10);
 	if (tb->caretxoffs + delta < 0) delta = -tb->caretxoffs;
 
 	/* Get location of first and last character. */
@@ -927,7 +951,7 @@ const char *QueryString::GetCharAtPosition(const Window *w, int wid, const Point
 
 	/* Clamp caret position to be inside our current width. */
 	const Textbuf *tb = &this->text;
-	int delta = min(0, (right - left) - tb->pixels - 10);
+	int delta = std::min(0, (right - left) - tb->pixels - 10);
 	if (tb->caretxoffs + delta < 0) delta = -tb->caretxoffs;
 
 	return ::GetCharAtPosition(tb->buf, pt.x - delta - left);
@@ -1047,13 +1071,9 @@ struct QueryStringWindow : public Window
 	void OnOk()
 	{
 		if (this->editbox.orig == nullptr || strcmp(this->editbox.text.buf, this->editbox.orig) != 0) {
-			/* If the parent is nullptr, the editbox is handled by general function
-			 * HandleOnEditText */
-			if (this->parent != nullptr) {
-				this->parent->OnQueryTextFinished(this->editbox.text.buf);
-			} else {
-				HandleOnEditText(this->editbox.text.buf);
-			}
+			assert(this->parent != nullptr);
+
+			this->parent->OnQueryTextFinished(this->editbox.text.buf);
 			this->editbox.handled = true;
 		}
 	}
@@ -1113,13 +1133,14 @@ static WindowDesc _query_string_desc(
  * @param str StringID for the text shown in the textbox
  * @param caption StringID of text shown in caption of querywindow
  * @param maxsize maximum size in bytes or characters (including terminating '\0') depending on flags
- * @param parent pointer to a Window that will handle the events (ok/cancel) of this
- *        window. If nullptr, results are handled by global function HandleOnEditText
+ * @param parent pointer to a Window that will handle the events (ok/cancel) of this window.
  * @param afilter filters out unwanted character input
  * @param flags various flags, @see QueryStringFlags
  */
 void ShowQueryString(StringID str, StringID caption, uint maxsize, Window *parent, CharSetFilter afilter, QueryStringFlags flags)
 {
+	assert(parent != nullptr);
+
 	DeleteWindowByClass(WC_QUERY_STRING);
 	new QueryStringWindow(str, caption, ((flags & QSF_LEN_IN_CHARS) ? MAX_CHAR_LENGTH : 1) * maxsize, maxsize, &_query_string_desc, parent, afilter, flags);
 }
@@ -1141,17 +1162,22 @@ struct QueryWindow : public Window {
 		this->caption = caption;
 		this->message = message;
 		this->proc    = callback;
+		this->parent  = parent;
 
 		this->InitNested(WN_CONFIRM_POPUP_QUERY);
-
-		this->parent = parent;
-		this->left = parent->left + (parent->width / 2) - (this->width / 2);
-		this->top = parent->top + (parent->height / 2) - (this->height / 2);
 	}
 
 	~QueryWindow()
 	{
 		if (this->proc != nullptr) this->proc(this->parent, false);
+	}
+
+	void FindWindowPlacementAndResize(int def_width, int def_height) override
+	{
+		/* Position query window over the calling window, ensuring it's within screen bounds. */
+		this->left = Clamp(parent->left + (parent->width / 2) - (this->width / 2), 0, _screen.width - this->width);
+		this->top = Clamp(parent->top + (parent->height / 2) - (this->height / 2), 0, _screen.height - this->height);
+		this->SetDirty();
 	}
 
 	void SetStringParameters(int widget) const override
@@ -1263,8 +1289,7 @@ void ShowQuery(StringID caption, StringID message, Window *parent, QueryCallback
 {
 	if (parent == nullptr) parent = FindWindowById(WC_MAIN_WINDOW, 0);
 
-	const Window *w;
-	FOR_ALL_WINDOWS_FROM_BACK(w) {
+	for (const Window *w : Window::Iterate()) {
 		if (w->window_class != WC_CONFIRM_POPUP_QUERY) continue;
 
 		const QueryWindow *qw = (const QueryWindow *)w;

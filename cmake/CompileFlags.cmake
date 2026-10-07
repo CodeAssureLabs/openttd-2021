@@ -4,32 +4,33 @@
 #
 macro(compile_flags)
     if(MSVC)
-        # Switch to MT (static) instead of MD (dynamic) binary
+        if(VCPKG_TARGET_TRIPLET MATCHES "-static" AND NOT VCPKG_TARGET_TRIPLET MATCHES "-md")
+            # Switch to MT (static) instead of MD (dynamic) binary
 
-        # For MSVC two generators are available
-        # - a command line generator (Ninja) using CMAKE_BUILD_TYPE to specify the
-        #   configuration of the build tree
-        # - an IDE generator (Visual Studio) using CMAKE_CONFIGURATION_TYPES to
-        #   specify all configurations that will be available in the generated solution
-        list(APPEND MSVC_CONFIGS "${CMAKE_BUILD_TYPE}" "${CMAKE_CONFIGURATION_TYPES}")
+            # For MSVC two generators are available
+            # - a command line generator (Ninja) using CMAKE_BUILD_TYPE to specify the
+            #   configuration of the build tree
+            # - an IDE generator (Visual Studio) using CMAKE_CONFIGURATION_TYPES to
+            #   specify all configurations that will be available in the generated solution
+            list(APPEND MSVC_CONFIGS "${CMAKE_BUILD_TYPE}" "${CMAKE_CONFIGURATION_TYPES}")
 
-        # Set usage of static runtime for all configurations
-        foreach(MSVC_CONFIG ${MSVC_CONFIGS})
-            string(TOUPPER "CMAKE_CXX_FLAGS_${MSVC_CONFIG}" MSVC_FLAGS)
-            string(REPLACE "/MD" "/MT" ${MSVC_FLAGS} "${${MSVC_FLAGS}}")
-        endforeach()
+            # Set usage of static runtime for all configurations
+            foreach(MSVC_CONFIG ${MSVC_CONFIGS})
+                string(TOUPPER "CMAKE_CXX_FLAGS_${MSVC_CONFIG}" MSVC_FLAGS)
+                string(REPLACE "/MD" "/MT" ${MSVC_FLAGS} "${${MSVC_FLAGS}}")
+            endforeach()
+        endif()
 
         # "If /Zc:rvalueCast is specified, the compiler follows section 5.4 of the
         # C++11 standard". We need C++11 for the way we use threads.
         add_compile_options(/Zc:rvalueCast)
 
         if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-            # Enable multi-threaded compilation.
-            add_compile_options(/MP)
+            add_compile_options(
+                /MP # Enable multi-threaded compilation.
+                /FC # Display the full path of source code files passed to the compiler in diagnostics.
+            )
         endif()
-
-        # Add DPI manifest to project; other WIN32 targets get this via ottdres.rc
-        list(APPEND GENERATED_SOURCE_FILES "${CMAKE_SOURCE_DIR}/os/windows/openttd.manifest")
     endif()
 
     # Add some -D flags for Debug builds. We cannot use add_definitions(), because
@@ -126,6 +127,20 @@ macro(compile_flags)
                 # well with our custom pool item allocator
                 "$<$<BOOL:${LIFETIME_DSE_FOUND}>:-flifetime-dse=1>"
             )
+        endif()
+
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+            if (NOT CMAKE_OSX_ARCHITECTURES STREQUAL "arm64")
+                include(CheckCXXCompilerFlag)
+                check_cxx_compiler_flag("-mno-sse4" NO_SSE4_FOUND)
+
+                if(NO_SSE4_FOUND)
+                    add_compile_options(
+                        # Don't use SSE4 for general sources to increase compatibility.
+                        -mno-sse4
+                    )
+                endif()
+            endif()
         endif()
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         add_compile_options(

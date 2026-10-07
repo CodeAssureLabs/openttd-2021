@@ -319,6 +319,7 @@ STR_COLOUR_DEFAULT                                              :Звичайн�
 STR_UNITS_VELOCITY_IMPERIAL                                     :{COMMA}{NBSP}миль/год
 STR_UNITS_VELOCITY_METRIC                                       :{COMMA}{NBSP}км/год
 STR_UNITS_VELOCITY_SI                                           :{COMMA}{NBSP}м/с
+STR_UNITS_VELOCITY_GAMEUNITS                                    :{DECIMAL}{NBSP}клітинок/день
 
 STR_UNITS_POWER_IMPERIAL                                        :{COMMA}{NBSP}к.с.
 STR_UNITS_POWER_METRIC                                          :{COMMA}{NBSP}к.с.
@@ -358,8 +359,6 @@ STR_TOOLTIP_SORT_ORDER                                          :{BLACK}Обер
 STR_TOOLTIP_SORT_CRITERIA                                       :{BLACK}Оберіть критерій сортування
 STR_TOOLTIP_FILTER_CRITERIA                                     :{BLACK}Оберіть критерій фільтру
 STR_BUTTON_SORT_BY                                              :{BLACK}Сортувати
-STR_BUTTON_LOCATION                                             :{BLACK}Показати
-STR_BUTTON_RENAME                                               :{BLACK}Назва
 STR_BUTTON_CATCHMENT                                            :{BLACK}Покриття
 STR_TOOLTIP_CATCHMENT                                           :{BLACK}Вкл./викл. відображення області покриття
 
@@ -439,8 +438,15 @@ STR_SORT_BY_CARGO_CAPACITY                                      :за містк
 STR_SORT_BY_RANGE                                               :за дальністю
 STR_SORT_BY_POPULATION                                          :за населенням
 STR_SORT_BY_RATING                                              :за рейтингом
+STR_SORT_BY_NUM_VEHICLES                                        :Кількість авто
+STR_SORT_BY_TOTAL_PROFIT_LAST_YEAR                              :Загальний прибуток минулого року
+STR_SORT_BY_TOTAL_PROFIT_THIS_YEAR                              :Загальний прибуток цього року
+STR_SORT_BY_AVERAGE_PROFIT_LAST_YEAR                            :Середній прибуток минулого року
+STR_SORT_BY_AVERAGE_PROFIT_THIS_YEAR                            :Середній прибуток цього року
 
 # Group by options for vehicle list
+STR_GROUP_BY_NONE                                               :Нема
+STR_GROUP_BY_SHARED_ORDERS                                      :Спільні накази
 
 # Tooltips for the main toolbar
 STR_TOOLBAR_TOOLTIP_PAUSE_GAME                                  :{BLACK}Пауза
@@ -698,8 +704,8 @@ STR_MONTH_DEC                                                   :Грудень
 # Graph window
 STR_GRAPH_KEY_BUTTON                                            :{BLACK}Легенда
 STR_GRAPH_KEY_TOOLTIP                                           :{BLACK}Показати легенду графіка
-STR_GRAPH_X_LABEL_MONTH                                         :{TINY_FONT}{STRING}{} {STRING}
-STR_GRAPH_X_LABEL_MONTH_YEAR                                    :{TINY_FONT}{STRING}{} {STRING}{}{NUM}
+STR_GRAPH_X_LABEL_MONTH                                         :{TINY_FONT}{STRING}
+STR_GRAPH_X_LABEL_MONTH_YEAR                                    :{TINY_FONT}{STRING}{}{NUM}
 STR_GRAPH_Y_LABEL                                               :{TINY_FONT}{STRING}
 STR_GRAPH_Y_LABEL_NUMBER                                        :{TINY_FONT}{COMMA}
 
@@ -817,7 +823,7 @@ STR_PLAYLIST_TOOLTIP_CLICK_TO_REMOVE_TRACK                      :{BLACK}Клац
 STR_HIGHSCORE_TOP_COMPANIES_WHO_REACHED                         :{BIG_FONT}{BLACK}Кращі компанії, які досягли {NUM}
 STR_HIGHSCORE_TOP_COMPANIES_NETWORK_GAME                        :{BIG_FONT}{BLACK}Таблиця компаній з {NUM}
 STR_HIGHSCORE_POSITION                                          :{BIG_FONT}{BLACK}{COMMA}.
-STR_HIGHSCORE_PERFORMANCE_TITLE_BUSINESSMAN                     :Бізнесмен
+STR_HIGHSCORE_PERFORMANCE_TITLE_BUSINESSMAN                     :Підприємець
 STR_HIGHSCORE_PERFORMANCE_TITLE_ENTREPRENEUR                    :Підприємець
 STR_HIGHSCORE_PERFORMANCE_TITLE_INDUSTRIALIST                   :Промисловець
 STR_HIGHSCORE_PERFORMANCE_TITLE_CAPITALIST                      :Капіталіст
@@ -869,6 +875,7 @@ STR_SMALLMAP_LEGENDA_DOCK                                       :{TINY_FONT}{BLA
 STR_SMALLMAP_LEGENDA_ROUGH_LAND                                 :{TINY_FONT}{BLACK}Нерівна земля
 STR_SMALLMAP_LEGENDA_GRASS_LAND                                 :{TINY_FONT}{BLACK}Трава
 STR_SMALLMAP_LEGENDA_BARE_LAND                                  :{TINY_FONT}{BLACK}Пустир
+STR_SMALLMAP_LEGENDA_RAINFOREST                                 :{TINY_FONT}{BLACK}Джунглі
 STR_SMALLMAP_LEGENDA_FIELDS                                     :{TINY_FONT}{BLACK}Поля
 STR_SMALLMAP_LEGENDA_TREES                                      :{TINY_FONT}{BLACK}Дерева
 STR_SMALLMAP_LEGENDA_ROCKS                                      :{TINY_FONT}{BLACK}Каміння
@@ -900,6 +907,7 @@ STR_SMALLMAP_TOOLTIP_ENABLE_ALL_CARGOS                          :{BLACK}Пока
 STR_STATUSBAR_TOOLTIP_SHOW_LAST_NEWS                            :{BLACK}Показати останнє повідомлення або новину
 STR_STATUSBAR_COMPANY_NAME                                      :{SILVER}- -  {COMPANY}  - -
 STR_STATUSBAR_PAUSED                                            :{YELLOW}*  *  ПАУЗА  *  *
+STR_STATUSBAR_PAUSED_LINK_GRAPH                                 :{ORANGE}*  * ПАУЗА (зачекайте оновлення обрахунку зв'язків) *  *
 STR_STATUSBAR_AUTOSAVE                                          :{RED}АВТОЗБЕРЕЖЕННЯ
 STR_STATUSBAR_SAVING_GAME                                       :{RED}*  *  ЗБЕРЕЖЕННЯ ГРИ  *  *
 
@@ -1066,10 +1074,10 @@ STR_GAME_OPTIONS_CURRENCY_NTD                                   :Новий та
 STR_GAME_OPTIONS_CURRENCY_CNY                                   :Китайські ренміні (CNY)
 STR_GAME_OPTIONS_CURRENCY_HKD                                   :Гонконгський долар (HKD)
 STR_GAME_OPTIONS_CURRENCY_INR                                   :Індійська рупія (INR)
+STR_GAME_OPTIONS_CURRENCY_IDR                                   :Індонезійська рупія (IDR)
+STR_GAME_OPTIONS_CURRENCY_MYR                                   :Малайзійський рингіт (MYR)
 ############ end of currency region
 
-STR_GAME_OPTIONS_ROAD_VEHICLES_FRAME                            :{BLACK}Сторона руху транспорту
-STR_GAME_OPTIONS_ROAD_VEHICLES_DROPDOWN_TOOLTIP                 :{BLACK}Виберіть, по якій стороні рухається дорожній транспорт
 STR_GAME_OPTIONS_ROAD_VEHICLES_DROPDOWN_LEFT                    :лівосторонній рух
 STR_GAME_OPTIONS_ROAD_VEHICLES_DROPDOWN_RIGHT                   :правосторонній рух
 
@@ -1120,10 +1128,17 @@ STR_GAME_OPTIONS_FULLSCREEN_TOOLTIP                             :{BLACK}Нати
 STR_GAME_OPTIONS_RESOLUTION                                     :{BLACK}Роздільна здатність
 STR_GAME_OPTIONS_RESOLUTION_TOOLTIP                             :{BLACK}Виберіть роздільну здатність екрану
 STR_GAME_OPTIONS_RESOLUTION_OTHER                               :інша
+STR_GAME_OPTIONS_RESOLUTION_ITEM                                :{NUM}x{NUM}
+
+STR_GAME_OPTIONS_VIDEO_ACCELERATION                             :{BLACK}Прискорення апаратного забезпечення
+STR_GAME_OPTIONS_VIDEO_ACCELERATION_TOOLTIP                     :{BLACK}Увімкнутий прапорець дозволить використання грою прискорення апаратного забезпечення. Налаштування запрацює тільки після перезапуску гри
+STR_GAME_OPTIONS_VIDEO_ACCELERATION_RESTART                     :{WHITE}Налаштування запрацює тільки після перезапуску гри
+
 
 STR_GAME_OPTIONS_GUI_ZOOM_FRAME                                 :{BLACK}Розмір інтерфейсу
 STR_GAME_OPTIONS_GUI_ZOOM_DROPDOWN_TOOLTIP                      :{BLACK}Оберіть розмір елементів інтерфейсу
 
+STR_GAME_OPTIONS_GUI_ZOOM_DROPDOWN_AUTO                         :(автоматичо)
 STR_GAME_OPTIONS_GUI_ZOOM_DROPDOWN_NORMAL                       :Нормальний розмір
 STR_GAME_OPTIONS_GUI_ZOOM_DROPDOWN_2X_ZOOM                      :Подвійний розмір
 STR_GAME_OPTIONS_GUI_ZOOM_DROPDOWN_4X_ZOOM                      :Почетверний розмір
@@ -1131,9 +1146,18 @@ STR_GAME_OPTIONS_GUI_ZOOM_DROPDOWN_4X_ZOOM                      :Почетве�
 STR_GAME_OPTIONS_FONT_ZOOM                                      :{BLACK}Розмір шрифту
 STR_GAME_OPTIONS_FONT_ZOOM_DROPDOWN_TOOLTIP                     :{BLACK}Виберть розмір шрифту інтерфейсу
 
+STR_GAME_OPTIONS_FONT_ZOOM_DROPDOWN_AUTO                        :(автоматичо)
 STR_GAME_OPTIONS_FONT_ZOOM_DROPDOWN_NORMAL                      :Нормальний
 STR_GAME_OPTIONS_FONT_ZOOM_DROPDOWN_2X_ZOOM                     :Подвійний розмір
 STR_GAME_OPTIONS_FONT_ZOOM_DROPDOWN_4X_ZOOM                     :Почетверний розмір
+
+STR_GAME_OPTIONS_GRAPHICS                                       :{BLACK}Графіка
+
+STR_GAME_OPTIONS_REFRESH_RATE                                   :{BLACK}Показати швидкість оновлення
+STR_GAME_OPTIONS_REFRESH_RATE_TOOLTIP                           :{BLACK}Обрати швидкість оновлення екрану
+STR_GAME_OPTIONS_REFRESH_RATE_OTHER                             :інша
+STR_GAME_OPTIONS_REFRESH_RATE_ITEM                              :{NUM}Гц
+STR_GAME_OPTIONS_REFRESH_RATE_WARNING                           :{WHITE}Оновлення з частотою понад 60ГГц може зашкодити роботі гри.
 
 STR_GAME_OPTIONS_BASE_GRF                                       :{BLACK}Базовий набір графіки
 STR_GAME_OPTIONS_BASE_GRF_TOOLTIP                               :{BLACK}Оберіть, яку основну графіку використовувати
@@ -1229,6 +1253,8 @@ STR_TERRAIN_TYPE_FLAT                                           :рівнинн�
 STR_TERRAIN_TYPE_HILLY                                          :пагористий
 STR_TERRAIN_TYPE_MOUNTAINOUS                                    :гористий
 STR_TERRAIN_TYPE_ALPINIST                                       :скелястий
+STR_TERRAIN_TYPE_CUSTOM                                         :Власна висота
+STR_TERRAIN_TYPE_CUSTOM_VALUE                                   :Власна висота ({NUM})
 
 STR_CITY_APPROVAL_PERMISSIVE                                    :допустиме
 STR_CITY_APPROVAL_TOLERANT                                      :терпиме
@@ -1310,9 +1336,11 @@ STR_CONFIG_SETTING_DISASTERS_HELPTEXT                           :Перемкн�
 STR_CONFIG_SETTING_CITY_APPROVAL                                :Ставлення ради міста до зміни його території: {STRING}
 STR_CONFIG_SETTING_CITY_APPROVAL_HELPTEXT                       :Виберіть, який рівень шуму та руйнування довкілля компаніями впливає на їх рейтинг для міст та подальші будівельні дії в їх межах
 
-STR_CONFIG_SETTING_MAX_HEIGHTLEVEL                              :Максимальна висота карти: {STRING}
-STR_CONFIG_SETTING_MAX_HEIGHTLEVEL_HELPTEXT                     :Встановити максимально дозволену висоту гір на карті
-STR_CONFIG_SETTING_TOO_HIGH_MOUNTAIN                            :{WHITE}Неможливо встановити таку висоти карти. Як мінімум одна гора на карті є вищою
+STR_CONFIG_SETTING_MAP_HEIGHT_LIMIT                             :Максимальна висота мапи: {STRING}
+STR_CONFIG_SETTING_MAP_HEIGHT_LIMIT_HELPTEXT                    :Встановити межу висот на мапі. У режимі "автоматично" розмір встановиться після створення рельєфу.
+STR_CONFIG_SETTING_MAP_HEIGHT_LIMIT_VALUE                       :{NUM}
+STR_CONFIG_SETTING_MAP_HEIGHT_LIMIT_AUTO                        :(автоматичо)
+STR_CONFIG_SETTING_TOO_HIGH_MOUNTAIN                            :{WHITE}Неможливо встановити таку межу висоти мапи. Щонайменше одна гора вище
 STR_CONFIG_SETTING_AUTOSLOPE                                    :Дозволити зміну схилів під будівлями, дорогами тощо: {STRING}
 STR_CONFIG_SETTING_AUTOSLOPE_HELPTEXT                           :Можливість змінювати ландшафт під будівлями та дорогами без необхідності їх зносу
 STR_CONFIG_SETTING_CATCHMENT                                    :Більш реалістічні зони покриття станцій: {STRING}
@@ -1444,7 +1472,7 @@ STR_CONFIG_SETTING_SHOW_NEWGRF_NAME                             :Показув�
 STR_CONFIG_SETTING_SHOW_NEWGRF_NAME_HELPTEXT                    :Додати рядок у вікні придбання транспорту, який показуватиме назву NewGRF обраного транспорту.
 
 STR_CONFIG_SETTING_LANDSCAPE                                    :Ландшафт: {STRING}
-STR_CONFIG_SETTING_LANDSCAPE_HELPTEXT                           :Пейзажі визначають базові ігрові сценарії з різними вантажами, необхідними для зростання міст. NewGRF'и й ігрові скрипти дозволяють тонший контроль
+STR_CONFIG_SETTING_LANDSCAPE_HELPTEXT                           :Ландшафти визначають базові ігрові сценарії з різними вантажами, необхідними для зростання міст. NewGRF'и й ігрові скрипти дозволяють тонший контроль
 STR_CONFIG_SETTING_LAND_GENERATOR                               :Генератор ландшафту: {STRING}
 STR_CONFIG_SETTING_LAND_GENERATOR_HELPTEXT                      :Стандартний залежить від базового набору графіки і створює стандартні форми ландшафту. TerraGenesis базується на генераторі шумів Перлина з тоншими налаштуваннями управління
 STR_CONFIG_SETTING_LAND_GENERATOR_ORIGINAL                      :стандартний
@@ -1456,7 +1484,13 @@ STR_CONFIG_SETTING_INDUSTRY_DENSITY_HELPTEXT                    :Встанов�
 STR_CONFIG_SETTING_OIL_REF_EDGE_DISTANCE                        :Макс. відстань від краю карти до нафтопереробних заводів: {STRING}
 STR_CONFIG_SETTING_OIL_REF_EDGE_DISTANCE_HELPTEXT               :Обмеження того, наскільки далеко може бути побудований кордон нафтопереробних заводів та нафтових установок. На островних картах це гарантує, що вони знаходяться біля узбережжя. На картах більше 256 плиток це значення збільшується.
 STR_CONFIG_SETTING_SNOWLINE_HEIGHT                              :Рівень снігової шапки: {STRING}
-STR_CONFIG_SETTING_SNOWLINE_HEIGHT_HELPTEXT                     :Контроль висоти, вище якої лежить сніг в субарктичному ландшафті. Сніг впливає на генерування підприємств та на умови росту міст
+STR_CONFIG_SETTING_SNOWLINE_HEIGHT_HELPTEXT                     :Контроль висоти, вище якої лежить сніг в субарктичному ландшафті. Сніг впливає на генерування підприємств та на умови росту міст. Можливо змінити лише в редакторі сценаріїв, інакше вираховується за параметром "покриття снігом"
+STR_CONFIG_SETTING_SNOW_COVERAGE                                :Покриття снігом: {STRING}
+STR_CONFIG_SETTING_SNOW_COVERAGE_HELPTEXT                       :Контроль приблизної частки снігу в субарктичному ландшафті. Сніг впливає на створення підприємств та умови росту міст. Використовується лише при створенні мапи. Території біля моря завжди безсніжні
+STR_CONFIG_SETTING_SNOW_COVERAGE_VALUE                          :{NUM}%
+STR_CONFIG_SETTING_DESERT_COVERAGE                              :Покриття пустелею: {STRING}
+STR_CONFIG_SETTING_DESERT_COVERAGE_HELPTEXT                     :Контроль приблизної частки пустель у тропічному ландшафті. Пустелі впливають на створення підприємств. Використовується лише при створенні мапи
+STR_CONFIG_SETTING_DESERT_COVERAGE_VALUE                        :{NUM}%
 STR_CONFIG_SETTING_ROUGHNESS_OF_TERRAIN                         :Грубість ландшафту: {STRING}
 STR_CONFIG_SETTING_ROUGHNESS_OF_TERRAIN_HELPTEXT                :(Тільки для TerraGenesis) Оберіть частоту пагорбів: Плавний пейзаж має менше пагорбів, вони менш круті. Грубий ландшафт має багато пагорбів, що можуть повторюватись один за одним
 STR_CONFIG_SETTING_ROUGHNESS_OF_TERRAIN_VERY_SMOOTH             :дуже плавно
@@ -1570,6 +1604,12 @@ STR_CONFIG_SETTING_PERSISTENT_BUILDINGTOOLS                     :Залишат�
 STR_CONFIG_SETTING_PERSISTENT_BUILDINGTOOLS_HELPTEXT            :Залишати інструменти будівництва активними після використання.
 STR_CONFIG_SETTING_EXPENSES_LAYOUT                              :Групувати витрати у вікні фінансів: {STRING}
 STR_CONFIG_SETTING_EXPENSES_LAYOUT_HELPTEXT                     :Налаштування відображення інформації про вітрати у вікні фінансів
+STR_CONFIG_SETTING_AUTO_REMOVE_SIGNALS                          :Автоматично прибирати сигнали при будівництві колії.: {STRING}
+STR_CONFIG_SETTING_AUTO_REMOVE_SIGNALS_HELPTEXT                 :Автоматично прибирати сигнали на шляху при будівництві колії. Увага: це може спричинити зіткнення потягів!
+STR_CONFIG_SETTING_FAST_FORWARD_SPEED_LIMIT                     :Обмеження швидкості прискорення: {STRING}
+STR_CONFIG_SETTING_FAST_FORWARD_SPEED_LIMIT_HELPTEXT            :Обмеження швидкості гри при увімкнутому прискоренні. 0 = без обмежень (залежить від можливостей компʼютера). Значення понад 100% уповільнить гру. Верхня межа залежить від параметрів компʼютера і може змінитися у грі.
+STR_CONFIG_SETTING_FAST_FORWARD_SPEED_LIMIT_VAL                 :{NUM}% нормальної швидкості гри
+STR_CONFIG_SETTING_FAST_FORWARD_SPEED_LIMIT_ZERO                :Без обмежень (залежить від можливостей компʼютера)
 
 STR_CONFIG_SETTING_SOUND_TICKER                                 :Новинний рухомий рядок: {STRING}
 STR_CONFIG_SETTING_SOUND_TICKER_HELPTEXT                        :Відтворення звуку для узагальнених новинних повідомлень
@@ -1683,6 +1723,11 @@ STR_CONFIG_SETTING_ENDING_YEAR                                  :Рік закі
 STR_CONFIG_SETTING_ENDING_YEAR_HELPTEXT                         :Рік закінчення гри для підрахунку очок. У кінці року додають очки компанії і показують загальний результат, але гравці можуть грати далі.{}Якщо встановлено рік раніший початкового, загальний результат не зʼявиться.
 STR_CONFIG_SETTING_ENDING_YEAR_VALUE                            :{NUM}
 STR_CONFIG_SETTING_ENDING_YEAR_ZERO                             :Ніколи
+STR_CONFIG_SETTING_ECONOMY_TYPE                                 :Тип економіки: {STRING}
+STR_CONFIG_SETTING_ECONOMY_TYPE_HELPTEXT                        :Плавна економіка здійснює часті зміни обсягів виробництва малими порціями. Заморожена економіка не допускає зміни обсягів виробництва і закриття підприємств. Це налаштування може не працювати, якщо використовується підприємства з NewGRF.
+STR_CONFIG_SETTING_ECONOMY_TYPE_ORIGINAL                        :Оригінальна
+STR_CONFIG_SETTING_ECONOMY_TYPE_SMOOTH                          :Плавно
+STR_CONFIG_SETTING_ECONOMY_TYPE_FROZEN                          :Заморожена
 STR_CONFIG_SETTING_ALLOW_SHARES                                 :Дозволити придбання акції інших компаній: {STRING}
 STR_CONFIG_SETTING_ALLOW_SHARES_HELPTEXT                        :При включенні дозволяє придбання та продаж акцій команій. Акції компанії стають доступними після досягнення деякого віку.
 STR_CONFIG_SETTING_MIN_YEARS_FOR_SHARES                         :Мінімальний вік компанії для торгівлі акціями: {STRING}
@@ -1734,6 +1779,10 @@ STR_CONFIG_SETTING_TOWN_CARGOGENMODE_BITCOUNT                   :лінійна 
 
 STR_CONFIG_SETTING_EXTRA_TREE_PLACEMENT                         :Поява дерев під час гри: {STRING}
 STR_CONFIG_SETTING_EXTRA_TREE_PLACEMENT_HELPTEXT                :Налаштування випадкової появи дерев на карті в процесі гри. Ця настройка також впливає на відповідні підприємства, такі як лісопилки.
+STR_CONFIG_SETTING_EXTRA_TREE_PLACEMENT_NO_SPREAD               :Зростати, але поширюватися {RED}(лісопилка не працює)
+STR_CONFIG_SETTING_EXTRA_TREE_PLACEMENT_SPREAD_RAINFOREST       :Зростання, але поширення тільки вологих лісів
+STR_CONFIG_SETTING_EXTRA_TREE_PLACEMENT_SPREAD_ALL              :Зростатати і поширюватися усюди
+STR_CONFIG_SETTING_EXTRA_TREE_PLACEMENT_NO_GROWTH_NO_SPREAD     :Не зростати, не поширюватися {RED}(лісопилка не працює)
 
 STR_CONFIG_SETTING_TOOLBAR_POS                                  :Позиція головного меню: {STRING}
 STR_CONFIG_SETTING_TOOLBAR_POS_HELPTEXT                         :Горизонтальна позиція основної панелі інструментів.
@@ -1751,12 +1800,17 @@ STR_CONFIG_SETTING_ZOOM_MIN                                     :Максима�
 STR_CONFIG_SETTING_ZOOM_MIN_HELPTEXT                            :Максимальний рівень наближення. Зауважте, що більш високі рівні наближення потребують більше оперативної пам'яті.
 STR_CONFIG_SETTING_ZOOM_MAX                                     :Максимальний рівень віддалення: {STRING}
 STR_CONFIG_SETTING_ZOOM_MAX_HELPTEXT                            :Максимальний рівень віддалення. Зауважте, що використання високих рівнів віддалення потребує більше обчислювальної потужності і може викликати гальмування ігрового процесу.
+STR_CONFIG_SETTING_SPRITE_ZOOM_MIN                              :Найбільша використовувана роздільна здатність: {STRING}
+STR_CONFIG_SETTING_SPRITE_ZOOM_MIN_HELPTEXT                     :Обмеження максимальної роздільної здатності зображень. Не використовуватиметься наявна графіка високої роздільної здатності. Гра працюватиме злагодженіше при використанні кількох графічних файлів з різною роздільною здатністю.
 STR_CONFIG_SETTING_ZOOM_LVL_MIN                                 :4x
 STR_CONFIG_SETTING_ZOOM_LVL_IN_2X                               :2x
 STR_CONFIG_SETTING_ZOOM_LVL_NORMAL                              :нормальний
 STR_CONFIG_SETTING_ZOOM_LVL_OUT_2X                              :2x
 STR_CONFIG_SETTING_ZOOM_LVL_OUT_4X                              :4x
 STR_CONFIG_SETTING_ZOOM_LVL_OUT_8X                              :8x
+STR_CONFIG_SETTING_SPRITE_ZOOM_LVL_MIN                          :4x
+STR_CONFIG_SETTING_SPRITE_ZOOM_LVL_IN_2X                        :2x
+STR_CONFIG_SETTING_SPRITE_ZOOM_LVL_NORMAL                       :1x
 STR_CONFIG_SETTING_TOWN_GROWTH                                  :Швидкість росту міста: {STRING}
 STR_CONFIG_SETTING_TOWN_GROWTH_HELPTEXT                         :Налаштування швидкості росту міст
 STR_CONFIG_SETTING_TOWN_GROWTH_NONE                             :немає
@@ -1800,6 +1854,7 @@ STR_CONFIG_SETTING_LOCALISATION_UNITS_VELOCITY_HELPTEXT         :Показув�
 STR_CONFIG_SETTING_LOCALISATION_UNITS_VELOCITY_IMPERIAL         :Імперські (милі/год)
 STR_CONFIG_SETTING_LOCALISATION_UNITS_VELOCITY_METRIC           :Метричні (км/год)
 STR_CONFIG_SETTING_LOCALISATION_UNITS_VELOCITY_SI               :СІ (м/с)
+STR_CONFIG_SETTING_LOCALISATION_UNITS_VELOCITY_GAMEUNITS        :Ігрових одиниць (клітинок/день)
 
 STR_CONFIG_SETTING_LOCALISATION_UNITS_POWER                     :Одиниці потужності: {STRING}
 STR_CONFIG_SETTING_LOCALISATION_UNITS_POWER_HELPTEXT            :Показувати потужності в таких одиницях:
@@ -1889,6 +1944,10 @@ STR_CONFIG_ERROR_INVALID_BASE_MUSIC_NOT_FOUND                   :{WHITE}... ба
 STR_CONFIG_ERROR_OUT_OF_MEMORY                                  :{WHITE}Не вистачає пам'яті
 STR_CONFIG_ERROR_SPRITECACHE_TOO_BIG                            :{WHITE}Не вдалося розподілити {BYTES} спрайт-кешу. Спрайт кеш було зменшено до {BYTES}. Це зменшить швидкість роботи OpenTTD. Аби зменшити використання пам'яті спробуйте заборонити 32-бітну графіку і/або ступені масшатабування екрану
 
+# Video initalization errors
+STR_VIDEO_DRIVER_ERROR                                          :{WHITE}Помилка з налаштуванням зображення...
+STR_VIDEO_DRIVER_ERROR_NO_HARDWARE_ACCELERATION                 :{WHITE}... не знайдено сумісного графічного процесора. Відключено прискорення апаратного забезпечення
+
 # Intro window
 STR_INTRO_CAPTION                                               :{WHITE}OpenTTD {REV}
 
@@ -1932,6 +1991,7 @@ STR_INTRO_TRANSLATION                                           :{BLACK}Пере
 
 # Quit window
 STR_QUIT_CAPTION                                                :{WHITE}Вийти
+STR_QUIT_ARE_YOU_SURE_YOU_WANT_TO_EXIT_OPENTTD                  :{YELLOW}Ви дійсно бажаєте вийти з OpenTTD?
 STR_QUIT_YES                                                    :{BLACK}Так
 STR_QUIT_NO                                                     :{BLACK}Ні
 
@@ -1943,7 +2003,7 @@ STR_ABANDON_SCENARIO_QUERY                                      :{YELLOW}Ви д
 # Cheat window
 STR_CHEATS                                                      :{WHITE}Гратиму нечесно
 STR_CHEATS_TOOLTIP                                              :{BLACK}Галка показує, що Ви стали грати нечесно
-STR_CHEATS_WARNING                                              :{BLACK}Попередження! Ви збираєтесь обманути своїх конкурентів. Пам'ятайте, що подібне безчестя буде запам'ятовано назавжди
+STR_CHEATS_NOTE                                                 :{BLACK}Заувага: використання цих налаштувань зафіксується при збереженні гри
 STR_CHEAT_MONEY                                                 :{LTBLUE}Збільшити кошти на {CURRENCY_LONG}
 STR_CHEAT_CHANGE_COMPANY                                        :{LTBLUE}Грає як компанія: {ORANGE}{COMMA}
 STR_CHEAT_EXTRA_DYNAMITE                                        :{LTBLUE}Супербульдозер (руйнує все): {ORANGE}{STRING}
@@ -2053,6 +2113,7 @@ STR_FACE_TIE                                                    :Краватк�
 STR_FACE_EARRING                                                :Сережки:
 STR_FACE_TIE_EARRING_TOOLTIP                                    :{BLACK}Змінити комір або сережки
 
+
 # Network server list
 STR_NETWORK_SERVER_LIST_CAPTION                                 :{WHITE}Мережева гра
 STR_NETWORK_SERVER_LIST_PLAYER_NAME                             :{BLACK}Ім'я гравця:
@@ -2095,6 +2156,10 @@ STR_NETWORK_SERVER_LIST_JOIN_GAME                               :{BLACK}Приє
 STR_NETWORK_SERVER_LIST_REFRESH                                 :{BLACK}Оновити сервер
 STR_NETWORK_SERVER_LIST_REFRESH_TOOLTIP                         :{BLACK}Оновити інформацію про сервер
 
+STR_NETWORK_SERVER_LIST_SEARCH_SERVER_INTERNET                  :{BLACK}Пошук мережі
+STR_NETWORK_SERVER_LIST_SEARCH_SERVER_INTERNET_TOOLTIP          :{BLACK}Пошук публічних серверів у мережі
+STR_NETWORK_SERVER_LIST_SEARCH_SERVER_LAN                       :{BLACK}Пошук локальної мережі
+STR_NETWORK_SERVER_LIST_SEARCH_SERVER_LAN_TOOLTIP               :{BLACK}Пошук серверів у локальній мережі
 STR_NETWORK_SERVER_LIST_ADD_SERVER                              :{BLACK}Додати сервер
 STR_NETWORK_SERVER_LIST_ADD_SERVER_TOOLTIP                      :{BLACK}Додає сервер до списку, який завжди буде перевірятись на поточні ігри
 STR_NETWORK_SERVER_LIST_START_SERVER                            :{BLACK}Створити сервер
@@ -2111,10 +2176,6 @@ STR_NETWORK_START_SERVER_NEW_GAME_NAME_TOOLTIP                  :{BLACK}Назв
 STR_NETWORK_START_SERVER_SET_PASSWORD                           :{BLACK}Встановити пароль
 STR_NETWORK_START_SERVER_PASSWORD_TOOLTIP                       :{BLACK}Захистіть вашу гру паролем, якщо не бажаєте загального доступу
 
-STR_NETWORK_START_SERVER_ADVERTISED_LABEL                       :{BLACK}Інтернет
-STR_NETWORK_START_SERVER_ADVERTISED_TOOLTIP                     :{BLACK}Вибір між рекламованою (інтернет) і не рекламованою (локальна мережа, LAN) грою
-STR_NETWORK_START_SERVER_UNADVERTISED                           :Ні
-STR_NETWORK_START_SERVER_ADVERTISED                             :Так
 STR_NETWORK_START_SERVER_CLIENTS_SELECT                         :{BLACK}{NUM} клієнт{P "" а ів}
 STR_NETWORK_START_SERVER_NUMBER_OF_CLIENTS                      :{BLACK}Макс. клієнтів:
 STR_NETWORK_START_SERVER_NUMBER_OF_CLIENTS_TOOLTIP              :{BLACK}Виберіть максимальну кількість клієнтів. Не всі слоти мають бути зайняті
@@ -2128,46 +2189,6 @@ STR_NETWORK_START_SERVER_LANGUAGE_SPOKEN                        :{BLACK}Мова
 STR_NETWORK_START_SERVER_LANGUAGE_TOOLTIP                       :{BLACK}Інші гравці будуть знати якою мовою спілкуються на сервері
 
 STR_NETWORK_START_SERVER_NEW_GAME_NAME_OSKTITLE                 :{BLACK}Введіть назву мережевої гри
-
-# Network game languages
-############ Leave those lines in this order!!
-STR_NETWORK_LANG_ANY                                            :Будь-яка
-STR_NETWORK_LANG_ENGLISH                                        :Англійська
-STR_NETWORK_LANG_GERMAN                                         :Німецька
-STR_NETWORK_LANG_FRENCH                                         :Французька
-STR_NETWORK_LANG_BRAZILIAN                                      :Бразильська
-STR_NETWORK_LANG_BULGARIAN                                      :Болгарська
-STR_NETWORK_LANG_CHINESE                                        :Китайська
-STR_NETWORK_LANG_CZECH                                          :Чеська
-STR_NETWORK_LANG_DANISH                                         :Данська
-STR_NETWORK_LANG_DUTCH                                          :Нідерландська
-STR_NETWORK_LANG_ESPERANTO                                      :Есперанто
-STR_NETWORK_LANG_FINNISH                                        :Фінська
-STR_NETWORK_LANG_HUNGARIAN                                      :Угорська
-STR_NETWORK_LANG_ICELANDIC                                      :Ісландська
-STR_NETWORK_LANG_ITALIAN                                        :Італійська
-STR_NETWORK_LANG_JAPANESE                                       :Японська
-STR_NETWORK_LANG_KOREAN                                         :Корейська
-STR_NETWORK_LANG_LITHUANIAN                                     :Литовська
-STR_NETWORK_LANG_NORWEGIAN                                      :Норвезька
-STR_NETWORK_LANG_POLISH                                         :Польська
-STR_NETWORK_LANG_PORTUGUESE                                     :Португальська
-STR_NETWORK_LANG_ROMANIAN                                       :Румунська
-STR_NETWORK_LANG_RUSSIAN                                        :Російська
-STR_NETWORK_LANG_SLOVAK                                         :Словацька
-STR_NETWORK_LANG_SLOVENIAN                                      :Словенська
-STR_NETWORK_LANG_SPANISH                                        :Іспанська
-STR_NETWORK_LANG_SWEDISH                                        :Шведська
-STR_NETWORK_LANG_TURKISH                                        :Турецька
-STR_NETWORK_LANG_UKRAINIAN                                      :Українська
-STR_NETWORK_LANG_AFRIKAANS                                      :Афрікаанс
-STR_NETWORK_LANG_CROATIAN                                       :Хорватська
-STR_NETWORK_LANG_CATALAN                                        :Каталонська
-STR_NETWORK_LANG_ESTONIAN                                       :Естонська
-STR_NETWORK_LANG_GALICIAN                                       :Галісійська
-STR_NETWORK_LANG_GREEK                                          :Грецька
-STR_NETWORK_LANG_LATVIAN                                        :Латвійська
-############ End of leave-in-this-order
 
 # Network game lobby
 STR_NETWORK_GAME_LOBBY_CAPTION                                  :{WHITE}Мережева гра - кімната
@@ -2216,26 +2237,17 @@ STR_NETWORK_CONNECTION_DISCONNECT                               :{BLACK}Роз'�
 
 STR_NETWORK_NEED_GAME_PASSWORD_CAPTION                          :{WHITE}Сервер захищено паролем. Введіть пароль
 STR_NETWORK_NEED_COMPANY_PASSWORD_CAPTION                       :{WHITE}Компанія захищена паролем. Введіть пароль
-STR_NETWORK_COMPANY_LIST_CLIENT_LIST_CAPTION                    :{WHITE}Список клієнтів
 
 # Network company list added strings
 STR_NETWORK_COMPANY_LIST_CLIENT_LIST                            :Список клієнтів
-STR_NETWORK_COMPANY_LIST_SPECTATE                               :Спостерігати
-STR_NETWORK_COMPANY_LIST_NEW_COMPANY                            :Нова компанія
 
 # Network client list
-STR_NETWORK_CLIENTLIST_KICK                                     :Відключити гравця
-STR_NETWORK_CLIENTLIST_BAN                                      :Бан
-STR_NETWORK_CLIENTLIST_GIVE_MONEY                               :Дати грошей
-STR_NETWORK_CLIENTLIST_SPEAK_TO_ALL                             :Повідомлення всім
-STR_NETWORK_CLIENTLIST_SPEAK_TO_COMPANY                         :Повідомлення компанії
-STR_NETWORK_CLIENTLIST_SPEAK_TO_CLIENT                          :Приватне повідомлення
+
+
 
 STR_NETWORK_SERVER                                              :Сервер
 STR_NETWORK_CLIENT                                              :Клієнт
 STR_NETWORK_SPECTATORS                                          :Спостерігачі
-
-STR_NETWORK_GIVE_MONEY_CAPTION                                  :{WHITE}Введіть суму грошей, яку Ви хочете віддати
 
 # Network set password
 STR_COMPANY_PASSWORD_CANCEL                                     :{BLACK}Не запам'ятовувати введений пароль
@@ -2323,11 +2335,13 @@ STR_NETWORK_SERVER_MESSAGE_GAME_STILL_PAUSED_1                  :Гра ще п�
 STR_NETWORK_SERVER_MESSAGE_GAME_STILL_PAUSED_2                  :Гра ще призупинена ({STRING}, {STRING})
 STR_NETWORK_SERVER_MESSAGE_GAME_STILL_PAUSED_3                  :Гра ще призупинена ({STRING}, {STRING}, {STRING})
 STR_NETWORK_SERVER_MESSAGE_GAME_STILL_PAUSED_4                  :Гра ще на паузі ({STRING}, {STRING}, {STRING}, {STRING})
+STR_NETWORK_SERVER_MESSAGE_GAME_STILL_PAUSED_5                  :Гра ще призупинена ({STRING}, {STRING}, {STRING}, {STRING}, {STRING})
 STR_NETWORK_SERVER_MESSAGE_GAME_UNPAUSED                        :Гра знята з паузи ({STRING})
 STR_NETWORK_SERVER_MESSAGE_GAME_REASON_NOT_ENOUGH_PLAYERS       :кількість гравців
 STR_NETWORK_SERVER_MESSAGE_GAME_REASON_CONNECTING_CLIENTS       :приєднання клієнтів
 STR_NETWORK_SERVER_MESSAGE_GAME_REASON_MANUAL                   :вручну
 STR_NETWORK_SERVER_MESSAGE_GAME_REASON_GAME_SCRIPT              :ігровий скрипт
+STR_NETWORK_SERVER_MESSAGE_GAME_REASON_LINK_GRAPH               :зачекайте оновлення обрахунку зв'язків
 ############ End of leave-in-this-order
 STR_NETWORK_MESSAGE_CLIENT_LEAVING                              :виходжу...
 STR_NETWORK_MESSAGE_CLIENT_JOINED                               :*** {STRING} приєднався до гри
@@ -2337,8 +2351,7 @@ STR_NETWORK_MESSAGE_CLIENT_COMPANY_SPECTATE                     :*** {STRING} с
 STR_NETWORK_MESSAGE_CLIENT_COMPANY_NEW                          :*** {STRING} заснував нову компанію (№{2:NUM})
 STR_NETWORK_MESSAGE_CLIENT_LEFT                                 :*** {STRING} покинув гру ({2:STRING})
 STR_NETWORK_MESSAGE_NAME_CHANGE                                 :*** {STRING} змінив(-ла) своє ім'я на {STRING}
-STR_NETWORK_MESSAGE_GIVE_MONEY                                  :*** {STRING} дав Вашій компанії {2:CURRENCY_LONG}
-STR_NETWORK_MESSAGE_GAVE_MONEY_AWAY                             :*** Ви дали {1:STRING} {2:CURRENCY_LONG}
+STR_NETWORK_MESSAGE_GIVE_MONEY                                  :*** Від {STRING} передано {1:STRING} {2:CURRENCY_LONG}
 STR_NETWORK_MESSAGE_SERVER_SHUTDOWN                             :{WHITE}Сервер закрив сеанс
 STR_NETWORK_MESSAGE_SERVER_REBOOT                               :{WHITE}Перезавантаження сервера...{}Зачекайте...
 STR_NETWORK_MESSAGE_KICKED                                      :*** {STRING} відключено. Причина: ({STRING})
@@ -2416,6 +2429,10 @@ STR_MISSING_GRAPHICS_SET_MESSAGE                                :{BLACK}OpenTTD 
 STR_MISSING_GRAPHICS_YES_DOWNLOAD                               :{BLACK}Так, завантажити графіку
 STR_MISSING_GRAPHICS_NO_QUIT                                    :{BLACK}Ні, вийти з OpenTTD
 
+STR_MISSING_GRAPHICS_ERROR_TITLE                                :{WHITE}Не вдалося завантажити
+STR_MISSING_GRAPHICS_ERROR                                      :{BLACK}Не вдалося завантажити графіку.{}Будь ласка, завантажте графіку самостійно.
+STR_MISSING_GRAPHICS_ERROR_QUIT                                 :{BLACK}Вийти з OpenTTD
+
 # Transparency settings window
 STR_TRANSPARENCY_CAPTION                                        :{WHITE}Опції прозорості
 STR_TRANSPARENT_SIGNS_TOOLTIP                                   :{BLACK}Переключити прозорість для знаків станцій. Утримуйте Ctrl, щоб заблокувати
@@ -2459,6 +2476,9 @@ STR_JOIN_STATION_CREATE_SPLITTED_STATION                        :{YELLOW}Поб�
 
 STR_JOIN_WAYPOINT_CAPTION                                       :{WHITE}З'єднати точку маршруту
 STR_JOIN_WAYPOINT_CREATE_SPLITTED_WAYPOINT                      :{YELLOW}Створити окрему точку маршруту
+
+# Generic toolbar
+STR_TOOLBAR_DISABLED_NO_VEHICLE_AVAILABLE                       :{BLACK}Відключено через поточну відсутність транспорту для цієї інфраструктури
 
 # Rail construction toolbar
 STR_RAIL_TOOLBAR_RAILROAD_CONSTRUCTION_CAPTION                  :Будівництво залізниці
@@ -2654,6 +2674,12 @@ STR_TREES_RANDOM_TYPE                                           :{BLACK}Дере
 STR_TREES_RANDOM_TYPE_TOOLTIP                                   :{BLACK}Садити дерева випадкового типу. Утримуйте Shift для показу витрат на висаджування
 STR_TREES_RANDOM_TREES_BUTTON                                   :{BLACK}Випадкові дерева
 STR_TREES_RANDOM_TREES_TOOLTIP                                  :{BLACK}Випадкове насадження дерев по всьому ландшафту
+STR_TREES_MODE_NORMAL_BUTTON                                    :{BLACK}Нормальна
+STR_TREES_MODE_NORMAL_TOOLTIP                                   :{BLACK}Саджати окремі дерева протягуванням по ландшафту
+STR_TREES_MODE_FOREST_SM_BUTTON                                 :{BLACK}Зріст
+STR_TREES_MODE_FOREST_SM_TOOLTIP                                :{BLACK}Саджати гаї протягуванням по ландшафту
+STR_TREES_MODE_FOREST_LG_BUTTON                                 :{BLACK}Ліс
+STR_TREES_MODE_FOREST_LG_TOOLTIP                                :{BLACK}Саджати великі ліси протягуванням по ландшафту
 
 # Land generation window (SE)
 STR_TERRAFORM_TOOLBAR_LAND_GENERATION_CAPTION                   :{WHITE}Створити ландшафт
@@ -2704,12 +2730,18 @@ STR_FOUND_TOWN_SELECT_LAYOUT_RANDOM                             :{BLACK}Випа
 # Fund new industry window
 STR_FUND_INDUSTRY_CAPTION                                       :{WHITE}Нове підприємство
 STR_FUND_INDUSTRY_SELECTION_TOOLTIP                             :{BLACK}Виберіть необхідне підприємство
-STR_FUND_INDUSTRY_MANY_RANDOM_INDUSTRIES                        :Багато різної промисловості
+STR_FUND_INDUSTRY_MANY_RANDOM_INDUSTRIES                        :{BLACK}Створити різні підприємства
 STR_FUND_INDUSTRY_MANY_RANDOM_INDUSTRIES_TOOLTIP                :{BLACK}Випадково розташувати підприємства по карті
+STR_FUND_INDUSTRY_MANY_RANDOM_INDUSTRIES_CAPTION                :{WHITE}Створити підприємства випадково
+STR_FUND_INDUSTRY_MANY_RANDOM_INDUSTRIES_QUERY                  :{YELLOW}Ви дійсно бажаєте створити багато різних підприємств?
 STR_FUND_INDUSTRY_INDUSTRY_BUILD_COST                           :{BLACK}Вартість: {YELLOW}{CURRENCY_LONG}
 STR_FUND_INDUSTRY_PROSPECT_NEW_INDUSTRY                         :{BLACK}Огляд
 STR_FUND_INDUSTRY_BUILD_NEW_INDUSTRY                            :{BLACK}Будувати
 STR_FUND_INDUSTRY_FUND_NEW_INDUSTRY                             :{BLACK}Фінансувати
+STR_FUND_INDUSTRY_REMOVE_ALL_INDUSTRIES                         :{BLACK}Прибрати усі підприємства
+STR_FUND_INDUSTRY_REMOVE_ALL_INDUSTRIES_TOOLTIP                 :{BLACK}Прибрати усі підприємства, наявні на мапі
+STR_FUND_INDUSTRY_REMOVE_ALL_INDUSTRIES_CAPTION                 :{WHITE}Прибрати усі підприємства
+STR_FUND_INDUSTRY_REMOVE_ALL_INDUSTRIES_QUERY                   :{YELLOW}Ви дійсно бажаєте видалити всі підприємства?
 
 # Industry cargoes window
 STR_INDUSTRY_CARGOES_INDUSTRY_CAPTION                           :{WHITE}Ланцюг вантажних перевезень для {STRING}
@@ -2730,6 +2762,7 @@ STR_INDUSTRY_CARGOES_SELECT_INDUSTRY_TOOLTIP                    :{BLACK}Обер
 
 # Land area window
 STR_LAND_AREA_INFORMATION_CAPTION                               :{WHITE}Інформація про ділянку
+STR_LAND_AREA_INFORMATION_LOCATION_TOOLTIP                      :{BLACK}Показати місце у центрі екрану. Ctrl+клац мишою відкриє нове вікно з видом на місце
 STR_LAND_AREA_INFORMATION_COST_TO_CLEAR_N_A                     :{BLACK}Вартість очистки: {LTBLUE}неможливо
 STR_LAND_AREA_INFORMATION_COST_TO_CLEAR                         :{BLACK}Вартість очистки: {RED}{CURRENCY_LONG}
 STR_LAND_AREA_INFORMATION_REVENUE_WHEN_CLEARED                  :{BLACK}Дохід при очистці: {LTBLUE}{CURRENCY_LONG}
@@ -2939,6 +2972,8 @@ STR_SAVELOAD_DETAIL_GRFSTATUS                                   :{SILVER}NewGRF:
 STR_SAVELOAD_FILTER_TITLE                                       :{BLACK}Фільтр:
 STR_SAVELOAD_OVERWRITE_TITLE                                    :{WHITE}Перезаписати файл
 STR_SAVELOAD_OVERWRITE_WARNING                                  :{YELLOW} Ви справді хочете перезаписати існуючий файл?
+STR_SAVELOAD_DIRECTORY                                          :{STRING} (Тека)
+STR_SAVELOAD_PARENT_DIRECTORY                                   :{STRING} (Головна тека)
 
 STR_SAVELOAD_OSKTITLE                                           :{BLACK}Введіть назву файла збереженої гри
 
@@ -2950,14 +2985,18 @@ STR_MAPGEN_BY                                                   :{BLACK}*
 STR_MAPGEN_NUMBER_OF_TOWNS                                      :{BLACK}Міста:
 STR_MAPGEN_DATE                                                 :{BLACK}Дата:
 STR_MAPGEN_NUMBER_OF_INDUSTRIES                                 :{BLACK}Кількість виробництв:
-STR_MAPGEN_MAX_HEIGHTLEVEL                                      :{BLACK}Максимальна висота карти
-STR_MAPGEN_MAX_HEIGHTLEVEL_UP                                   :{BLACK}Збільшити максимальну висоту гір на карті на одиницю
-STR_MAPGEN_MAX_HEIGHTLEVEL_DOWN                                 :{BLACK}Зменшити максимальну висоту гір на карті на одиницю
-STR_MAPGEN_SNOW_LINE_HEIGHT                                     :{BLACK}Висота лінії снігу:
-STR_MAPGEN_SNOW_LINE_UP                                         :{BLACK}Підвищити лінію снігу
-STR_MAPGEN_SNOW_LINE_DOWN                                       :{BLACK}Понизити лінію снігу
+STR_MAPGEN_HEIGHTMAP_HEIGHT                                     :{BLACK}Найвища гора:
+STR_MAPGEN_HEIGHTMAP_HEIGHT_UP                                  :{BLACK}Збільшити на одиницю максимальну висоту найвищої гори на мапі
+STR_MAPGEN_HEIGHTMAP_HEIGHT_DOWN                                :{BLACK}Зменшити на одиницю максимальну висоту найвищої гори на мапі
+STR_MAPGEN_SNOW_COVERAGE                                        :{BLACK}Покриття снігом:
+STR_MAPGEN_SNOW_COVERAGE_UP                                     :{BLACK}Збільшити покриття снігом на 10%
+STR_MAPGEN_SNOW_COVERAGE_DOWN                                   :{BLACK}Зменшити покриття снігом на 10%
+STR_MAPGEN_SNOW_COVERAGE_TEXT                                   :{BLACK}{NUM}%
+STR_MAPGEN_DESERT_COVERAGE                                      :{BLACK}Покриття пустелею:
+STR_MAPGEN_DESERT_COVERAGE_UP                                   :{BLACK}Збільшити покриття пустелею на 10%
+STR_MAPGEN_DESERT_COVERAGE_DOWN                                 :{BLACK}Зменшити покриття пустелею на 10%
+STR_MAPGEN_DESERT_COVERAGE_TEXT                                 :{BLACK}{NUM}%
 STR_MAPGEN_LAND_GENERATOR                                       :{BLACK}Ландшафт:
-STR_MAPGEN_TREE_PLACER                                          :{BLACK}Насадження дерев:
 STR_MAPGEN_TERRAIN_TYPE                                         :{BLACK}Тип ландшафту:
 STR_MAPGEN_QUANTITY_OF_SEA_LAKES                                :{BLACK}Рівень моря:
 STR_MAPGEN_QUANTITY_OF_RIVERS                                   :{BLACK}Ріки:
@@ -2982,8 +3021,10 @@ STR_MAPGEN_HEIGHTMAP_NAME                                       :{BLACK}Назв
 STR_MAPGEN_HEIGHTMAP_SIZE_LABEL                                 :{BLACK}Розмір:
 STR_MAPGEN_HEIGHTMAP_SIZE                                       :{ORANGE}{NUM} x {NUM}
 
-STR_MAPGEN_MAX_HEIGHTLEVEL_QUERY_CAPT                           :{WHITE}Змінити максимальну висоту карти
-STR_MAPGEN_SNOW_LINE_QUERY_CAPT                                 :{WHITE}Змінити висоту лінії снігу
+STR_MAPGEN_TERRAIN_TYPE_QUERY_CAPT                              :{WHITE}Висота обраної гори
+STR_MAPGEN_HEIGHTMAP_HEIGHT_QUERY_CAPT                          :{WHITE}Найвища гора
+STR_MAPGEN_SNOW_COVERAGE_QUERY_CAPT                             :{WHITE}Покриття снігом (у відсотках)
+STR_MAPGEN_DESERT_COVERAGE_QUERY_CAPT                           :{WHITE}Покриття пустелею, у відсотках
 STR_MAPGEN_START_DATE_QUERY_CAPT                                :{WHITE}Змінити рік початку гри
 
 # SE Map generation
@@ -3200,6 +3241,7 @@ STR_SIGN_LIST_MATCH_CASE_TOOLTIP                                :{BLACK}Пере
 
 # Sign window
 STR_EDIT_SIGN_CAPTION                                           :{WHITE}Редагування напису
+STR_EDIT_SIGN_LOCATION_TOOLTIP                                  :{BLACK}Показати позначку в центрі екрану. Ctrl+клац мишою відкриє нове вікно у місці розташування позначки
 STR_EDIT_SIGN_NEXT_SIGN_TOOLTIP                                 :{BLACK}Наступне позначення
 STR_EDIT_SIGN_PREVIOUS_SIGN_TOOLTIP                             :{BLACK}Попереднє позначення
 
@@ -3260,33 +3302,34 @@ STR_LOCAL_AUTHORITY_ACTION_NEW_BUILDINGS                        :Фінансу�
 STR_LOCAL_AUTHORITY_ACTION_EXCLUSIVE_TRANSPORT                  :Купити єдине транспортне право
 STR_LOCAL_AUTHORITY_ACTION_BRIBE                                :Підкупити місцеву владу
 
-STR_LOCAL_AUTHORITY_ACTION_TOOLTIP_SMALL_ADVERTISING            :{YELLOW}Провести малу локальну рекламну кампанію, щоб залучити більше пасажирів і вантажу до послуг вашої компанії.{}Вартість: {CURRENCY_LONG}
-STR_LOCAL_AUTHORITY_ACTION_TOOLTIP_MEDIUM_ADVERTISING           :{YELLOW}Провести середню локальну рекламну кампанію, щоб залучити більше пасажирів і вантажу до послуг вашої компанії.{}Вартість: {CURRENCY_LONG}
-STR_LOCAL_AUTHORITY_ACTION_TOOLTIP_LARGE_ADVERTISING            :{YELLOW}Провести велику локальну рекламну кампанію, щоб залучити більше пасажирів і вантажу до послуг вашої компанії.{}Вартість: {CURRENCY_LONG}
-STR_LOCAL_AUTHORITY_ACTION_TOOLTIP_ROAD_RECONSTRUCTION          :{YELLOW}Фінансувати реконструкцію міських доріг. Призведе до значного погіршення руху на 6 місяців.{}Вартість: {CURRENCY_LONG}
-STR_LOCAL_AUTHORITY_ACTION_TOOLTIP_STATUE_OF_COMPANY            :{YELLOW}Збудувати монумент на честь вашої компанії.{}Вартість: {CURRENCY_LONG}
-STR_LOCAL_AUTHORITY_ACTION_TOOLTIP_NEW_BUILDINGS                :{YELLOW}Фінансувати будівництво нових офісів у місті.{}Вартість: {CURRENCY_LONG}
-STR_LOCAL_AUTHORITY_ACTION_TOOLTIP_EXCLUSIVE_TRANSPORT          :{YELLOW}Купити ексклюзивне транспортне право у місті на 1 рік. Міська влада дозволить використовувати лише станції вашої компанії.{}Вартість: {CURRENCY_LONG}
+STR_LOCAL_AUTHORITY_ACTION_TOOLTIP_SMALL_ADVERTISING            :{YELLOW}Провести малу локальну рекламну кампанію, щоб залучити більше пасажирів і вантажу до послуг вашої компанії.{}Тимчасово збільшить рейтинг станції у малому радіусі від міського центру.{}Вартість: {CURRENCY_LONG}
+STR_LOCAL_AUTHORITY_ACTION_TOOLTIP_MEDIUM_ADVERTISING           :{YELLOW}Провести середню локальну рекламну кампанію, щоб залучити більше пасажирів і вантажу до послуг вашої компанії.{}Тимчасово збільшить рейтинг станції у середньому радіусі від міського центру.{}Вартість: {CURRENCY_LONG}
+STR_LOCAL_AUTHORITY_ACTION_TOOLTIP_LARGE_ADVERTISING            :{YELLOW}Провести велику локальну рекламну кампанію, щоб залучити більше пасажирів і вантажу до послуг вашої компанії.{}Тимчасово збільшить рейтинг станції у великому радіусі від міського центру.{}Вартість: {CURRENCY_LONG}
+STR_LOCAL_AUTHORITY_ACTION_TOOLTIP_ROAD_RECONSTRUCTION          :{YELLOW}Фінансувати реконструкцію міських доріг.{}Призведе до значного погіршення руху на 6 місяців.{}Вартість: {CURRENCY_LONG}
+STR_LOCAL_AUTHORITY_ACTION_TOOLTIP_STATUE_OF_COMPANY            :{YELLOW}Збудувати монумент на честь вашої компанії.{}Збільшує рейтинг станції у місті.{}Вартість: {CURRENCY_LONG}
+STR_LOCAL_AUTHORITY_ACTION_TOOLTIP_NEW_BUILDINGS                :{YELLOW}Фінансувати будівництво нових офісів у місті.{}Тимчасово прискорить зростання міста.{}Вартість: {CURRENCY_LONG}
+STR_LOCAL_AUTHORITY_ACTION_TOOLTIP_EXCLUSIVE_TRANSPORT          :{YELLOW}Купити ексклюзивне транспортне право у місті на 1 рік.{}Міська влада не дозволить використовувати станції інших компаній.{}Вартість: {CURRENCY_LONG}
 STR_LOCAL_AUTHORITY_ACTION_TOOLTIP_BRIBE                        :{YELLOW}Підкупити місцеву владу для збільшення вашого рейтингу, при викритті загрожує суворим покаранням.{}Вартість: {CURRENCY_LONG}
 
 # Goal window
 STR_GOALS_CAPTION                                               :{WHITE}Цілі {COMPANY}
 STR_GOALS_SPECTATOR_CAPTION                                     :{WHITE}Глобальні цілі:
 STR_GOALS_SPECTATOR                                             :Загальні задачі
-STR_GOALS_GLOBAL_TITLE                                          :{BLACK}Глобальні цілі:
+STR_GOALS_GLOBAL_BUTTON                                         :{BLACK}Глобальні
+STR_GOALS_GLOBAL_BUTTON_HELPTEXT                                :{BLACK}Показати глобальні цілі
+STR_GOALS_COMPANY_BUTTON                                        :{BLACK}Компанія
+STR_GOALS_COMPANY_BUTTON_HELPTEXT                               :{BLACK}Показати цілі компанії
 STR_GOALS_TEXT                                                  :{ORANGE}{STRING}
 STR_GOALS_NONE                                                  :{ORANGE}- нема -
-STR_GOALS_SPECTATOR_NONE                                        :{ORANGE}- Неможливо застосувати -
 STR_GOALS_PROGRESS                                              :{ORANGE}{STRING}
 STR_GOALS_PROGRESS_COMPLETE                                     :{GREEN}{STRING}
-STR_GOALS_COMPANY_TITLE                                         :{BLACK}Цілі компанії:
 STR_GOALS_TOOLTIP_CLICK_ON_SERVICE_TO_CENTER                    :{BLACK}Клац мишою на цілі (меті) відобразить по центру виробництва/місто/клітинку у головному вікні. Ctrl+клац мишою відкриє міні-вікно
 
 # Goal question window
-STR_GOAL_QUESTION_CAPTION_QUESTION                              :Питання
-STR_GOAL_QUESTION_CAPTION_INFORMATION                           :Інформація
-STR_GOAL_QUESTION_CAPTION_WARNING                               :Попередження
-STR_GOAL_QUESTION_CAPTION_ERROR                                 :Помилка
+STR_GOAL_QUESTION_CAPTION_QUESTION                              :{BLACK}Питання
+STR_GOAL_QUESTION_CAPTION_INFORMATION                           :{BLACK}Інформація
+STR_GOAL_QUESTION_CAPTION_WARNING                               :{BLACK}Попередження
+STR_GOAL_QUESTION_CAPTION_ERROR                                 :{YELLOW}Помилка
 
 ############ Start of Goal Question button list
 STR_GOAL_QUESTION_BUTTON_CANCEL                                 :Відмінити
@@ -3476,6 +3519,8 @@ STR_COMPANY_VIEW_RELOCATE_HQ                                    :{BLACK}Пере
 STR_COMPANY_VIEW_RELOCATE_COMPANY_HEADQUARTERS                  :{BLACK}Перенесення Офісу в інше місце. Коштує 1% від вартості компанії. Утримуйте Shift для показу очікуваних витрат на перенесення
 STR_COMPANY_VIEW_INFRASTRUCTURE_BUTTON                          :{BLACK}Деталі
 STR_COMPANY_VIEW_INFRASTRUCTURE_TOOLTIP                         :{BLACK}Переглянути детальну інформацію про інфраструктуру
+STR_COMPANY_VIEW_GIVE_MONEY_BUTTON                              :{BLACK}Дати грошей
+STR_COMPANY_VIEW_GIVE_MONEY_TOOLTIP                             :{BLACK}Дати грошей цій компанії
 
 STR_COMPANY_VIEW_NEW_FACE_BUTTON                                :{BLACK}Нове обличчя
 STR_COMPANY_VIEW_NEW_FACE_TOOLTIP                               :{BLACK}Вибрати нове обличчя керівника
@@ -3493,6 +3538,7 @@ STR_COMPANY_VIEW_SELL_SHARE_TOOLTIP                             :{BLACK}Прод
 
 STR_COMPANY_VIEW_COMPANY_NAME_QUERY_CAPTION                     :Назва компанії
 STR_COMPANY_VIEW_PRESIDENT_S_NAME_QUERY_CAPTION                 :Ім'я керівника
+STR_COMPANY_VIEW_GIVE_MONEY_QUERY_CAPTION                       :Введіть суму грошей, яку бажаєте передати
 
 STR_BUY_COMPANY_MESSAGE                                         :{WHITE}Ми шукаємо нового власника нашої компанії.{}{}Чи бажаєте Ви купити {COMPANY} за {CURRENCY_LONG}?
 
@@ -3647,6 +3693,7 @@ STR_PURCHASE_INFO_PWAGPOWER_PWAGWEIGHT                          :{BLACK}Поту
 STR_PURCHASE_INFO_REFITTABLE_TO                                 :{BLACK}Може бути переобладненим на: {GOLD}{STRING}
 STR_PURCHASE_INFO_ALL_TYPES                                     :Всі типи вантажів
 STR_PURCHASE_INFO_NONE                                          :Нема
+STR_PURCHASE_INFO_ENGINES_ONLY                                  :Тільки локомотиви
 STR_PURCHASE_INFO_ALL_BUT                                       :Всі, крім {CARGO_LIST}
 STR_PURCHASE_INFO_MAX_TE                                        :{BLACK}Максимальна тягова сила: {GOLD}{FORCE}
 STR_PURCHASE_INFO_AIRCRAFT_RANGE                                :{BLACK}Дальність: {GOLD}{COMMA} клітинок
@@ -3853,10 +3900,10 @@ STR_REPLACE_REMOVE_WAGON_HELP                                   :{BLACK}Дозв
 # Vehicle view
 STR_VEHICLE_VIEW_CAPTION                                        :{WHITE}{VEHICLE}
 
-STR_VEHICLE_VIEW_TRAIN_LOCATION_TOOLTIP                         :{BLACK}Показати поїзд у центрі екрану. Ctrl+клац мишою спричинить слідкування за ним у головному вікні
-STR_VEHICLE_VIEW_ROAD_VEHICLE_LOCATION_TOOLTIP                  :{BLACK}Показати автомобіль у центрі екрану. Ctrl+клац мишою спричинить слідкування за ним у головному вікні
-STR_VEHICLE_VIEW_SHIP_LOCATION_TOOLTIP                          :{BLACK}Показати корабель у центрі екрану. Ctrl+клац мишою спричинить слідкування за ним у головному вікні
-STR_VEHICLE_VIEW_AIRCRAFT_LOCATION_TOOLTIP                      :{BLACK}Показати літак у центрі екрану. Ctrl+клац мишою спричинить слідкування за ним у головному вікні
+STR_VEHICLE_VIEW_TRAIN_CENTER_TOOLTIP                           :{BLACK}Показати місце розташування потяга в центрі екрану. Подвійний клац для показу потяга в центрі екрану.Ctrl+клац мишою відкриє нове вікно у місці розташування потяга
+STR_VEHICLE_VIEW_ROAD_VEHICLE_CENTER_TOOLTIP                    :{BLACK}Показати транспорт у вікні. Подвійний клац для показу транспорту в центрі екрану. Ctrl+клац мишою для руху за транспортом.
+STR_VEHICLE_VIEW_SHIP_CENTER_TOOLTIP                            :{BLACK}Показати місце розташування корабля в центрі екрану. Подвійний клац для показу корабля в центрі екрану.Ctrl+клац мишою відкриє нове вікно у місці розташування корабля
+STR_VEHICLE_VIEW_AIRCRAFT_CENTER_TOOLTIP                        :{BLACK}Показати авіатранспорт у вікні. Подвійний клац для показу авіатранспорту в центрі екрану. Ctrl+клац мишою для руху за авіатранспортом.
 
 STR_VEHICLE_VIEW_TRAIN_SEND_TO_DEPOT_TOOLTIP                    :{BLACK}Направити поїзд у депо
 STR_VEHICLE_VIEW_ROAD_VEHICLE_SEND_TO_DEPOT_TOOLTIP             :{BLACK}Направити авто в депо
@@ -3888,10 +3935,12 @@ STR_VEHICLE_VIEW_ROAD_VEHICLE_SHOW_DETAILS_TOOLTIP              :{BLACK}Пока
 STR_VEHICLE_VIEW_SHIP_SHOW_DETAILS_TOOLTIP                      :{BLACK}Показати корабель детально
 STR_VEHICLE_VIEW_AIRCRAFT_SHOW_DETAILS_TOOLTIP                  :{BLACK}Показати літак детально
 
-STR_VEHICLE_VIEW_TRAIN_STATE_START_STOP_TOOLTIP                 :{BLACK}Поточна дія поїзда - натисніть для руху/зупинки поїзда. Утримуйте Ctrl, щоб показати пункт призначення
-STR_VEHICLE_VIEW_ROAD_VEHICLE_STATE_START_STOP_TOOLTIP          :{BLACK}Поточна дія автомобіля - натисніть для руху/зупинки автомобіля. Утримуйте Ctrl, щоб показати пункт призначення
-STR_VEHICLE_VIEW_SHIP_STATE_START_STOP_TOOLTIP                  :{BLACK}Поточна дія корабля - натисніть для руху/зупинки корабля. Утримуйте Ctrl, щоб показати пункт призначення
-STR_VEHICLE_VIEW_AIRCRAFT_STATE_START_STOP_TOOLTIP              :{BLACK}Поточна дія літака - натисніть для руху/зупинки літака. Утримуйте Ctrl, щоб показати пункт призначення
+STR_VEHICLE_VIEW_TRAIN_STATUS_START_STOP_TOOLTIP                :{BLACK}Поточні дії потяга - натисніть для руху/зупинки потяга
+STR_VEHICLE_VIEW_ROAD_VEHICLE_STATUS_START_STOP_TOOLTIP         :{BLACK}Поточні дії транспорту - натисніть для руху/зупинки транспорту
+STR_VEHICLE_VIEW_SHIP_STATE_STATUS_STOP_TOOLTIP                 :{BLACK}Поточні дії корабля - натисніть для руху/зупинки корабля
+STR_VEHICLE_VIEW_AIRCRAFT_STATUS_START_STOP_TOOLTIP             :{BLACK}Поточні дії авіатранспорту - натисніть  для вильоту/зупинки літального апарата
+
+STR_VEHICLE_VIEW_ORDER_LOCATION_TOOLTIP                         :{BLACK}Показати пункт призначення в центрі екрану. Ctrl+клац мишою відкриє нове вікно з видом на пункт призначення
 
 # Messages in the start stop button in the vehicle view
 STR_VEHICLE_STATUS_LOADING_UNLOADING                            :{LTBLUE}Вантаження
@@ -4119,6 +4168,7 @@ STR_ORDER_REFIT_STOP_ORDER                                      :(Переобл
 STR_ORDER_STOP_ORDER                                            :(зупинити)
 
 STR_ORDER_GO_TO_STATION                                         :{STRING} {STATION} {STRING}
+STR_ORDER_GO_TO_STATION_CAN_T_USE_STATION                       :{PUSH_COLOUR}{RED}(Неможливо використати станцію){POP_COLOUR} {STRING} {STATION} {STRING}
 
 STR_ORDER_IMPLICIT                                              :(Автоматично)
 
@@ -4363,6 +4413,7 @@ STR_GAME_SAVELOAD_ERROR_TOO_NEW_SAVEGAME                        :Файл збе
 STR_GAME_SAVELOAD_ERROR_FILE_NOT_READABLE                       :Неможливо прочитати файл
 STR_GAME_SAVELOAD_ERROR_FILE_NOT_WRITEABLE                      :Неможливо записати файл
 STR_GAME_SAVELOAD_ERROR_DATA_INTEGRITY_CHECK_FAILED             :Перевірка на цілісність зазнала невдачі
+STR_GAME_SAVELOAD_ERROR_PATCHPACK                               :Файл збереженої гри зроблений модифікованою версією
 STR_GAME_SAVELOAD_NOT_AVAILABLE                                 :<недоступно>
 STR_WARNING_LOADGAME_REMOVED_TRAMS                              :{WHITE}Гра була записана у версії без підтримки трамваїв. Усі трамваї були видалені
 
@@ -4390,6 +4441,7 @@ STR_WARNING_FALLBACK_SOUNDSET                                   :{WHITE}Був �
 STR_WARNING_SCREENSHOT_SIZE_CAPTION                             :{WHITE}Великий знімок екрану
 STR_WARNING_SCREENSHOT_SIZE_MESSAGE                             :{YELLOW}Знімок екрану буде мати роздільну здатність {COMMA} x {COMMA} пікселів. Створення знімка екрану може зайняти деякий час. Ви хочете продовжити?
 
+STR_MESSAGE_HEIGHTMAP_SUCCESSFULLY                              :{WHITE}Мапа висот успішно збережена як '{STRING}'. Висота найвищої гори {NUM}
 STR_MESSAGE_SCREENSHOT_SUCCESSFULLY                             :{WHITE}Екран збережено в '{STRING}'
 STR_ERROR_SCREENSHOT_FAILED                                     :{WHITE}Помилка збереження екрану!
 
@@ -4443,6 +4495,7 @@ STR_ERROR_LOAN_ALREADY_REPAYED                                  :{WHITE}... по
 STR_ERROR_CURRENCY_REQUIRED                                     :{WHITE}... потрібно {CURRENCY_LONG}
 STR_ERROR_CAN_T_REPAY_LOAN                                      :{WHITE}Неможливо повернути позику...
 STR_ERROR_INSUFFICIENT_FUNDS                                    :{WHITE}Неможливо передати гроші, позичені у банку...
+STR_ERROR_CAN_T_GIVE_MONEY                                      :{WHITE}Неможливо передати гроші цій компанії...
 STR_ERROR_CAN_T_BUY_COMPANY                                     :{WHITE}Неможливо купити компанію...
 STR_ERROR_CAN_T_BUILD_COMPANY_HEADQUARTERS                      :{WHITE}Неможливо збудувати Офіс...
 STR_ERROR_CAN_T_BUY_25_SHARE_IN_THIS                            :{WHITE}Неможливо купити 25% акцій цієї компанії...
@@ -4569,6 +4622,8 @@ STR_ERROR_DEPOT_WRONG_DEPOT_TYPE                                :Неправи�
 STR_ERROR_TRAIN_TOO_LONG_AFTER_REPLACEMENT                      :{WHITE}{VEHICLE} дуже довгий після оновлення
 STR_ERROR_AUTOREPLACE_NOTHING_TO_DO                             :{WHITE}Правила автозаміни/оновлення не застосовувалися
 STR_ERROR_AUTOREPLACE_MONEY_LIMIT                               :(бракує коштів)
+STR_ERROR_AUTOREPLACE_INCOMPATIBLE_CARGO                        :{WHITE}Новий транспорт не може перевозити {STRING}
+STR_ERROR_AUTOREPLACE_INCOMPATIBLE_REFIT                        :{WHITE}Нове авто не може змінити наказ {NUM}
 
 # Rail construction errors
 STR_ERROR_IMPOSSIBLE_TRACK_COMBINATION                          :{WHITE}Неможливе з'єднання колії
@@ -4887,10 +4942,10 @@ STR_INDUSTRY_NAME_SUGAR_MINE.z                                  :цукрову 
 ##id 0x6000
 STR_SV_EMPTY                                                    :
 STR_SV_UNNAMED                                                  :Без назви
-STR_SV_TRAIN_NAME                                               :Поїзд №{COMMA}
-STR_SV_ROAD_VEHICLE_NAME                                        :Автотранспорт №{COMMA}
-STR_SV_SHIP_NAME                                                :Судно №{COMMA}
-STR_SV_AIRCRAFT_NAME                                            :Борт №{COMMA}
+STR_SV_TRAIN_NAME                                               :Поїзд #{COMMA}
+STR_SV_ROAD_VEHICLE_NAME                                        :Транспорт #{COMMA}
+STR_SV_SHIP_NAME                                                :Судно #{COMMA}
+STR_SV_AIRCRAFT_NAME                                            :Борт #{COMMA}
 
 STR_SV_STNAME                                                   :{STRING}
 STR_SV_STNAME_NORTH                                             :{STRING} Північна
@@ -5192,6 +5247,7 @@ STR_FORMAT_BUOY_NAME                                            :Буй {TOWN}
 STR_FORMAT_BUOY_NAME_SERIAL                                     :Буй {TOWN} №{COMMA}
 STR_FORMAT_COMPANY_NUM                                          :(Компанія {COMMA})
 STR_FORMAT_GROUP_NAME                                           :Група {COMMA}
+STR_FORMAT_GROUP_VEHICLE_NAME                                   :{GROUP} #{COMMA}
 STR_FORMAT_INDUSTRY_NAME                                        :{TOWN} {STRING}
 STR_FORMAT_WAYPOINT_NAME                                        :Пункт {TOWN}
 STR_FORMAT_WAYPOINT_NAME_SERIAL                                 :Пункт {TOWN} №{COMMA}

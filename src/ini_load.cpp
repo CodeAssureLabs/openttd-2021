@@ -38,13 +38,9 @@ IniItem::~IniItem()
  * Replace the current value with another value.
  * @param value the value to replace with.
  */
-void IniItem::SetValue(const char *value)
+void IniItem::SetValue(const std::string_view value)
 {
-	if (value == nullptr) {
-		this->value.reset();
-	} else {
-		this->value.emplace(value);
-	}
+	this->value.emplace(value);
 }
 
 /**
@@ -226,7 +222,7 @@ void IniLoadFile::LoadFromDisk(const std::string &filename, Subdirectory subdir)
 			uint a = comment_alloc;
 			/* add to comment */
 			if (ns > a) {
-				a = max(a, 128U);
+				a = std::max(a, 128U);
 				do a *= 2; while (a < ns);
 				comment = ReallocT(comment, comment_alloc = a);
 			}

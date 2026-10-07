@@ -222,7 +222,7 @@ protected:
 
 	/**
 	 * Welcome a connected admin to the game:
-	 * string  Name of the Server (e.g. as advertised to master server).
+	 * string  Name of the Server.
 	 * string  OpenTTD version string.
 	 * bool    Server is dedicated.
 	 * string  Name of the Map.
@@ -482,7 +482,6 @@ public:
 	NetworkRecvStatus CloseConnection(bool error = true) override;
 
 	NetworkAdminSocketHandler(SOCKET s);
-	~NetworkAdminSocketHandler();
 
 	NetworkRecvStatus ReceivePackets();
 

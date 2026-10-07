@@ -11,12 +11,13 @@
 #define NETWORK_GUI_H
 
 #include "../company_type.h"
+#include "../date_type.h"
 #include "../economy_type.h"
 #include "../window_type.h"
 #include "network_type.h"
+#include "network_gamelist.h"
 
 void ShowNetworkNeedPassword(NetworkPasswordType npt);
-void ShowNetworkGiveMoneyWindow(CompanyID company);
 void ShowNetworkChatQueryWindow(DestType type, int dest);
 void ShowJoinStatusWindow();
 void ShowNetworkGameWindow();
@@ -31,11 +32,12 @@ struct NetworkCompanyInfo : NetworkCompanyStats {
 	Money company_value;                            ///< The company value
 	Money money;                                    ///< The amount of money the company has
 	Money income;                                   ///< How much did the company earned last year
-	uint16 performance;                             ///< What was his performance last month?
+	uint16 performance;                             ///< What was their performance last month?
 	bool use_password;                              ///< Is there a password
 	char clients[NETWORK_CLIENTS_LENGTH];           ///< The clients that control this company (Name1, name2, ..)
 };
 
 NetworkCompanyInfo *GetLobbyCompanyInfo(CompanyID company);
+NetworkGameList *GetLobbyGameInfo();
 
 #endif /* NETWORK_GUI_H */
