@@ -17,7 +17,7 @@
 #include "economy_func.h"
 #include "slope_type.h"
 #include "strings_type.h"
-#include "date_type.h"
+#include "timer/timer_game_calendar.h"
 #include "signal_type.h"
 #include "settings_type.h"
 
@@ -121,7 +121,7 @@ typedef std::vector<RailTypeLabel> RailTypeLabelList;
 /**
  * This struct contains all the info that is needed to draw and construct tracks.
  */
-class RailtypeInfo {
+class RailTypeInfo {
 public:
 	/**
 	 * Struct containing the main sprites. @note not all sprites are listed, but only
@@ -210,22 +210,22 @@ public:
 	/**
 	 * Cost multiplier for building this rail type
 	 */
-	uint16 cost_multiplier;
+	uint16_t cost_multiplier;
 
 	/**
 	 * Cost multiplier for maintenance of this rail type
 	 */
-	uint16 maintenance_multiplier;
+	uint16_t maintenance_multiplier;
 
 	/**
 	 * Acceleration type of this rail type
 	 */
-	uint8 acceleration_type;
+	uint8_t acceleration_type;
 
 	/**
 	 * Maximum speed for vehicles travelling on this rail type
 	 */
-	uint16 max_speed;
+	uint16_t max_speed;
 
 	/**
 	 * Unique 32 bit rail type identifier
@@ -249,7 +249,7 @@ public:
 	 * The introduction at this date is furthermore limited by the
 	 * #introduction_required_railtypes.
 	 */
-	Date introduction_date;
+	TimerGameCalendar::Date introduction_date;
 
 	/**
 	 * Bitmask of railtypes that are required for this railtype to be introduced
@@ -299,11 +299,11 @@ public:
 /**
  * Returns a pointer to the Railtype information for a given railtype
  * @param railtype the rail type which the information is requested for
- * @return The pointer to the RailtypeInfo
+ * @return The pointer to the RailTypeInfo
  */
-static inline const RailtypeInfo *GetRailTypeInfo(RailType railtype)
+static inline const RailTypeInfo *GetRailTypeInfo(RailType railtype)
 {
-	extern RailtypeInfo _railtypes[RAILTYPE_END];
+	extern RailTypeInfo _railtypes[RAILTYPE_END];
 	assert(railtype < RAILTYPE_END);
 	return &_railtypes[railtype];
 }
@@ -355,8 +355,8 @@ static inline bool Rail90DegTurnDisallowed(RailType rt1, RailType rt2, bool def 
 {
 	if (rt1 == INVALID_RAILTYPE || rt2 == INVALID_RAILTYPE) return def;
 
-	const RailtypeInfo *rti1 = GetRailTypeInfo(rt1);
-	const RailtypeInfo *rti2 = GetRailTypeInfo(rt2);
+	const RailTypeInfo *rti1 = GetRailTypeInfo(rt1);
+	const RailTypeInfo *rti2 = GetRailTypeInfo(rt2);
 
 	bool rt1_90deg = HasBit(rti1->flags, RTF_DISALLOW_90DEG) || (!HasBit(rti1->flags, RTF_ALLOW_90DEG) && def);
 	bool rt2_90deg = HasBit(rti2->flags, RTF_DISALLOW_90DEG) || (!HasBit(rti2->flags, RTF_ALLOW_90DEG) && def);
@@ -388,7 +388,7 @@ static inline Money RailClearCost(RailType railtype)
 	 * cost.
 	 */
 	assert(railtype < RAILTYPE_END);
-	return max(_price[PR_CLEAR_RAIL], -RailBuildCost(railtype) * 3 / 4);
+	return std::max(_price[PR_CLEAR_RAIL], -RailBuildCost(railtype) * 3 / 4);
 }
 
 /**
@@ -408,8 +408,8 @@ static inline Money RailConvertCost(RailType from, RailType to)
 	 * build costs, if the target type is more expensive (material upgrade costs).
 	 * Upgrade can never be more expensive than re-building. */
 	if (HasPowerOnRail(from, to) || HasPowerOnRail(to, from)) {
-		Money upgradecost = RailBuildCost(to) / 8 + max((Money)0, RailBuildCost(to) - RailBuildCost(from));
-		return min(upgradecost, rebuildcost);
+		Money upgradecost = RailBuildCost(to) / 8 + std::max((Money)0, RailBuildCost(to) - RailBuildCost(from));
+		return std::min(upgradecost, rebuildcost);
 	}
 
 	/* make the price the same as remove + build new type for rail types
@@ -424,7 +424,7 @@ static inline Money RailConvertCost(RailType from, RailType to)
  * @param total_num Total number of track bits of all railtypes.
  * @return Total cost.
  */
-static inline Money RailMaintenanceCost(RailType railtype, uint32 num, uint32 total_num)
+static inline Money RailMaintenanceCost(RailType railtype, uint32_t num, uint32_t total_num)
 {
 	assert(railtype < RAILTYPE_END);
 	return (_price[PR_INFRASTRUCTURE_RAIL] * GetRailTypeInfo(railtype)->maintenance_multiplier * num * (1 + IntSqrt(total_num))) >> 11; // 4 bits fraction for the multiplier and 7 bits scaling.
@@ -435,7 +435,7 @@ static inline Money RailMaintenanceCost(RailType railtype, uint32 num, uint32 to
  * @param num Number of signals.
  * @return Total cost.
  */
-static inline Money SignalMaintenanceCost(uint32 num)
+static inline Money SignalMaintenanceCost(uint32_t num)
 {
 	return (_price[PR_INFRASTRUCTURE_RAIL] * 15 * num * (1 + IntSqrt(num))) >> 8; // 1 bit fraction for the multiplier and 7 bits scaling.
 }
@@ -446,13 +446,13 @@ int TicksToLeaveDepot(const Train *v);
 Foundation GetRailFoundation(Slope tileh, TrackBits bits);
 
 
-bool HasRailtypeAvail(const CompanyID company, const RailType railtype);
-bool HasAnyRailtypesAvail(const CompanyID company);
-bool ValParamRailtype(const RailType rail);
+bool HasRailTypeAvail(const CompanyID company, const RailType railtype);
+bool HasAnyRailTypesAvail(const CompanyID company);
+bool ValParamRailType(const RailType rail);
 
-RailTypes AddDateIntroducedRailTypes(RailTypes current, Date date);
+RailTypes AddDateIntroducedRailTypes(RailTypes current, TimerGameCalendar::Date date);
 
-RailTypes GetCompanyRailtypes(CompanyID company, bool introduces = true);
+RailTypes GetCompanyRailTypes(CompanyID company, bool introduces = true);
 RailTypes GetRailTypes(bool introduces);
 
 RailType GetRailTypeByLabel(RailTypeLabel label, bool allow_alternate_labels = true);
@@ -463,11 +463,5 @@ RailType AllocateRailType(RailTypeLabel label);
 
 extern std::vector<RailType> _sorted_railtypes;
 extern RailTypes _railtypes_hidden_mask;
-
-/**
- * Loop header for iterating over railtypes, sorted by sortorder.
- * @param var Railtype.
- */
-#define FOR_ALL_SORTED_RAILTYPES(var) for (uint8 index = 0; index < _sorted_railtypes.size() && (var = _sorted_railtypes[index], true) ; index++)
 
 #endif /* RAIL_H */

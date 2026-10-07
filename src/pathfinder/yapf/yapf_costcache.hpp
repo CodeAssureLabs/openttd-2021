@@ -10,7 +10,7 @@
 #ifndef YAPF_COSTCACHE_HPP
 #define YAPF_COSTCACHE_HPP
 
-#include "../../date_func.h"
+#include "../../timer/timer_game_calendar.h"
 
 /**
  * CYapfSegmentCostCacheNoneT - the formal only yapf cost cache provider that implements
@@ -28,7 +28,7 @@ public:
 	 * Called by YAPF to attach cached or local segment cost data to the given node.
 	 *  @return true if globally cached data were used or false if local data was used
 	 */
-	inline bool PfNodeCacheFetch(Node &n)
+	inline bool PfNodeCacheFetch(Node &)
 	{
 		return false;
 	}
@@ -37,7 +37,7 @@ public:
 	 * Called by YAPF to flush the cached segment cost data back into cache storage.
 	 *  Current cache implementation doesn't use that.
 	 */
-	inline void PfNodeCacheFlush(Node &n)
+	inline void PfNodeCacheFlush(Node &)
 	{
 	}
 };
@@ -84,7 +84,7 @@ public:
 	 * Called by YAPF to flush the cached segment cost data back into cache storage.
 	 *  Current cache implementation doesn't use that.
 	 */
-	inline void PfNodeCacheFlush(Node &n)
+	inline void PfNodeCacheFlush(Node &)
 	{
 	}
 };
@@ -101,7 +101,7 @@ struct CSegmentCostCacheBase
 {
 	static int   s_rail_change_counter;
 
-	static void NotifyTrackLayoutChange(TileIndex tile, Track track)
+	static void NotifyTrackLayoutChange(TileIndex, Track)
 	{
 		s_rail_change_counter++;
 	}
@@ -182,15 +182,7 @@ protected:
 	inline static Cache& stGetGlobalCache()
 	{
 		static int last_rail_change_counter = 0;
-		static Date last_date = 0;
 		static Cache C;
-
-		/* some statistics */
-		if (last_date != _date) {
-			last_date = _date;
-			DEBUG(yapf, 2, "Pf time today: %5d ms", _total_pf_time_us / 1000);
-			_total_pf_time_us = 0;
-		}
 
 		/* delete the cache sometimes... */
 		if (last_rail_change_counter != Cache::s_rail_change_counter) {
@@ -221,7 +213,7 @@ public:
 	 * Called by YAPF to flush the cached segment cost data back into cache storage.
 	 *  Current cache implementation doesn't use that.
 	 */
-	inline void PfNodeCacheFlush(Node &n)
+	inline void PfNodeCacheFlush(Node &)
 	{
 	}
 };

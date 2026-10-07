@@ -11,9 +11,6 @@
 #define KDTREE_HPP
 
 #include "../stdafx.h"
-#include <vector>
-#include <algorithm>
-#include <limits>
 
 /**
  * K-dimensional tree, specialised for 2-dimensional space.
@@ -261,7 +258,7 @@ class Kdtree {
 			best = SelectNearestNodeDistance(best, this->FindNearestRecursive(xy, next, level + 1));
 		}
 
-		limit = min(best.second, limit);
+		limit = std::min(best.second, limit);
 
 		/* Check if the distance from current best is worse than distance from target to splitting line,
 		 * if it is we also need to check the other side of the split. */
@@ -275,7 +272,7 @@ class Kdtree {
 	}
 
 	template <typename Outputter>
-	void FindContainedRecursive(CoordT p1[2], CoordT p2[2], size_t node_idx, int level, Outputter outputter) const
+	void FindContainedRecursive(CoordT p1[2], CoordT p2[2], size_t node_idx, int level, const Outputter &outputter) const
 	{
 		/* Dimension index of current level */
 		int dim = level % 2;
@@ -459,7 +456,7 @@ public:
 	* @param outputter Callback used to return values from the search.
 	*/
 	template <typename Outputter>
-	void FindContained(CoordT x1, CoordT y1, CoordT x2, CoordT y2, Outputter outputter) const
+	void FindContained(CoordT x1, CoordT y1, CoordT x2, CoordT y2, const Outputter &outputter) const
 	{
 		assert(x1 < x2);
 		assert(y1 < y2);
