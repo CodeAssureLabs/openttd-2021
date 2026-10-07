@@ -20,8 +20,8 @@
  */
 OrthogonalTileArea::OrthogonalTileArea(TileIndex start, TileIndex end)
 {
-	assert(start < MapSize());
-	assert(end < MapSize());
+	assert(start < Map::Size());
+	assert(end < Map::Size());
 
 	uint sx = TileX(start);
 	uint sy = TileY(start);
@@ -57,10 +57,10 @@ void OrthogonalTileArea::Add(TileIndex to_add)
 	uint ax = TileX(to_add);
 	uint ay = TileY(to_add);
 
-	sx = min(ax, sx);
-	sy = min(ay, sy);
-	ex = max(ax, ex);
-	ey = max(ay, ey);
+	sx = std::min(ax, sx);
+	sy = std::min(ay, sy);
+	ex = std::max(ax, ex);
+	ey = std::max(ay, ey);
 
 	this->tile = TileXY(sx, sy);
 	this->w    = ex - sx + 1;
@@ -125,10 +125,10 @@ OrthogonalTileArea &OrthogonalTileArea::Expand(int rad)
 	int x = TileX(this->tile);
 	int y = TileY(this->tile);
 
-	int sx = max(x - rad, 0);
-	int sy = max(y - rad, 0);
-	int ex = min(x + this->w + rad, MapSizeX());
-	int ey = min(y + this->h + rad, MapSizeY());
+	int sx = std::max<int>(x - rad, 0);
+	int sy = std::max<int>(y - rad, 0);
+	int ex = std::min<int>(x + this->w + rad, Map::SizeX());
+	int ey = std::min<int>(y + this->h + rad, Map::SizeY());
 
 	this->tile = TileXY(sx, sy);
 	this->w    = ex - sx;
@@ -141,9 +141,27 @@ OrthogonalTileArea &OrthogonalTileArea::Expand(int rad)
  */
 void OrthogonalTileArea::ClampToMap()
 {
-	assert(this->tile < MapSize());
-	this->w = min(this->w, MapSizeX() - TileX(this->tile));
-	this->h = min(this->h, MapSizeY() - TileY(this->tile));
+	assert(this->tile < Map::Size());
+	this->w = std::min<int>(this->w, Map::SizeX() - TileX(this->tile));
+	this->h = std::min<int>(this->h, Map::SizeY() - TileY(this->tile));
+}
+
+/**
+ * Returns an iterator to the beginning of the tile area.
+ * @return The OrthogonalTileIterator.
+ */
+OrthogonalTileIterator OrthogonalTileArea::begin() const
+{
+	return OrthogonalTileIterator(*this);
+}
+
+/**
+ * Returns an iterator to the end of the tile area.
+ * @return The OrthogonalTileIterator.
+ */
+OrthogonalTileIterator OrthogonalTileArea::end() const
+{
+	return OrthogonalTileIterator(OrthogonalTileArea());
 }
 
 /**
@@ -153,8 +171,8 @@ void OrthogonalTileArea::ClampToMap()
  */
 DiagonalTileArea::DiagonalTileArea(TileIndex start, TileIndex end) : tile(start)
 {
-	assert(start < MapSize());
-	assert(end < MapSize());
+	assert(start < Map::Size());
+	assert(end < Map::Size());
 
 	/* Unfortunately we can't find a new base and make all a and b positive because
 	 * the new base might be a "flattened" corner where there actually is no single
@@ -225,9 +243,9 @@ TileIterator &DiagonalTileIterator::operator++()
 			/* Special case: Every second column has zero length, skip them completely */
 			this->a_cur = 0;
 			if (this->b_max > 0) {
-				this->b_cur = min(this->b_cur + 2, this->b_max);
+				this->b_cur = std::min(this->b_cur + 2, this->b_max);
 			} else {
-				this->b_cur = max(this->b_cur - 2, this->b_max);
+				this->b_cur = std::max(this->b_cur - 2, this->b_max);
 			}
 		} else {
 			/* Every column has at least one tile to process */
@@ -256,9 +274,24 @@ TileIterator &DiagonalTileIterator::operator++()
 		uint x = this->base_x + (this->a_cur - this->b_cur) / 2;
 		uint y = this->base_y + (this->b_cur + this->a_cur) / 2;
 		/* Prevent wrapping around the map's borders. */
-		this->tile = x >= MapSizeX() || y >= MapSizeY() ? INVALID_TILE : TileXY(x, y);
-	} while (this->tile > MapSize() && this->b_max != this->b_cur);
+		this->tile = x >= Map::SizeX() || y >= Map::SizeY() ? INVALID_TILE : TileXY(x, y);
+	} while (this->tile > Map::Size() && this->b_max != this->b_cur);
 
 	if (this->b_max == this->b_cur) this->tile = INVALID_TILE;
 	return *this;
+}
+
+/**
+ * Create either an OrthogonalTileIterator or DiagonalTileIterator given the diagonal parameter.
+ * @param corner1 Tile from where to begin iterating.
+ * @param corner2 Tile where to end the iterating.
+ * @param diagonal Whether to create a DiagonalTileIterator or OrthogonalTileIterator.
+ * @return unique_ptr to the allocated TileIterator.
+ */
+/* static */ std::unique_ptr<TileIterator> TileIterator::Create(TileIndex corner1, TileIndex corner2, bool diagonal)
+{
+	if (diagonal) {
+		return std::make_unique<DiagonalTileIterator>(corner1, corner2);
+	}
+	return std::make_unique<OrthogonalTileIterator>(corner1, corner2);
 }

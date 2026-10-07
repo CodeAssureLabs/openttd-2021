@@ -12,8 +12,6 @@
 #include "../../gui.h"
 #include "../../fileio_func.h"
 #include "../../fios.h"
-#include "../../openttd.h"
-#include "../../core/random_func.hpp"
 #include "../../string_func.h"
 #include "../../textbuf_gui.h"
 #include "../../thread.h"
@@ -23,7 +21,6 @@
 #include <dirent.h>
 #include <unistd.h>
 #include <sys/stat.h>
-#include <stdlib.h>
 #include <time.h>
 #ifndef __INNOTEK_LIBC__
 #	include <dos.h>
@@ -39,9 +36,9 @@
 #	include <i86.h>
 #endif
 
-bool FiosIsRoot(const char *file)
+bool FiosIsRoot(const std::string &file)
 {
-	return file[3] == '\0';
+	return file.size() == 3; // C:\...
 }
 
 void FiosGetDrives(FileList &file_list)
@@ -78,11 +75,12 @@ void FiosGetDrives(FileList &file_list)
 			fios->type = FIOS_TYPE_DRIVE;
 			fios->mtime = 0;
 #ifndef __INNOTEK_LIBC__
-			snprintf(fios->name, lengthof(fios->name),  "%c:", 'A' + disk - 1);
+			fios->name += 'A' + disk - 1;
 #else
-			snprintf(fios->name, lengthof(fios->name),  "%c:", disk);
+			fios->name += (char)disk;
 #endif
-			strecpy(fios->title, fios->name, lastof(fios->title));
+			fios->name += ':';
+			fios->title = fios->name;
 		}
 	}
 
@@ -94,40 +92,27 @@ void FiosGetDrives(FileList &file_list)
 #endif
 }
 
-bool FiosGetDiskFreeSpace(const char *path, uint64 *tot)
+std::optional<uint64_t> FiosGetDiskFreeSpace(const std::string &path)
 {
 #ifndef __INNOTEK_LIBC__
 	struct diskfree_t free;
 	char drive = path[0] - 'A' + 1;
 
-	if (tot != nullptr && _getdiskfree(drive, &free) == 0) {
-		*tot = free.avail_clusters * free.sectors_per_cluster * free.bytes_per_sector;
-		return true;
+	if (_getdiskfree(drive, &free) == 0) {
+		return free.avail_clusters * free.sectors_per_cluster * free.bytes_per_sector;
 	}
+#elif defined(HAS_STATVFS)
+	struct statvfs s;
 
-	return false;
-#else
-	uint64 free = 0;
-
-#ifdef HAS_STATVFS
-	{
-		struct statvfs s;
-
-		if (statvfs(path, &s) != 0) return false;
-		free = (uint64)s.f_frsize * s.f_bavail;
-	}
+	if (statvfs(path.c_str(), &s) == 0) return static_cast<uint64_t>(s.f_frsize) * s.f_bavail;
 #endif
-	if (tot != nullptr) *tot = free;
-	return true;
-#endif
+	return std::nullopt;
 }
 
-bool FiosIsValidFile(const char *path, const struct dirent *ent, struct stat *sb)
+bool FiosIsValidFile(const std::string &path, const struct dirent *ent, struct stat *sb)
 {
-	char filename[MAX_PATH];
-
-	snprintf(filename, lengthof(filename), "%s" PATHSEP "%s", path, ent->d_name);
-	return stat(filename, sb) == 0;
+	std::string filename = fmt::format("{}" PATHSEP "{}", path, ent->d_name);
+	return stat(filename.c_str(), sb) == 0;
 }
 
 bool FiosIsHiddenFile(const struct dirent *ent)
@@ -135,7 +120,7 @@ bool FiosIsHiddenFile(const struct dirent *ent)
 	return ent->d_name[0] == '.';
 }
 
-void ShowInfo(const char *str)
+void ShowInfoI(const std::string &str)
 {
 	HAB hab;
 	HMQ hmq;
@@ -145,7 +130,7 @@ void ShowInfo(const char *str)
 	hmq = WinCreateMsgQueue((hab = WinInitialize(0)), 0);
 
 	/* display the box */
-	rc = WinMessageBox(HWND_DESKTOP, HWND_DESKTOP, (const unsigned char *)str, (const unsigned char *)"OpenTTD", 0, MB_OK | MB_MOVEABLE | MB_INFORMATION);
+	rc = WinMessageBox(HWND_DESKTOP, HWND_DESKTOP, (const unsigned char *)str.c_str(), (const unsigned char *)"OpenTTD", 0, MB_OK | MB_MOVEABLE | MB_INFORMATION);
 
 	/* terminate PM env. */
 	WinDestroyMsgQueue(hmq);
@@ -169,47 +154,32 @@ void ShowOSErrorBox(const char *buf, bool system)
 	WinTerminate(hab);
 }
 
-int CDECL main(int argc, char *argv[])
-{
-	SetRandomSeed(time(nullptr));
-
-	/* Make sure our arguments contain only valid UTF-8 characters. */
-	for (int i = 0; i < argc; i++) ValidateString(argv[i]);
-
-	return openttd_main(argc, argv);
-}
-
-bool GetClipboardContents(char *buffer, const char *last)
+std::optional<std::string> GetClipboardContents()
 {
 /* XXX -- Currently no clipboard support implemented with GCC */
 #ifndef __INNOTEK_LIBC__
 	HAB hab = 0;
 
-	if (WinOpenClipbrd(hab))
-	{
-		const char *text = (const char*)WinQueryClipbrdData(hab, CF_TEXT);
+	if (WinOpenClipbrd(hab)) {
+		const char *text = (const char *)WinQueryClipbrdData(hab, CF_TEXT);
 
-		if (text != nullptr)
-		{
-			strecpy(buffer, text, last);
+		if (text != nullptr) {
+			std::string result = text;
 			WinCloseClipbrd(hab);
-			return true;
+			return result;
 		}
 
 		WinCloseClipbrd(hab);
 	}
 #endif
-	return false;
+	return std::nullopt;
 }
 
-
-const char *FS2OTTD(const char *name) {return name;}
-const char *OTTD2FS(const char *name) {return name;}
 
 void OSOpenBrowser(const char *url)
 {
 	// stub only
-	DEBUG(misc, 0, "Failed to open url: %s", url);
+	Debug(misc, 0, "Failed to open url: {}", url);
 }
 
 void SetCurrentThreadName(const char *)

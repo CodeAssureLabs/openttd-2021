@@ -13,6 +13,7 @@
 /** %Window numbers. */
 enum WindowNumberEnum {
 	WN_GAME_OPTIONS_AI = 0,          ///< AI settings.
+	WN_GAME_OPTIONS_GS,              ///< GS settings.
 	WN_GAME_OPTIONS_ABOUT,           ///< About window.
 	WN_GAME_OPTIONS_NEWGRF_STATE,    ///< NewGRF settings.
 	WN_GAME_OPTIONS_GAME_OPTIONS,    ///< Game options.
@@ -25,7 +26,6 @@ enum WindowNumberEnum {
 	WN_CONFIRM_POPUP_QUERY_BOOTSTRAP, ///< Query popup confirm for bootstrap.
 
 	WN_NETWORK_WINDOW_GAME = 0,     ///< Network game window.
-	WN_NETWORK_WINDOW_LOBBY,        ///< Network lobby window.
 	WN_NETWORK_WINDOW_CONTENT_LIST, ///< Network content list.
 	WN_NETWORK_WINDOW_START,        ///< Network start server.
 
@@ -162,10 +162,10 @@ enum WindowClass {
 
 
 	/**
-	 * AI settings; %Window numbers:
-	 *   - 0 = #AISettingsWidgets
+	 * Script settings; %Window numbers:
+	 *   - 0 = #ScriptSettingsWidgets
 	 */
-	WC_AI_SETTINGS,
+	WC_SCRIPT_SETTINGS,
 
 	/**
 	 * NewGRF parameters; %Window numbers:
@@ -271,10 +271,10 @@ enum WindowClass {
 	WC_SIGN_LIST,
 
 	/**
-	 * AI list; %Window numbers:
-	 *   - 0 = #AIListWidgets
+	 * Scripts list; %Window numbers:
+	 *   - 0 = #ScriptListWidgets
 	 */
-	WC_AI_LIST,
+	WC_SCRIPT_LIST,
 
 	/**
 	 * Goals list; %Window numbers:
@@ -459,7 +459,6 @@ enum WindowClass {
 	/**
 	 * Network window; %Window numbers:
 	 *   - #WN_NETWORK_WINDOW_GAME = #NetworkGameWidgets
-	 *   - #WN_NETWORK_WINDOW_LOBBY = #NetworkLobbyWidgets
 	 *   - #WN_NETWORK_WINDOW_CONTENT_LIST = #NetworkContentListWidgets
 	 *   - #WN_NETWORK_WINDOW_START = #NetworkStartServerWidgets
 	 */
@@ -472,17 +471,23 @@ enum WindowClass {
 	WC_CLIENT_LIST,
 
 	/**
-	 * Popup for the client list; %Window numbers:
-	 *   - #ClientID = #ClientListPopupWidgets
-	 */
-	WC_CLIENT_LIST_POPUP,
-
-	/**
 	 * Network status window; %Window numbers:
 	 *   - #WN_NETWORK_STATUS_WINDOW_JOIN = #NetworkJoinStatusWidgets
 	 *   - #WN_NETWORK_STATUS_WINDOW_CONTENT_DOWNLOAD = #NetworkContentDownloadStatusWidgets
 	 */
 	WC_NETWORK_STATUS_WINDOW,
+
+	/**
+	 * Network ask relay window; %Window numbers:
+	 *   - 0 - #NetworkAskRelayWidgets
+	 */
+	WC_NETWORK_ASK_RELAY,
+
+	/**
+	 * Network ask survey window; %Window numbers:
+	 *  - 0 - #NetworkAskSurveyWidgets
+	 */
+	WC_NETWORK_ASK_SURVEY,
 
 	/**
 	 * Chatbox; %Window numbers:
@@ -598,6 +603,7 @@ enum WindowClass {
 	/**
 	 * Game options window; %Window numbers:
 	 *   - #WN_GAME_OPTIONS_AI = #AIConfigWidgets
+	 *   - #WN_GAME_OPTIONS_GS = #GSConfigWidgets
 	 *   - #WN_GAME_OPTIONS_ABOUT = #AboutWidgets
 	 *   - #WN_GAME_OPTIONS_NEWGRF_STATE = #NewGRFStateWidgets
 	 *   - #WN_GAME_OPTIONS_GAME_OPTIONS = #GameOptionsWidgets
@@ -650,10 +656,10 @@ enum WindowClass {
 
 
 	/**
-	 * AI debug window; %Window numbers:
-	 *   - 0 = #AIDebugWidgets
+	 * Script debug window; %Window numbers:
+	 *   - 0 = #ScriptDebugWidgets
 	 */
-	WC_AI_DEBUG,
+	WC_SCRIPT_DEBUG,
 
 	/**
 	 * NewGRF inspect (debug); %Window numbers:
@@ -703,9 +709,11 @@ enum WindowClass {
 /** Data value for #Window::OnInvalidateData() of windows with class #WC_GAME_OPTIONS. */
 enum GameOptionsInvalidationData {
 	GOID_DEFAULT = 0,
-	GOID_NEWGRF_RESCANNED,     ///< NewGRFs were just rescanned.
-	GOID_NEWGRF_LIST_EDITED,   ///< List of active NewGRFs is being edited.
-	GOID_NEWGRF_PRESET_LOADED, ///< A NewGRF preset was picked.
+	GOID_NEWGRF_RESCANNED,       ///< NewGRFs were just rescanned.
+	GOID_NEWGRF_CURRENT_LOADED,  ///< The current list of active NewGRF has been loaded.
+	GOID_NEWGRF_LIST_EDITED,     ///< List of active NewGRFs is being edited.
+	GOID_NEWGRF_CHANGES_MADE,    ///< Changes have been made to a given NewGRF either through the palette or its parameters.
+	GOID_NEWGRF_CHANGES_APPLIED, ///< The active NewGRF list changes have been applied.
 };
 
 struct Window;

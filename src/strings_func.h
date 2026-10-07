@@ -14,6 +14,7 @@
 #include "string_type.h"
 #include "gfx_type.h"
 #include "core/bitmath_func.hpp"
+#include "vehicle_type.h"
 
 /**
  * Extract the StringTab from a StringID.
@@ -122,8 +123,6 @@ public:
 		return (int32)this->GetInt64(type);
 	}
 
-	void ShiftParameters(uint amount);
-
 	/** Get a pointer to the current element in the data array. */
 	uint64 *GetDataPointer() const
 	{
@@ -171,24 +170,24 @@ public:
 };
 extern StringParameters _global_string_params;
 
-char *GetString(char *buffr, StringID string, const char *last);
-char *GetStringWithArgs(char *buffr, StringID string, StringParameters *args, const char *last, uint case_index = 0, bool game_script = false);
+std::string GetString(StringID string);
+std::string GetStringWithArgs(StringID string, StringParameters *args);
 const char *GetStringPtr(StringID string);
 
-uint ConvertKmhishSpeedToDisplaySpeed(uint speed);
-uint ConvertDisplaySpeedToKmhishSpeed(uint speed);
-
-void InjectDParam(uint amount);
+uint ConvertKmhishSpeedToDisplaySpeed(uint speed, VehicleType type);
+uint ConvertDisplaySpeedToKmhishSpeed(uint speed, VehicleType type);
 
 /**
- * Set a string parameter \a v at index \a n in a given array \a s.
- * @param s Array of string parameters.
- * @param n Index of the string parameter.
- * @param v Value of the string parameter.
+ * Pack velocity and vehicle type for use with SCC_VELOCITY string parameter.
+ * @param speed Display speed for parameter.
+ * @param type Type of vehicle for parameter.
+ * @return Bit-packed velocity and vehicle type, for use with SetDParam().
  */
-static inline void SetDParamX(uint64 *s, uint n, uint64 v)
+static inline int64 PackVelocity(uint speed, VehicleType type)
 {
-	s[n] = v;
+	/* Vehicle type is a byte, so packed into the top 8 bits of the 64-bit
+	 * parameter, although only values from 0-3 are relevant. */
+	return speed | (static_cast<uint64>(type) << 56);
 }
 
 /**
@@ -205,21 +204,12 @@ void SetDParamMaxValue(uint n, uint64 max_value, uint min_count = 0, FontSize si
 void SetDParamMaxDigits(uint n, uint count, FontSize size = FS_NORMAL);
 
 void SetDParamStr(uint n, const char *str);
+void SetDParamStr(uint n, const std::string &str);
+void SetDParamStr(uint n, std::string &&str) = delete; // block passing temporaries to SetDParamStr
 
-void CopyInDParam(int offs, const uint64 *src, int num);
-void CopyOutDParam(uint64 *dst, int offs, int num);
+void CopyInDParam(const uint64 *src, int num);
+void CopyOutDParam(uint64 *dst, int num);
 void CopyOutDParam(uint64 *dst, const char **strings, StringID string, int num);
-
-/**
- * Get the current string parameter at index \a n from parameter array \a s.
- * @param s Array of string parameters.
- * @param n Index of the string parameter.
- * @return Value of the requested string parameter.
- */
-static inline uint64 GetDParamX(const uint64 *s, uint n)
-{
-	return s[n];
-}
 
 /**
  * Get the current string parameter at index \a n from the global string parameter array.
@@ -244,13 +234,13 @@ bool StringIDSorter(const StringID &a, const StringID &b);
 class MissingGlyphSearcher {
 public:
 	/** Make sure everything gets destructed right. */
-	virtual ~MissingGlyphSearcher() {}
+	virtual ~MissingGlyphSearcher() = default;
 
 	/**
 	 * Get the next string to search through.
-	 * @return The next string or nullptr if there is none.
+	 * @return The next string or nullopt if there is none.
 	 */
-	virtual const char *NextString() = 0;
+	virtual std::optional<std::string_view> NextString() = 0;
 
 	/**
 	 * Get the default (font) size of the string.
@@ -275,9 +265,9 @@ public:
 	 * @param font_name The new font name.
 	 * @param os_data Opaque pointer to OS-specific data.
 	 */
-	virtual void SetFontNames(struct FreeTypeSettings *settings, const char *font_name, const void *os_data = nullptr) = 0;
+	virtual void SetFontNames(struct FontCacheSettings *settings, const char *font_name, const void *os_data = nullptr) = 0;
 
-	bool FindMissingGlyphs(const char **str);
+	bool FindMissingGlyphs();
 };
 
 void CheckForMissingGlyphs(bool base_font = true, MissingGlyphSearcher *search = nullptr);
