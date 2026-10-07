@@ -5,7 +5,7 @@
  * See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with OpenTTD. If not, see <http://www.gnu.org/licenses/>.
  */
 
-/** @file oldloader.h Declarations of strctures and function used in loader of old savegames */
+/** @file oldloader.h Declarations of structures and functions used in loader of old savegames */
 
 #ifndef OLDLOADER_H
 #define OLDLOADER_H
@@ -14,25 +14,25 @@
 #include "../tile_type.h"
 
 static const uint BUFFER_SIZE = 4096;
-static const uint OLD_MAP_SIZE = 256 * 256;
+static const uint OLD_MAP_SIZE = 256;
 
 struct LoadgameState {
-	FILE *file;
+	std::optional<FileHandle> file;
 
-	uint chunk_size;
+	uint chunk_size = 0;
 
-	bool decoding;
-	byte decode_char;
+	bool decoding = false;
+	uint8_t decode_char = 0;
 
-	uint buffer_count;
-	uint buffer_cur;
-	byte buffer[BUFFER_SIZE];
+	uint buffer_count = 0;
+	uint buffer_cur = 0;
+	std::array<uint8_t, BUFFER_SIZE> buffer{};
 
-	uint total_read;
+	uint total_read = 0;
 };
 
 /* OldChunk-Type */
-enum OldChunkType {
+enum OldChunkType : uint32_t {
 	OC_SIMPLE    = 0,
 	OC_NULL      = 1,
 	OC_CHUNK     = 2,
@@ -70,47 +70,39 @@ enum OldChunkType {
 
 	OC_TILE      = OC_VAR_U32  | OC_FILE_U16,
 
-	/**
-	 * Dereference the pointer once before writing to it,
-	 * so we do not have to use big static arrays.
-	 */
-	OC_DEREFERENCE_POINTER = 1 << 31,
-
 	OC_END       = 0, ///< End of the whole chunk, all 32 bits set to zero
 };
 
 DECLARE_ENUM_AS_BIT_SET(OldChunkType)
 
-typedef bool OldChunkProc(LoadgameState *ls, int num);
+typedef bool OldChunkProc(LoadgameState &ls, int num);
+typedef void *OffsetProc(void *base);
 
 struct OldChunks {
 	OldChunkType type;   ///< Type of field
-	uint32 amount;       ///< Amount of fields
+	uint32_t amount;       ///< Amount of fields
 
-	void *ptr;           ///< Pointer where to save the data (may only be set if offset is 0)
-	uint offset;         ///< Offset from basepointer (may only be set if ptr is nullptr)
+	void *ptr;           ///< Pointer where to save the data (takes precedence over #offset)
+	OffsetProc *offset;  ///< Pointer to function that returns the actual memory address of a member (ignored if #ptr is not nullptr)
 	OldChunkProc *proc;  ///< Pointer to function that is called with OC_CHUNK
 };
 
-/* If it fails, check lines above.. */
-static_assert(sizeof(TileIndex) == 4);
-
 extern uint _bump_assert_value;
-byte ReadByte(LoadgameState *ls);
-bool LoadChunk(LoadgameState *ls, void *base, const OldChunks *chunks);
+uint8_t ReadByte(LoadgameState &ls);
+bool LoadChunk(LoadgameState &ls, void *base, const OldChunks *chunks);
 
-bool LoadTTDMain(LoadgameState *ls);
-bool LoadTTOMain(LoadgameState *ls);
+bool LoadTTDMain(LoadgameState &ls);
+bool LoadTTOMain(LoadgameState &ls);
 
-static inline uint16 ReadUint16(LoadgameState *ls)
+inline uint16_t ReadUint16(LoadgameState &ls)
 {
-	byte x = ReadByte(ls);
+	uint8_t x = ReadByte(ls);
 	return x | ReadByte(ls) << 8;
 }
 
-static inline uint32 ReadUint32(LoadgameState *ls)
+inline uint32_t ReadUint32(LoadgameState &ls)
 {
-	uint16 x = ReadUint16(ls);
+	uint16_t x = ReadUint16(ls);
 	return x | ReadUint16(ls) << 16;
 }
 
@@ -123,12 +115,12 @@ static inline uint32 ReadUint32(LoadgameState *ls)
  *  - OCL_CHUNK: load another proc to load a part of the savegame, 'amount' times
  *  - OCL_ASSERT: to check if we are really at the place we expect to be.. because old savegames are too binary to be sure ;)
  */
-#define OCL_SVAR(type, base, offset)         { type,                 1, nullptr, (uint)cpp_offsetof(base, offset), nullptr }
-#define OCL_VAR(type, amount, pointer)       { type,            amount, pointer,    0,                             nullptr }
-#define OCL_END()                            { OC_END,               0, nullptr,    0,                             nullptr }
-#define OCL_CNULL(type, amount)              { OC_NULL | type,  amount, nullptr,    0,                             nullptr }
-#define OCL_CCHUNK(type, amount, proc)       { OC_CHUNK | type, amount, nullptr,    0,                             proc }
-#define OCL_ASSERT(type, size)               { OC_ASSERT | type,     1, nullptr, size,                             nullptr }
+#define OCL_SVAR(type, base, offset)         { type,                 1, nullptr, [] (void *b) -> void * { return std::addressof(static_cast<base *>(b)->offset); }, nullptr }
+#define OCL_VAR(type, amount, pointer)       { type,            amount, pointer, nullptr, nullptr }
+#define OCL_END()                            { OC_END,               0, nullptr, nullptr, nullptr }
+#define OCL_CNULL(type, amount)              { OC_NULL | type,  amount, nullptr, nullptr, nullptr }
+#define OCL_CCHUNK(type, amount, proc)       { OC_CHUNK | type, amount, nullptr, nullptr, proc }
+#define OCL_ASSERT(type, size)               { OC_ASSERT | type,     1, (void *)(size_t)size, nullptr, nullptr }
 #define OCL_NULL(amount)        OCL_CNULL((OldChunkType)0, amount)
 #define OCL_CHUNK(amount, proc) OCL_CCHUNK((OldChunkType)0, amount, proc)
 
