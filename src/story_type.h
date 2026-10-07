@@ -11,16 +11,13 @@
 #define STORY_TYPE_H
 
 #include "core/enum_type.hpp"
+#include "core/pool_type.hpp"
 
-typedef uint16 StoryPageElementID; ///< ID of a story page element
-typedef uint16 StoryPageID; ///< ID of a story page
+using StoryPageElementID = PoolID<uint16_t, struct StoryPageElementIDTag, 64000, 0xFFFF>; ///< ID of a story page element
+using StoryPageID = PoolID<uint16_t, struct StoryPageIDTag, 64000, 0xFFFF>; ///< ID of a story page
 struct StoryPageElement;
 struct StoryPage;
-
-extern StoryPageElementID _new_story_page_element_id;
-extern StoryPageID _new_story_page_id;
-static const StoryPageElementID INVALID_STORY_PAGE_ELEMENT = 0xFFFF; ///< Constant representing a non-existing story page element.
-static const StoryPageID INVALID_STORY_PAGE = 0xFFFF; ///< Constant representing a non-existing story page.
+enum StoryPageElementType : uint8_t;
 
 #endif /* STORY_TYPE_H */
 

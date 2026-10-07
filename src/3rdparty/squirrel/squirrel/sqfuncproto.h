@@ -103,7 +103,7 @@ public:
 		new (f) SQFunctionProto(ninstructions, nliterals, nparameters, nfunctions, noutervalues, nlineinfos, nlocalvarinfos, ndefaultparams);
 		return f;
 	}
-	void Release(){
+	void Release() override {
 		_DESTRUCT_VECTOR(SQObjectPtr,_nliterals,_literals);
 		_DESTRUCT_VECTOR(SQObjectPtr,_nparameters,_parameters);
 		_DESTRUCT_VECTOR(SQObjectPtr,_nfunctions,_functions);
@@ -114,7 +114,7 @@ public:
 		this->~SQFunctionProto();
 		sq_vm_free(this,size);
 	}
-	const SQChar* GetLocal(SQVM *v,SQUnsignedInteger stackbase,SQUnsignedInteger nseq,SQUnsignedInteger nop);
+	std::optional<std::string_view> GetLocal(SQVM *v,SQUnsignedInteger stackbase,SQUnsignedInteger nseq,SQUnsignedInteger nop);
 	SQInteger GetLine(SQInstruction *curr);
 	bool Save(SQVM *v,SQUserPointer up,SQWRITEFUNC write);
 	static bool Load(SQVM *v,SQUserPointer up,SQREADFUNC read,SQObjectPtr &ret);
