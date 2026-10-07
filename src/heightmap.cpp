@@ -23,10 +23,44 @@
 #include "safeguards.h"
 
 /**
+ * Maximum number of pixels for one dimension of a heightmap image.
+ * Do not allow images for which the longest side is twice the maximum number of
+ * tiles along the longest side of the (tile) map.
+ */
+static const uint MAX_HEIGHTMAP_SIDE_LENGTH_IN_PIXELS = 2 * MAX_MAP_SIZE;
+
+/*
+ * Maximum size in pixels of the heightmap image.
+ */
+static const uint MAX_HEIGHTMAP_SIZE_PIXELS = 256 << 20; // ~256 million
+/*
+ * When loading a PNG or BMP the 24 bpp variant requires at least 4 bytes per pixel
+ * of memory to load the data. Make sure the "reasonable" limit is well within the
+ * maximum amount of memory allocatable on 32 bit platforms.
+ */
+static_assert(MAX_HEIGHTMAP_SIZE_PIXELS < UINT32_MAX / 8);
+
+/**
+ * Check whether the loaded dimension of the heightmap image are considered valid enough
+ * to attempt to load the image. In other words, the width and height are not beyond the
+ * #MAX_HEIGHTMAP_SIDE_LENGTH_IN_PIXELS limit and the total number of pixels does not
+ * exceed #MAX_HEIGHTMAP_SIZE_PIXELS. A width or height less than 1 are disallowed too.
+ * @param width The width of the to be loaded height map.
+ * @param height The height of the to be loaded height map.
+ * @return True iff the dimensions are within the limits.
+ */
+static inline bool IsValidHeightmapDimension(size_t width, size_t height)
+{
+	return (uint64_t)width * height <= MAX_HEIGHTMAP_SIZE_PIXELS &&
+		width > 0 && width <= MAX_HEIGHTMAP_SIDE_LENGTH_IN_PIXELS &&
+		height > 0 && height <= MAX_HEIGHTMAP_SIDE_LENGTH_IN_PIXELS;
+}
+
+/**
  * Convert RGB colours to Grayscale using 29.9% Red, 58.7% Green, 11.4% Blue
  *  (average luminosity formula, NTSC Colour Space)
  */
-static inline byte RGBToGrayscale(byte red, byte green, byte blue)
+static inline uint8_t RGBToGrayscale(uint8_t red, uint8_t green, uint8_t blue)
 {
 	/* To avoid doubles and stuff, multiply it with a total of 65536 (16bits), then
 	 *  divide by it to normalize the value to a byte again. */
@@ -41,10 +75,10 @@ static inline byte RGBToGrayscale(byte red, byte green, byte blue)
 /**
  * The PNG Heightmap loader.
  */
-static void ReadHeightmapPNGImageData(byte *map, png_structp png_ptr, png_infop info_ptr)
+static void ReadHeightmapPNGImageData(uint8_t *map, png_structp png_ptr, png_infop info_ptr)
 {
 	uint x, y;
-	byte gray_palette[256];
+	uint8_t gray_palette[256];
 	png_bytep *row_pointers = nullptr;
 	bool has_palette = png_get_color_type(png_ptr, info_ptr) == PNG_COLOR_TYPE_PALETTE;
 	uint channels = png_get_channels(png_ptr, info_ptr);
@@ -80,7 +114,7 @@ static void ReadHeightmapPNGImageData(byte *map, png_structp png_ptr, png_infop 
 	/* Read the raw image data and convert in 8-bit grayscale */
 	for (x = 0; x < png_get_image_width(png_ptr, info_ptr); x++) {
 		for (y = 0; y < png_get_image_height(png_ptr, info_ptr); y++) {
-			byte *pixel = &map[y * png_get_image_width(png_ptr, info_ptr) + x];
+			uint8_t *pixel = &map[y * png_get_image_width(png_ptr, info_ptr) + x];
 			uint x_offset = x * channels;
 
 			if (has_palette) {
@@ -100,7 +134,7 @@ static void ReadHeightmapPNGImageData(byte *map, png_structp png_ptr, png_infop 
  * If map == nullptr only the size of the PNG is read, otherwise a map
  * with grayscale pixels is allocated and assigned to *map.
  */
-static bool ReadHeightmapPNG(const char *filename, uint *x, uint *y, byte **map)
+static bool ReadHeightmapPNG(const char *filename, uint *x, uint *y, uint8_t **map)
 {
 	FILE *fp;
 	png_structp png_ptr = nullptr;
@@ -146,8 +180,7 @@ static bool ReadHeightmapPNG(const char *filename, uint *x, uint *y, byte **map)
 	uint width = png_get_image_width(png_ptr, info_ptr);
 	uint height = png_get_image_height(png_ptr, info_ptr);
 
-	/* Check if image dimensions don't overflow a size_t to avoid memory corruption. */
-	if ((uint64)width * height >= (size_t)-1) {
+	if (!IsValidHeightmapDimension(width, height)) {
 		ShowErrorMessage(STR_ERROR_PNGMAP, STR_ERROR_HEIGHTMAP_TOO_LARGE, WL_ERROR);
 		fclose(fp);
 		png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
@@ -155,7 +188,7 @@ static bool ReadHeightmapPNG(const char *filename, uint *x, uint *y, byte **map)
 	}
 
 	if (map != nullptr) {
-		*map = MallocT<byte>(width * height);
+		*map = MallocT<uint8_t>(static_cast<size_t>(width) * height);
 		ReadHeightmapPNGImageData(*map, png_ptr, info_ptr);
 	}
 
@@ -173,10 +206,10 @@ static bool ReadHeightmapPNG(const char *filename, uint *x, uint *y, byte **map)
 /**
  * The BMP Heightmap loader.
  */
-static void ReadHeightmapBMPImageData(byte *map, BmpInfo *info, BmpData *data)
+static void ReadHeightmapBMPImageData(uint8_t *map, BmpInfo *info, BmpData *data)
 {
 	uint x, y;
-	byte gray_palette[256];
+	uint8_t gray_palette[256];
 
 	if (data->palette != nullptr) {
 		uint i;
@@ -211,8 +244,8 @@ static void ReadHeightmapBMPImageData(byte *map, BmpInfo *info, BmpData *data)
 
 	/* Read the raw image data and convert in 8-bit grayscale */
 	for (y = 0; y < info->height; y++) {
-		byte *pixel = &map[y * info->width];
-		byte *bitmap = &data->bitmap[y * info->width * (info->bpp == 24 ? 3 : 1)];
+		uint8_t *pixel = &map[y * info->width];
+		uint8_t *bitmap = &data->bitmap[y * info->width * (info->bpp == 24 ? 3 : 1)];
 
 		for (x = 0; x < info->width; x++) {
 			if (info->bpp != 24) {
@@ -230,7 +263,7 @@ static void ReadHeightmapBMPImageData(byte *map, BmpInfo *info, BmpData *data)
  * If map == nullptr only the size of the BMP is read, otherwise a map
  * with grayscale pixels is allocated and assigned to *map.
  */
-static bool ReadHeightmapBMP(const char *filename, uint *x, uint *y, byte **map)
+static bool ReadHeightmapBMP(const char *filename, uint *x, uint *y, uint8_t **map)
 {
 	FILE *f;
 	BmpInfo info;
@@ -255,8 +288,7 @@ static bool ReadHeightmapBMP(const char *filename, uint *x, uint *y, byte **map)
 		return false;
 	}
 
-	/* Check if image dimensions don't overflow a size_t to avoid memory corruption. */
-	if ((uint64)info.width * info.height >= (size_t)-1 / (info.bpp == 24 ? 3 : 1)) {
+	if (!IsValidHeightmapDimension(info.width, info.height)) {
 		ShowErrorMessage(STR_ERROR_BMPMAP, STR_ERROR_HEIGHTMAP_TOO_LARGE, WL_ERROR);
 		fclose(f);
 		BmpDestroyData(&data);
@@ -271,7 +303,7 @@ static bool ReadHeightmapBMP(const char *filename, uint *x, uint *y, byte **map)
 			return false;
 		}
 
-		*map = MallocT<byte>(info.width * info.height);
+		*map = MallocT<uint8_t>(static_cast<size_t>(info.width) * info.height);
 		ReadHeightmapBMPImageData(*map, &info, &data);
 	}
 
@@ -291,10 +323,12 @@ static bool ReadHeightmapBMP(const char *filename, uint *x, uint *y, byte **map)
  * @param img_height the height of the image in pixels/tiles
  * @param map        the input map
  */
-static void GrayscaleToMapHeights(uint img_width, uint img_height, byte *map)
+static void GrayscaleToMapHeights(uint img_width, uint img_height, uint8_t *map)
 {
 	/* Defines the detail of the aspect ratio (to avoid doubles) */
 	const uint num_div = 16384;
+	/* Ensure multiplication with num_div does not cause overflows. */
+	static_assert(num_div <= std::numeric_limits<uint>::max() / MAX_HEIGHTMAP_SIDE_LENGTH_IN_PIXELS);
 
 	uint width, height;
 	uint row, col;
@@ -307,12 +341,12 @@ static void GrayscaleToMapHeights(uint img_width, uint img_height, byte *map)
 	switch (_settings_game.game_creation.heightmap_rotation) {
 		default: NOT_REACHED();
 		case HM_COUNTER_CLOCKWISE:
-			width   = MapSizeX();
-			height  = MapSizeY();
+			width   = Map::SizeX();
+			height  = Map::SizeY();
 			break;
 		case HM_CLOCKWISE:
-			width   = MapSizeY();
-			height  = MapSizeX();
+			width   = Map::SizeY();
+			height  = Map::SizeX();
 			break;
 	}
 
@@ -327,8 +361,8 @@ static void GrayscaleToMapHeights(uint img_width, uint img_height, byte *map)
 	}
 
 	if (_settings_game.construction.freeform_edges) {
-		for (uint x = 0; x < MapSizeX(); x++) MakeVoid(TileXY(x, 0));
-		for (uint y = 0; y < MapSizeY(); y++) MakeVoid(TileXY(0, y));
+		for (uint x = 0; x < Map::SizeX(); x++) MakeVoid(TileXY(x, 0));
+		for (uint y = 0; y < Map::SizeY(); y++) MakeVoid(TileXY(0, y));
 	}
 
 	/* Form the landscape */
@@ -368,7 +402,7 @@ static void GrayscaleToMapHeights(uint img_width, uint img_height, byte *map)
 					/* 0 is sea level.
 					 * Other grey scales are scaled evenly to the available height levels > 0.
 					 * (The coastline is independent from the number of height levels) */
-					heightmap_height = 1 + (heightmap_height - 1) * _settings_game.construction.max_heightlevel / 255;
+					heightmap_height = 1 + (heightmap_height - 1) * _settings_game.game_creation.heightmap_height / 255;
 				}
 
 				SetTileHeight(tile, heightmap_height);
@@ -389,11 +423,11 @@ void FixSlopes()
 {
 	uint width, height;
 	int row, col;
-	byte current_tile;
+	uint8_t current_tile;
 
 	/* Adjust height difference to maximum one horizontal/vertical change. */
-	width   = MapSizeX();
-	height  = MapSizeY();
+	width   = Map::SizeX();
+	height  = Map::SizeY();
 
 	/* Top and left edge */
 	for (row = 0; (uint)row < height; row++) {
@@ -450,7 +484,7 @@ void FixSlopes()
  * @param[in,out] map If not \c nullptr, destination to store the loaded block of image data.
  * @return Whether loading was successful.
  */
-static bool ReadHeightMap(DetailedFileType dft, const char *filename, uint *x, uint *y, byte **map)
+static bool ReadHeightMap(DetailedFileType dft, const char *filename, uint *x, uint *y, uint8_t **map)
 {
 	switch (dft) {
 		default:
@@ -480,20 +514,20 @@ bool GetHeightmapDimensions(DetailedFileType dft, const char *filename, uint *x,
 }
 
 /**
- * Load a heightmap from file and change the map in his current dimensions
+ * Load a heightmap from file and change the map in its current dimensions
  *  to a landscape representing the heightmap.
  * It converts pixels to height. The brighter, the higher.
  * @param dft Type of image file.
  * @param filename of the heightmap file to be imported
  */
-void LoadHeightmap(DetailedFileType dft, const char *filename)
+bool LoadHeightmap(DetailedFileType dft, const char *filename)
 {
 	uint x, y;
-	byte *map = nullptr;
+	uint8_t *map = nullptr;
 
 	if (!ReadHeightMap(dft, filename, &x, &y, &map)) {
 		free(map);
-		return;
+		return false;
 	}
 
 	GrayscaleToMapHeights(x, y, map);
@@ -501,17 +535,19 @@ void LoadHeightmap(DetailedFileType dft, const char *filename)
 
 	FixSlopes();
 	MarkWholeScreenDirty();
+
+	return true;
 }
 
 /**
  * Make an empty world where all tiles are of height 'tile_height'.
  * @param tile_height of the desired new empty world
  */
-void FlatEmptyWorld(byte tile_height)
+void FlatEmptyWorld(uint8_t tile_height)
 {
 	int edge_distance = _settings_game.construction.freeform_edges ? 0 : 2;
-	for (uint row = edge_distance; row < MapSizeY() - edge_distance; row++) {
-		for (uint col = edge_distance; col < MapSizeX() - edge_distance; col++) {
+	for (uint row = edge_distance; row < Map::SizeY() - edge_distance; row++) {
+		for (uint col = edge_distance; col < Map::SizeX() - edge_distance; col++) {
 			SetTileHeight(TileXY(col, row), tile_height);
 		}
 	}

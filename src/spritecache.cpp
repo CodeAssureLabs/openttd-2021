@@ -8,15 +8,19 @@
 /** @file spritecache.cpp Caching of sprites. */
 
 #include "stdafx.h"
-#include "fileio_func.h"
+#include "random_access_file_type.h"
 #include "spriteloader/grf.hpp"
 #include "gfx_func.h"
 #include "error.h"
+#include "error_func.h"
 #include "zoom_func.h"
 #include "settings_type.h"
 #include "blitter/factory.hpp"
 #include "core/math_func.hpp"
 #include "core/mem_func.hpp"
+#include "video/video_driver.hpp"
+#include "spritecache.h"
+#include "spritecache_internal.h"
 
 #include "table/sprites.h"
 #include "table/strings.h"
@@ -27,39 +31,23 @@
 /* Default of 4MB spritecache */
 uint _sprite_cache_size = 4;
 
-struct SpriteCache {
-	void *ptr;
-	size_t file_pos;
-	uint32 id;
-	uint16 file_slot;
-	int16 lru;
-	SpriteType type;     ///< In some cases a single sprite is misused by two NewGRFs. Once as real sprite and once as recolour sprite. If the recolour sprite gets into the cache it might be drawn as real sprite which causes enormous trouble.
-	bool warned;         ///< True iff the user has been warned about incorrect use of this sprite
-	byte container_ver;  ///< Container version of the GRF the sprite is from.
-};
-
 
 static uint _spritecache_items = 0;
 static SpriteCache *_spritecache = nullptr;
-
+static std::vector<std::unique_ptr<SpriteFile>> _sprite_files;
 
 static inline SpriteCache *GetSpriteCache(uint index)
 {
 	return &_spritecache[index];
 }
 
-static inline bool IsMapgenSpriteID(SpriteID sprite)
-{
-	return IsInsideMM(sprite, 4845, 4882);
-}
-
-static SpriteCache *AllocateSpriteCache(uint index)
+SpriteCache *AllocateSpriteCache(uint index)
 {
 	if (index >= _spritecache_items) {
 		/* Add another 1024 items to the 'pool' */
 		uint items = Align(index + 1, 1024);
 
-		DEBUG(sprite, 4, "Increasing sprite cache to %u items (" PRINTF_SIZE " bytes)", items, items * sizeof(*_spritecache));
+		Debug(sprite, 4, "Increasing sprite cache to {} items ({} bytes)", items, items * sizeof(*_spritecache));
 
 		_spritecache = ReallocT(_spritecache, items);
 
@@ -71,10 +59,51 @@ static SpriteCache *AllocateSpriteCache(uint index)
 	return GetSpriteCache(index);
 }
 
+/**
+ * Get the cached SpriteFile given the name of the file.
+ * @param filename The name of the file at the disk.
+ * @return The SpriteFile or \c null.
+ */
+static SpriteFile *GetCachedSpriteFileByName(const std::string &filename)
+{
+	for (auto &f : _sprite_files) {
+		if (f->GetFilename() == filename) {
+			return f.get();
+		}
+	}
+	return nullptr;
+}
+
+/**
+ * Get the list of cached SpriteFiles.
+ * @return Read-only list of cache SpriteFiles.
+ */
+std::span<const std::unique_ptr<SpriteFile>> GetCachedSpriteFiles()
+{
+	return _sprite_files;
+}
+
+/**
+ * Open/get the SpriteFile that is cached for use in the sprite cache.
+ * @param filename      Name of the file at the disk.
+ * @param subdir        The sub directory to search this file in.
+ * @param palette_remap Whether a palette remap needs to be performed for this file.
+ * @return The reference to the SpriteCache.
+ */
+SpriteFile &OpenCachedSpriteFile(const std::string &filename, Subdirectory subdir, bool palette_remap)
+{
+	SpriteFile *file = GetCachedSpriteFileByName(filename);
+	if (file == nullptr) {
+		file = _sprite_files.insert(std::end(_sprite_files), std::make_unique<SpriteFile>(filename, subdir, palette_remap))->get();
+	} else {
+		file->SeekToBegin();
+	}
+	return *file;
+}
 
 struct MemBlock {
 	size_t size;
-	byte data[];
+	uint8_t data[];
 };
 
 static uint _sprite_lru_counter;
@@ -83,7 +112,6 @@ static uint _allocated_sprite_cache_size = 0;
 static int _compact_cache_counter;
 
 static void CompactSpriteCache();
-static void *AllocSprite(size_t mem_req);
 
 /**
  * Skip the given amount of sprite graphics data.
@@ -91,22 +119,22 @@ static void *AllocSprite(size_t mem_req);
  * @param num the amount of sprites to skip
  * @return true if the data could be correctly skipped.
  */
-bool SkipSpriteData(byte type, uint16 num)
+bool SkipSpriteData(SpriteFile &file, uint8_t type, uint16_t num)
 {
 	if (type & 2) {
-		FioSkipBytes(num);
+		file.SkipBytes(num);
 	} else {
 		while (num > 0) {
-			int8 i = FioReadByte();
+			int8_t i = file.ReadByte();
 			if (i >= 0) {
 				int size = (i == 0) ? 0x80 : i;
 				if (size > num) return false;
 				num -= size;
-				FioSkipBytes(size);
+				file.SkipBytes(size);
 			} else {
 				i = -(i >> 3);
 				num -= i;
-				FioReadByte();
+				file.ReadByte();
 			}
 		}
 	}
@@ -120,7 +148,7 @@ bool SpriteExists(SpriteID id)
 
 	/* Special case for Sprite ID zero -- its position is also 0... */
 	if (id == 0) return true;
-	return !(GetSpriteCache(id)->file_pos == 0 && GetSpriteCache(id)->file_slot == 0);
+	return !(GetSpriteCache(id)->file_pos == 0 && GetSpriteCache(id)->file == nullptr);
 }
 
 /**
@@ -130,19 +158,19 @@ bool SpriteExists(SpriteID id)
  */
 SpriteType GetSpriteType(SpriteID sprite)
 {
-	if (!SpriteExists(sprite)) return ST_INVALID;
+	if (!SpriteExists(sprite)) return SpriteType::Invalid;
 	return GetSpriteCache(sprite)->type;
 }
 
 /**
- * Get the (FIOS) file slot of a given sprite.
+ * Get the SpriteFile of a given sprite.
  * @param sprite The sprite to look at.
- * @return the FIOS file slot
+ * @return The SpriteFile.
  */
-uint GetOriginFileSlot(SpriteID sprite)
+SpriteFile *GetOriginFile(SpriteID sprite)
 {
-	if (!SpriteExists(sprite)) return 0;
-	return GetSpriteCache(sprite)->file_slot;
+	if (!SpriteExists(sprite)) return nullptr;
+	return GetSpriteCache(sprite)->file;
 }
 
 /**
@@ -150,26 +178,32 @@ uint GetOriginFileSlot(SpriteID sprite)
  * @param sprite The sprite to look at.
  * @return The GRF-local sprite id.
  */
-uint32 GetSpriteLocalID(SpriteID sprite)
+uint32_t GetSpriteLocalID(SpriteID sprite)
 {
 	if (!SpriteExists(sprite)) return 0;
 	return GetSpriteCache(sprite)->id;
 }
 
 /**
- * Count the sprites which originate from a specific file slot in a range of SpriteIDs.
- * @param file_slot FIOS file slot.
+ * Count the sprites which originate from a specific file in a range of SpriteIDs.
+ * @param file The loaded SpriteFile.
  * @param begin First sprite in range.
  * @param end First sprite not in range.
  * @return Number of sprites.
  */
-uint GetSpriteCountForSlot(uint file_slot, SpriteID begin, SpriteID end)
+uint GetSpriteCountForFile(const std::string &filename, SpriteID begin, SpriteID end)
 {
+	SpriteFile *file = GetCachedSpriteFileByName(filename);
+	if (file == nullptr) return 0;
+
 	uint count = 0;
 	for (SpriteID i = begin; i != end; i++) {
 		if (SpriteExists(i)) {
 			SpriteCache *sc = GetSpriteCache(i);
-			if (sc->file_slot == file_slot) count++;
+			if (sc->file == file) {
+				count++;
+				Debug(sprite, 4, "Sprite: {}", i);
+			}
 		}
 	}
 	return count;
@@ -188,9 +222,9 @@ uint GetMaxSpriteID()
 	return _spritecache_items;
 }
 
-static bool ResizeSpriteIn(SpriteLoader::Sprite *sprite, ZoomLevel src, ZoomLevel tgt)
+static bool ResizeSpriteIn(SpriteLoader::SpriteCollection &sprite, ZoomLevel src, ZoomLevel tgt)
 {
-	uint8 scaled_1 = ScaleByZoom(1, (ZoomLevel)(src - tgt));
+	uint8_t scaled_1 = ScaleByZoom(1, (ZoomLevel)(src - tgt));
 
 	/* Check for possible memory overflow. */
 	if (sprite[src].width * scaled_1 > UINT16_MAX || sprite[src].height * scaled_1 > UINT16_MAX) return false;
@@ -199,8 +233,9 @@ static bool ResizeSpriteIn(SpriteLoader::Sprite *sprite, ZoomLevel src, ZoomLeve
 	sprite[tgt].height = sprite[src].height * scaled_1;
 	sprite[tgt].x_offs = sprite[src].x_offs * scaled_1;
 	sprite[tgt].y_offs = sprite[src].y_offs * scaled_1;
+	sprite[tgt].colours = sprite[src].colours;
 
-	sprite[tgt].AllocateData(tgt, sprite[tgt].width * sprite[tgt].height);
+	sprite[tgt].AllocateData(tgt, static_cast<size_t>(sprite[tgt].width) * sprite[tgt].height);
 
 	SpriteLoader::CommonPixel *dst = sprite[tgt].data;
 	for (int y = 0; y < sprite[tgt].height; y++) {
@@ -214,19 +249,20 @@ static bool ResizeSpriteIn(SpriteLoader::Sprite *sprite, ZoomLevel src, ZoomLeve
 	return true;
 }
 
-static void ResizeSpriteOut(SpriteLoader::Sprite *sprite, ZoomLevel zoom)
+static void ResizeSpriteOut(SpriteLoader::SpriteCollection &sprite, ZoomLevel zoom)
 {
 	/* Algorithm based on 32bpp_Optimized::ResizeSprite() */
-	sprite[zoom].width  = UnScaleByZoom(sprite[ZOOM_LVL_NORMAL].width,  zoom);
-	sprite[zoom].height = UnScaleByZoom(sprite[ZOOM_LVL_NORMAL].height, zoom);
-	sprite[zoom].x_offs = UnScaleByZoom(sprite[ZOOM_LVL_NORMAL].x_offs, zoom);
-	sprite[zoom].y_offs = UnScaleByZoom(sprite[ZOOM_LVL_NORMAL].y_offs, zoom);
+	sprite[zoom].width  = UnScaleByZoom(sprite[ZOOM_LVL_MIN].width,  zoom);
+	sprite[zoom].height = UnScaleByZoom(sprite[ZOOM_LVL_MIN].height, zoom);
+	sprite[zoom].x_offs = UnScaleByZoom(sprite[ZOOM_LVL_MIN].x_offs, zoom);
+	sprite[zoom].y_offs = UnScaleByZoom(sprite[ZOOM_LVL_MIN].y_offs, zoom);
+	sprite[zoom].colours = sprite[ZOOM_LVL_MIN].colours;
 
-	sprite[zoom].AllocateData(zoom, sprite[zoom].height * sprite[zoom].width);
+	sprite[zoom].AllocateData(zoom, static_cast<size_t>(sprite[zoom].height) * sprite[zoom].width);
 
 	SpriteLoader::CommonPixel *dst = sprite[zoom].data;
 	const SpriteLoader::CommonPixel *src = sprite[zoom - 1].data;
-	const SpriteLoader::CommonPixel *src_end = src + sprite[zoom - 1].height * sprite[zoom - 1].width;
+	[[maybe_unused]] const SpriteLoader::CommonPixel *src_end = src + sprite[zoom - 1].height * sprite[zoom - 1].width;
 
 	for (uint y = 0; y < sprite[zoom].height; y++) {
 		const SpriteLoader::CommonPixel *src_ln = src + sprite[zoom - 1].width;
@@ -253,9 +289,10 @@ static bool PadSingleSprite(SpriteLoader::Sprite *sprite, ZoomLevel zoom, uint p
 	if (width > UINT16_MAX || height > UINT16_MAX) return false;
 
 	/* Copy source data and reallocate sprite memory. */
-	SpriteLoader::CommonPixel *src_data = MallocT<SpriteLoader::CommonPixel>(sprite->width * sprite->height);
-	MemCpyT(src_data, sprite->data, sprite->width * sprite->height);
-	sprite->AllocateData(zoom, width * height);
+	size_t sprite_size = static_cast<size_t>(sprite->width) * sprite->height;
+	SpriteLoader::CommonPixel *src_data = MallocT<SpriteLoader::CommonPixel>(sprite_size);
+	MemCpyT(src_data, sprite->data, sprite_size);
+	sprite->AllocateData(zoom, static_cast<size_t>(width) * height);
 
 	/* Copy with padding to destination. */
 	SpriteLoader::CommonPixel *src = src_data;
@@ -295,15 +332,15 @@ static bool PadSingleSprite(SpriteLoader::Sprite *sprite, ZoomLevel zoom, uint p
 	return true;
 }
 
-static bool PadSprites(SpriteLoader::Sprite *sprite, uint8 sprite_avail)
+static bool PadSprites(SpriteLoader::SpriteCollection &sprite, uint8_t sprite_avail, SpriteEncoder *encoder)
 {
 	/* Get minimum top left corner coordinates. */
 	int min_xoffs = INT32_MAX;
 	int min_yoffs = INT32_MAX;
 	for (ZoomLevel zoom = ZOOM_LVL_BEGIN; zoom != ZOOM_LVL_END; zoom++) {
 		if (HasBit(sprite_avail, zoom)) {
-			min_xoffs = min(min_xoffs, ScaleByZoom(sprite[zoom].x_offs, zoom));
-			min_yoffs = min(min_yoffs, ScaleByZoom(sprite[zoom].y_offs, zoom));
+			min_xoffs = std::min(min_xoffs, ScaleByZoom(sprite[zoom].x_offs, zoom));
+			min_yoffs = std::min(min_yoffs, ScaleByZoom(sprite[zoom].y_offs, zoom));
 		}
 	}
 
@@ -312,9 +349,16 @@ static bool PadSprites(SpriteLoader::Sprite *sprite, uint8 sprite_avail)
 	int max_height = INT32_MIN;
 	for (ZoomLevel zoom = ZOOM_LVL_BEGIN; zoom != ZOOM_LVL_END; zoom++) {
 		if (HasBit(sprite_avail, zoom)) {
-			max_width  = max(max_width, ScaleByZoom(sprite[zoom].width + sprite[zoom].x_offs - UnScaleByZoom(min_xoffs, zoom), zoom));
-			max_height = max(max_height, ScaleByZoom(sprite[zoom].height + sprite[zoom].y_offs - UnScaleByZoom(min_yoffs, zoom), zoom));
+			max_width  = std::max(max_width, ScaleByZoom(sprite[zoom].width + sprite[zoom].x_offs - UnScaleByZoom(min_xoffs, zoom), zoom));
+			max_height = std::max(max_height, ScaleByZoom(sprite[zoom].height + sprite[zoom].y_offs - UnScaleByZoom(min_yoffs, zoom), zoom));
 		}
+	}
+
+	/* Align height and width if required to match the needs of the sprite encoder. */
+	uint align = encoder->GetSpriteAlignment();
+	if (align != 0) {
+		max_width  = Align(max_width,  align);
+		max_height = Align(max_height, align);
 	}
 
 	/* Pad sprites where needed. */
@@ -322,10 +366,10 @@ static bool PadSprites(SpriteLoader::Sprite *sprite, uint8 sprite_avail)
 		if (HasBit(sprite_avail, zoom)) {
 			/* Scaling the sprite dimensions in the blitter is done with rounding up,
 			 * so a negative padding here is not an error. */
-			int pad_left   = max(0, sprite[zoom].x_offs - UnScaleByZoom(min_xoffs, zoom));
-			int pad_top    = max(0, sprite[zoom].y_offs - UnScaleByZoom(min_yoffs, zoom));
-			int pad_right  = max(0, UnScaleByZoom(max_width, zoom) - sprite[zoom].width - pad_left);
-			int pad_bottom = max(0, UnScaleByZoom(max_height, zoom) - sprite[zoom].height - pad_top);
+			int pad_left   = std::max(0, sprite[zoom].x_offs - UnScaleByZoom(min_xoffs, zoom));
+			int pad_top    = std::max(0, sprite[zoom].y_offs - UnScaleByZoom(min_yoffs, zoom));
+			int pad_right  = std::max(0, UnScaleByZoom(max_width, zoom) - sprite[zoom].width - pad_left);
+			int pad_bottom = std::max(0, UnScaleByZoom(max_height, zoom) - sprite[zoom].height - pad_top);
 
 			if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0) {
 				if (!PadSingleSprite(&sprite[zoom], zoom, pad_left, pad_top, pad_right, pad_bottom)) return false;
@@ -336,30 +380,38 @@ static bool PadSprites(SpriteLoader::Sprite *sprite, uint8 sprite_avail)
 	return true;
 }
 
-static bool ResizeSprites(SpriteLoader::Sprite *sprite, uint8 sprite_avail, uint32 file_slot, uint32 file_pos)
+static bool ResizeSprites(SpriteLoader::SpriteCollection &sprite, uint8_t sprite_avail, SpriteEncoder *encoder)
 {
 	/* Create a fully zoomed image if it does not exist */
-	ZoomLevel first_avail = static_cast<ZoomLevel>(FIND_FIRST_BIT(sprite_avail));
-	if (first_avail != ZOOM_LVL_NORMAL) {
-		if (!ResizeSpriteIn(sprite, first_avail, ZOOM_LVL_NORMAL)) return false;
-		SetBit(sprite_avail, ZOOM_LVL_NORMAL);
+	ZoomLevel first_avail = static_cast<ZoomLevel>(FindFirstBit(sprite_avail));
+	if (first_avail != ZOOM_LVL_MIN) {
+		if (!ResizeSpriteIn(sprite, first_avail, ZOOM_LVL_MIN)) return false;
+		SetBit(sprite_avail, ZOOM_LVL_MIN);
 	}
 
 	/* Pad sprites to make sizes match. */
-	if (!PadSprites(sprite, sprite_avail)) return false;
+	if (!PadSprites(sprite, sprite_avail, encoder)) return false;
 
 	/* Create other missing zoom levels */
-	for (ZoomLevel zoom = ZOOM_LVL_OUT_2X; zoom != ZOOM_LVL_END; zoom++) {
+	for (ZoomLevel zoom = ZOOM_LVL_BEGIN; zoom != ZOOM_LVL_END; zoom++) {
+		if (zoom == ZOOM_LVL_MIN) continue;
+
 		if (HasBit(sprite_avail, zoom)) {
 			/* Check that size and offsets match the fully zoomed image. */
-			assert(sprite[zoom].width  == UnScaleByZoom(sprite[ZOOM_LVL_NORMAL].width,  zoom));
-			assert(sprite[zoom].height == UnScaleByZoom(sprite[ZOOM_LVL_NORMAL].height, zoom));
-			assert(sprite[zoom].x_offs == UnScaleByZoom(sprite[ZOOM_LVL_NORMAL].x_offs, zoom));
-			assert(sprite[zoom].y_offs == UnScaleByZoom(sprite[ZOOM_LVL_NORMAL].y_offs, zoom));
+			assert(sprite[zoom].width  == UnScaleByZoom(sprite[ZOOM_LVL_MIN].width,  zoom));
+			assert(sprite[zoom].height == UnScaleByZoom(sprite[ZOOM_LVL_MIN].height, zoom));
+			assert(sprite[zoom].x_offs == UnScaleByZoom(sprite[ZOOM_LVL_MIN].x_offs, zoom));
+			assert(sprite[zoom].y_offs == UnScaleByZoom(sprite[ZOOM_LVL_MIN].y_offs, zoom));
 		}
 
 		/* Zoom level is not available, or unusable, so create it */
 		if (!HasBit(sprite_avail, zoom)) ResizeSpriteOut(sprite, zoom);
+	}
+
+	/* Upscale to desired sprite_min_zoom if provided sprite only had zoomed in versions. */
+	if (first_avail < _settings_client.gui.sprite_zoom_min) {
+		if (_settings_client.gui.sprite_zoom_min >= ZOOM_LVL_NORMAL) ResizeSpriteIn(sprite, ZOOM_LVL_NORMAL, ZOOM_LVL_IN_2X);
+		if (_settings_client.gui.sprite_zoom_min >= ZOOM_LVL_IN_2X) ResizeSpriteIn(sprite, ZOOM_LVL_IN_2X, ZOOM_LVL_IN_4X);
 	}
 
 	return  true;
@@ -367,32 +419,33 @@ static bool ResizeSprites(SpriteLoader::Sprite *sprite, uint8 sprite_avail, uint
 
 /**
  * Load a recolour sprite into memory.
- * @param file_slot GRF we're reading from.
+ * @param file GRF we're reading from.
  * @param num Size of the sprite in the GRF.
  * @return Sprite data.
  */
-static void *ReadRecolourSprite(uint16 file_slot, uint num)
+static void *ReadRecolourSprite(SpriteFile &file, uint num)
 {
 	/* "Normal" recolour sprites are ALWAYS 257 bytes. Then there is a small
 	 * number of recolour sprites that are 17 bytes that only exist in DOS
 	 * GRFs which are the same as 257 byte recolour sprites, but with the last
 	 * 240 bytes zeroed.  */
 	static const uint RECOLOUR_SPRITE_SIZE = 257;
-	byte *dest = (byte *)AllocSprite(max(RECOLOUR_SPRITE_SIZE, num));
+	uint8_t *dest = (uint8_t *)AllocSprite(std::max(RECOLOUR_SPRITE_SIZE, num));
 
-	if (_palette_remap_grf[file_slot]) {
-		byte *dest_tmp = AllocaM(byte, max(RECOLOUR_SPRITE_SIZE, num));
+	if (file.NeedsPaletteRemap()) {
+		uint8_t *dest_tmp = new uint8_t[std::max(RECOLOUR_SPRITE_SIZE, num)];
 
 		/* Only a few recolour sprites are less than 257 bytes */
 		if (num < RECOLOUR_SPRITE_SIZE) memset(dest_tmp, 0, RECOLOUR_SPRITE_SIZE);
-		FioReadBlock(dest_tmp, num);
+		file.ReadBlock(dest_tmp, num);
 
 		/* The data of index 0 is never used; "literal 00" according to the (New)GRF specs. */
 		for (uint i = 1; i < RECOLOUR_SPRITE_SIZE; i++) {
 			dest[i] = _palmap_w2d[dest_tmp[_palmap_d2w[i - 1] + 1]];
 		}
+		delete[] dest_tmp;
 	} else {
-		FioReadBlock(dest, num);
+		file.ReadBlock(dest, num);
 	}
 
 	return dest;
@@ -404,39 +457,43 @@ static void *ReadRecolourSprite(uint16 file_slot, uint num)
  * @param id          Sprite number.
  * @param sprite_type Type of sprite.
  * @param allocator   Allocator function to use.
+ * @param encoder     Sprite encoder to use.
  * @return Read sprite data.
  */
-static void *ReadSprite(const SpriteCache *sc, SpriteID id, SpriteType sprite_type, AllocatorProc *allocator)
+static void *ReadSprite(const SpriteCache *sc, SpriteID id, SpriteType sprite_type, AllocatorProc *allocator, SpriteEncoder *encoder)
 {
-	uint8 file_slot = sc->file_slot;
+	/* Use current blitter if no other sprite encoder is given. */
+	if (encoder == nullptr) encoder = BlitterFactory::GetCurrentBlitter();
+
+	SpriteFile &file = *sc->file;
 	size_t file_pos = sc->file_pos;
 
-	assert(sprite_type != ST_RECOLOUR);
-	assert(IsMapgenSpriteID(id) == (sprite_type == ST_MAPGEN));
+	assert(sprite_type != SpriteType::Recolour);
+	assert(IsMapgenSpriteID(id) == (sprite_type == SpriteType::MapGen));
 	assert(sc->type == sprite_type);
 
-	DEBUG(sprite, 9, "Load sprite %d", id);
+	Debug(sprite, 9, "Load sprite {}", id);
 
-	SpriteLoader::Sprite sprite[ZOOM_LVL_COUNT];
-	uint8 sprite_avail = 0;
-	sprite[ZOOM_LVL_NORMAL].type = sprite_type;
+	SpriteLoader::SpriteCollection sprite;
+	uint8_t sprite_avail = 0;
+	sprite[ZOOM_LVL_MIN].type = sprite_type;
 
-	SpriteLoaderGrf sprite_loader(sc->container_ver);
-	if (sprite_type != ST_MAPGEN && BlitterFactory::GetCurrentBlitter()->GetScreenDepth() == 32) {
+	SpriteLoaderGrf sprite_loader(file.GetContainerVersion());
+	if (sprite_type != SpriteType::MapGen && encoder->Is32BppSupported()) {
 		/* Try for 32bpp sprites first. */
-		sprite_avail = sprite_loader.LoadSprite(sprite, file_slot, file_pos, sprite_type, true);
+		sprite_avail = sprite_loader.LoadSprite(sprite, file, file_pos, sprite_type, true, sc->control_flags);
 	}
 	if (sprite_avail == 0) {
-		sprite_avail = sprite_loader.LoadSprite(sprite, file_slot, file_pos, sprite_type, false);
+		sprite_avail = sprite_loader.LoadSprite(sprite, file, file_pos, sprite_type, false, sc->control_flags);
 	}
 
 	if (sprite_avail == 0) {
-		if (sprite_type == ST_MAPGEN) return nullptr;
-		if (id == SPR_IMG_QUERY) usererror("Okay... something went horribly wrong. I couldn't load the fallback sprite. What should I do?");
-		return (void*)GetRawSprite(SPR_IMG_QUERY, ST_NORMAL, allocator);
+		if (sprite_type == SpriteType::MapGen) return nullptr;
+		if (id == SPR_IMG_QUERY) UserError("Okay... something went horribly wrong. I couldn't load the fallback sprite. What should I do?");
+		return (void*)GetRawSprite(SPR_IMG_QUERY, SpriteType::Normal, allocator, encoder);
 	}
 
-	if (sprite_type == ST_MAPGEN) {
+	if (sprite_type == SpriteType::MapGen) {
 		/* Ugly hack to work around the problem that the old landscape
 		 *  generator assumes that those sprites are stored uncompressed in
 		 *  the memory, and they are only read directly by the code, never
@@ -446,16 +503,16 @@ static void *ReadSprite(const SpriteCache *sc, SpriteID id, SpriteType sprite_ty
 		 * Ugly: yes. Other solution: no. Blame the original author or
 		 *  something ;) The image should really have been a data-stream
 		 *  (so type = 0xFF basically). */
-		uint num = sprite[ZOOM_LVL_NORMAL].width * sprite[ZOOM_LVL_NORMAL].height;
+		uint num = sprite[ZOOM_LVL_MIN].width * sprite[ZOOM_LVL_MIN].height;
 
 		Sprite *s = (Sprite *)allocator(sizeof(*s) + num);
-		s->width  = sprite[ZOOM_LVL_NORMAL].width;
-		s->height = sprite[ZOOM_LVL_NORMAL].height;
-		s->x_offs = sprite[ZOOM_LVL_NORMAL].x_offs;
-		s->y_offs = sprite[ZOOM_LVL_NORMAL].y_offs;
+		s->width  = sprite[ZOOM_LVL_MIN].width;
+		s->height = sprite[ZOOM_LVL_MIN].height;
+		s->x_offs = sprite[ZOOM_LVL_MIN].x_offs;
+		s->y_offs = sprite[ZOOM_LVL_MIN].y_offs;
 
-		SpriteLoader::CommonPixel *src = sprite[ZOOM_LVL_NORMAL].data;
-		byte *dest = s->data;
+		SpriteLoader::CommonPixel *src = sprite[ZOOM_LVL_MIN].data;
+		uint8_t *dest = s->data;
 		while (num-- > 0) {
 			*dest++ = src->m;
 			src++;
@@ -464,62 +521,90 @@ static void *ReadSprite(const SpriteCache *sc, SpriteID id, SpriteType sprite_ty
 		return s;
 	}
 
-	if (!ResizeSprites(sprite, sprite_avail, file_slot, sc->id)) {
-		if (id == SPR_IMG_QUERY) usererror("Okay... something went horribly wrong. I couldn't resize the fallback sprite. What should I do?");
-		return (void*)GetRawSprite(SPR_IMG_QUERY, ST_NORMAL, allocator);
+	if (!ResizeSprites(sprite, sprite_avail, encoder)) {
+		if (id == SPR_IMG_QUERY) UserError("Okay... something went horribly wrong. I couldn't resize the fallback sprite. What should I do?");
+		return (void*)GetRawSprite(SPR_IMG_QUERY, SpriteType::Normal, allocator, encoder);
 	}
 
-	if (sprite->type == ST_FONT && ZOOM_LVL_FONT != ZOOM_LVL_NORMAL) {
-		/* Make ZOOM_LVL_NORMAL be ZOOM_LVL_FONT */
-		sprite[ZOOM_LVL_NORMAL].width  = sprite[ZOOM_LVL_FONT].width;
-		sprite[ZOOM_LVL_NORMAL].height = sprite[ZOOM_LVL_FONT].height;
-		sprite[ZOOM_LVL_NORMAL].x_offs = sprite[ZOOM_LVL_FONT].x_offs;
-		sprite[ZOOM_LVL_NORMAL].y_offs = sprite[ZOOM_LVL_FONT].y_offs;
-		sprite[ZOOM_LVL_NORMAL].data   = sprite[ZOOM_LVL_FONT].data;
+	if (sprite[ZOOM_LVL_MIN].type == SpriteType::Font && _font_zoom != ZOOM_LVL_MIN) {
+		/* Make ZOOM_LVL_MIN be ZOOM_LVL_GUI */
+		sprite[ZOOM_LVL_MIN].width  = sprite[_font_zoom].width;
+		sprite[ZOOM_LVL_MIN].height = sprite[_font_zoom].height;
+		sprite[ZOOM_LVL_MIN].x_offs = sprite[_font_zoom].x_offs;
+		sprite[ZOOM_LVL_MIN].y_offs = sprite[_font_zoom].y_offs;
+		sprite[ZOOM_LVL_MIN].data   = sprite[_font_zoom].data;
+		sprite[ZOOM_LVL_MIN].colours = sprite[_font_zoom].colours;
 	}
 
-	return BlitterFactory::GetCurrentBlitter()->Encode(sprite, allocator);
+	return encoder->Encode(sprite, allocator);
 }
 
+struct GrfSpriteOffset {
+	size_t file_pos;
+	uint8_t control_flags;
+};
 
 /** Map from sprite numbers to position in the GRF file. */
-static std::map<uint32, size_t> _grf_sprite_offsets;
+static std::map<uint32_t, GrfSpriteOffset> _grf_sprite_offsets;
 
 /**
  * Get the file offset for a specific sprite in the sprite section of a GRF.
  * @param id ID of the sprite to look up.
  * @return Position of the sprite in the sprite section or SIZE_MAX if no such sprite is present.
  */
-size_t GetGRFSpriteOffset(uint32 id)
+size_t GetGRFSpriteOffset(uint32_t id)
 {
-	return _grf_sprite_offsets.find(id) != _grf_sprite_offsets.end() ? _grf_sprite_offsets[id] : SIZE_MAX;
+	return _grf_sprite_offsets.find(id) != _grf_sprite_offsets.end() ? _grf_sprite_offsets[id].file_pos : SIZE_MAX;
 }
 
 /**
  * Parse the sprite section of GRFs.
  * @param container_version Container version of the GRF we're currently processing.
  */
-void ReadGRFSpriteOffsets(byte container_version)
+void ReadGRFSpriteOffsets(SpriteFile &file)
 {
 	_grf_sprite_offsets.clear();
 
-	if (container_version >= 2) {
+	if (file.GetContainerVersion() >= 2) {
 		/* Seek to sprite section of the GRF. */
-		size_t data_offset = FioReadDword();
-		size_t old_pos = FioGetPos();
-		FioSeekTo(data_offset, SEEK_CUR);
+		size_t data_offset = file.ReadDword();
+		size_t old_pos = file.GetPos();
+		file.SeekTo(data_offset, SEEK_CUR);
+
+		GrfSpriteOffset offset = { 0, 0 };
 
 		/* Loop over all sprite section entries and store the file
 		 * offset for each newly encountered ID. */
-		uint32 id, prev_id = 0;
-		while ((id = FioReadDword()) != 0) {
-			if (id != prev_id) _grf_sprite_offsets[id] = FioGetPos() - 4;
+		uint32_t id, prev_id = 0;
+		while ((id = file.ReadDword()) != 0) {
+			if (id != prev_id) {
+				_grf_sprite_offsets[prev_id] = offset;
+				offset.file_pos = file.GetPos() - 4;
+				offset.control_flags = 0;
+			}
 			prev_id = id;
-			FioSkipBytes(FioReadDword());
+			uint length = file.ReadDword();
+			if (length > 0) {
+				uint8_t colour = file.ReadByte() & SCC_MASK;
+				length--;
+				if (length > 0) {
+					uint8_t zoom = file.ReadByte();
+					length--;
+					if (colour != 0 && zoom == 0) { // ZOOM_LVL_NORMAL (normal zoom)
+						SetBit(offset.control_flags, (colour != SCC_PAL) ? SCCF_ALLOW_ZOOM_MIN_1X_32BPP : SCCF_ALLOW_ZOOM_MIN_1X_PAL);
+						SetBit(offset.control_flags, (colour != SCC_PAL) ? SCCF_ALLOW_ZOOM_MIN_2X_32BPP : SCCF_ALLOW_ZOOM_MIN_2X_PAL);
+					}
+					if (colour != 0 && zoom == 2) { // ZOOM_LVL_IN_2X (2x zoomed in)
+						SetBit(offset.control_flags, (colour != SCC_PAL) ? SCCF_ALLOW_ZOOM_MIN_2X_32BPP : SCCF_ALLOW_ZOOM_MIN_2X_PAL);
+					}
+				}
+			}
+			file.SkipBytes(length);
 		}
+		if (prev_id != 0) _grf_sprite_offsets[prev_id] = offset;
 
 		/* Continue processing the data section. */
-		FioSeekTo(old_pos, SEEK_SET);
+		file.SeekTo(old_pos, SEEK_SET);
 	}
 }
 
@@ -527,69 +612,76 @@ void ReadGRFSpriteOffsets(byte container_version)
 /**
  * Load a real or recolour sprite.
  * @param load_index Global sprite index.
- * @param file_slot GRF to load from.
+ * @param file GRF to load from.
  * @param file_sprite_id Sprite number in the GRF.
  * @param container_version Container version of the GRF.
  * @return True if a valid sprite was loaded, false on any error.
  */
-bool LoadNextSprite(int load_index, byte file_slot, uint file_sprite_id, byte container_version)
+bool LoadNextSprite(int load_index, SpriteFile &file, uint file_sprite_id)
 {
-	size_t file_pos = FioGetPos();
+	size_t file_pos = file.GetPos();
 
 	/* Read sprite header. */
-	uint32 num = container_version >= 2 ? FioReadDword() : FioReadWord();
+	uint32_t num = file.GetContainerVersion() >= 2 ? file.ReadDword() : file.ReadWord();
 	if (num == 0) return false;
-	byte grf_type = FioReadByte();
+	uint8_t grf_type = file.ReadByte();
 
 	SpriteType type;
 	void *data = nullptr;
+	uint8_t control_flags = 0;
 	if (grf_type == 0xFF) {
 		/* Some NewGRF files have "empty" pseudo-sprites which are 1
 		 * byte long. Catch these so the sprites won't be displayed. */
 		if (num == 1) {
-			FioReadByte();
+			file.ReadByte();
 			return false;
 		}
-		type = ST_RECOLOUR;
-		data = ReadRecolourSprite(file_slot, num);
-	} else if (container_version >= 2 && grf_type == 0xFD) {
+		type = SpriteType::Recolour;
+		data = ReadRecolourSprite(file, num);
+	} else if (file.GetContainerVersion() >= 2 && grf_type == 0xFD) {
 		if (num != 4) {
 			/* Invalid sprite section include, ignore. */
-			FioSkipBytes(num);
+			file.SkipBytes(num);
 			return false;
 		}
 		/* It is not an error if no sprite with the provided ID is found in the sprite section. */
-		file_pos = GetGRFSpriteOffset(FioReadDword());
-		type = ST_NORMAL;
+		auto iter = _grf_sprite_offsets.find(file.ReadDword());
+		if (iter != _grf_sprite_offsets.end()) {
+			file_pos = iter->second.file_pos;
+			control_flags = iter->second.control_flags;
+		} else {
+			file_pos = SIZE_MAX;
+		}
+		type = SpriteType::Normal;
 	} else {
-		FioSkipBytes(7);
-		type = SkipSpriteData(grf_type, num - 8) ? ST_NORMAL : ST_INVALID;
+		file.SkipBytes(7);
+		type = SkipSpriteData(file, grf_type, num - 8) ? SpriteType::Normal : SpriteType::Invalid;
 		/* Inline sprites are not supported for container version >= 2. */
-		if (container_version >= 2) return false;
+		if (file.GetContainerVersion() >= 2) return false;
 	}
 
-	if (type == ST_INVALID) return false;
+	if (type == SpriteType::Invalid) return false;
 
 	if (load_index >= MAX_SPRITES) {
-		usererror("Tried to load too many sprites (#%d; max %d)", load_index, MAX_SPRITES);
+		UserError("Tried to load too many sprites (#{}; max {})", load_index, MAX_SPRITES);
 	}
 
 	bool is_mapgen = IsMapgenSpriteID(load_index);
 
 	if (is_mapgen) {
-		if (type != ST_NORMAL) usererror("Uhm, would you be so kind not to load a NewGRF that changes the type of the map generator sprites?");
-		type = ST_MAPGEN;
+		if (type != SpriteType::Normal) UserError("Uhm, would you be so kind not to load a NewGRF that changes the type of the map generator sprites?");
+		type = SpriteType::MapGen;
 	}
 
 	SpriteCache *sc = AllocateSpriteCache(load_index);
-	sc->file_slot = file_slot;
+	sc->file = &file;
 	sc->file_pos = file_pos;
 	sc->ptr = data;
 	sc->lru = 0;
 	sc->id = file_sprite_id;
 	sc->type = type;
 	sc->warned = false;
-	sc->container_ver = container_version;
+	sc->control_flags = control_flags;
 
 	return true;
 }
@@ -600,13 +692,12 @@ void DupSprite(SpriteID old_spr, SpriteID new_spr)
 	SpriteCache *scnew = AllocateSpriteCache(new_spr); // may reallocate: so put it first
 	SpriteCache *scold = GetSpriteCache(old_spr);
 
-	scnew->file_slot = scold->file_slot;
+	scnew->file = scold->file;
 	scnew->file_pos = scold->file_pos;
 	scnew->ptr = nullptr;
 	scnew->id = scold->id;
 	scnew->type = scold->type;
 	scnew->warned = false;
-	scnew->container_ver = scold->container_ver;
 }
 
 /**
@@ -624,7 +715,7 @@ static_assert((sizeof(size_t) & (sizeof(size_t) - 1)) == 0);
 
 static inline MemBlock *NextBlock(MemBlock *block)
 {
-	return (MemBlock*)((byte*)block + (block->size & ~S_FREE_MASK));
+	return (MemBlock*)((uint8_t*)block + (block->size & ~S_FREE_MASK));
 }
 
 static size_t GetSpriteCacheUsage()
@@ -646,7 +737,7 @@ void IncreaseSpriteLRU()
 	if (_sprite_lru_counter > 16384) {
 		SpriteID i;
 
-		DEBUG(sprite, 3, "Fixing lru %u, inuse=" PRINTF_SIZE, _sprite_lru_counter, GetSpriteCacheUsage());
+		Debug(sprite, 5, "Fixing lru {}, inuse={}", _sprite_lru_counter, GetSpriteCacheUsage());
 
 		for (i = 0; i != _spritecache_items; i++) {
 			SpriteCache *sc = GetSpriteCache(i);
@@ -676,7 +767,7 @@ static void CompactSpriteCache()
 {
 	MemBlock *s;
 
-	DEBUG(sprite, 3, "Compacting sprite cache, inuse=" PRINTF_SIZE, GetSpriteCacheUsage());
+	Debug(sprite, 3, "Compacting sprite cache, inuse={}", GetSpriteCacheUsage());
 
 	for (s = _spritecache_ptr; s->size != 0;) {
 		if (s->size & S_FREE_MASK) {
@@ -739,12 +830,12 @@ static void DeleteEntryFromSpriteCache()
 	uint best = UINT_MAX;
 	int cur_lru;
 
-	DEBUG(sprite, 3, "DeleteEntryFromSpriteCache, inuse=" PRINTF_SIZE, GetSpriteCacheUsage());
+	Debug(sprite, 3, "DeleteEntryFromSpriteCache, inuse={}", GetSpriteCacheUsage());
 
 	cur_lru = 0xffff;
 	for (SpriteID i = 0; i != _spritecache_items; i++) {
 		SpriteCache *sc = GetSpriteCache(i);
-		if (sc->type != ST_RECOLOUR && sc->ptr != nullptr && sc->lru < cur_lru) {
+		if (sc->type != SpriteType::Recolour && sc->ptr != nullptr && sc->lru < cur_lru) {
 			cur_lru = sc->lru;
 			best = i;
 		}
@@ -752,12 +843,12 @@ static void DeleteEntryFromSpriteCache()
 
 	/* Display an error message and die, in case we found no sprite at all.
 	 * This shouldn't really happen, unless all sprites are locked. */
-	if (best == UINT_MAX) error("Out of sprite memory");
+	if (best == UINT_MAX) FatalError("Out of sprite memory");
 
 	DeleteEntryFromSpriteCache(best);
 }
 
-static void *AllocSprite(size_t mem_req)
+void *AllocSprite(size_t mem_req)
 {
 	mem_req += sizeof(MemBlock);
 
@@ -795,44 +886,52 @@ static void *AllocSprite(size_t mem_req)
 }
 
 /**
+ * Sprite allocator simply using malloc.
+ */
+void *SimpleSpriteAlloc(size_t size)
+{
+	return MallocT<uint8_t>(size);
+}
+
+/**
  * Handles the case when a sprite of different type is requested than is present in the SpriteCache.
- * For ST_FONT sprites, it is normal. In other cases, default sprite is loaded instead.
+ * For SpriteType::Font sprites, it is normal. In other cases, default sprite is loaded instead.
  * @param sprite ID of loaded sprite
  * @param requested requested sprite type
  * @param sc the currently known sprite cache for the requested sprite
  * @return fallback sprite
- * @note this function will do usererror() in the case the fallback sprite isn't available
+ * @note this function will do UserError() in the case the fallback sprite isn't available
  */
 static void *HandleInvalidSpriteRequest(SpriteID sprite, SpriteType requested, SpriteCache *sc, AllocatorProc *allocator)
 {
 	static const char * const sprite_types[] = {
-		"normal",        // ST_NORMAL
-		"map generator", // ST_MAPGEN
-		"character",     // ST_FONT
-		"recolour",      // ST_RECOLOUR
+		"normal",        // SpriteType::Normal
+		"map generator", // SpriteType::MapGen
+		"character",     // SpriteType::Font
+		"recolour",      // SpriteType::Recolour
 	};
 
 	SpriteType available = sc->type;
-	if (requested == ST_FONT && available == ST_NORMAL) {
-		if (sc->ptr == nullptr) sc->type = ST_FONT;
+	if (requested == SpriteType::Font && available == SpriteType::Normal) {
+		if (sc->ptr == nullptr) sc->type = SpriteType::Font;
 		return GetRawSprite(sprite, sc->type, allocator);
 	}
 
-	byte warning_level = sc->warned ? 6 : 0;
+	uint8_t warning_level = sc->warned ? 6 : 0;
 	sc->warned = true;
-	DEBUG(sprite, warning_level, "Tried to load %s sprite #%d as a %s sprite. Probable cause: NewGRF interference", sprite_types[available], sprite, sprite_types[requested]);
+	Debug(sprite, warning_level, "Tried to load {} sprite #{} as a {} sprite. Probable cause: NewGRF interference", sprite_types[static_cast<uint8_t>(available)], sprite, sprite_types[static_cast<uint8_t>(requested)]);
 
 	switch (requested) {
-		case ST_NORMAL:
-			if (sprite == SPR_IMG_QUERY) usererror("Uhm, would you be so kind not to load a NewGRF that makes the 'query' sprite a non-normal sprite?");
-			FALLTHROUGH;
-		case ST_FONT:
-			return GetRawSprite(SPR_IMG_QUERY, ST_NORMAL, allocator);
-		case ST_RECOLOUR:
-			if (sprite == PALETTE_TO_DARK_BLUE) usererror("Uhm, would you be so kind not to load a NewGRF that makes the 'PALETTE_TO_DARK_BLUE' sprite a non-remap sprite?");
-			return GetRawSprite(PALETTE_TO_DARK_BLUE, ST_RECOLOUR, allocator);
-		case ST_MAPGEN:
-			/* this shouldn't happen, overriding of ST_MAPGEN sprites is checked in LoadNextSprite()
+		case SpriteType::Normal:
+			if (sprite == SPR_IMG_QUERY) UserError("Uhm, would you be so kind not to load a NewGRF that makes the 'query' sprite a non-normal sprite?");
+			[[fallthrough]];
+		case SpriteType::Font:
+			return GetRawSprite(SPR_IMG_QUERY, SpriteType::Normal, allocator);
+		case SpriteType::Recolour:
+			if (sprite == PALETTE_TO_DARK_BLUE) UserError("Uhm, would you be so kind not to load a NewGRF that makes the 'PALETTE_TO_DARK_BLUE' sprite a non-remap sprite?");
+			return GetRawSprite(PALETTE_TO_DARK_BLUE, SpriteType::Recolour, allocator);
+		case SpriteType::MapGen:
+			/* this shouldn't happen, overriding of SpriteType::MapGen sprites is checked in LoadNextSprite()
 			 * (the only case the check fails is when these sprites weren't even loaded...) */
 		default:
 			NOT_REACHED();
@@ -845,15 +944,16 @@ static void *HandleInvalidSpriteRequest(SpriteID sprite, SpriteType requested, S
  * @param sprite Sprite to read.
  * @param type Expected sprite type.
  * @param allocator Allocator function to use. Set to nullptr to use the usual sprite cache.
+ * @param encoder Sprite encoder to use. Set to nullptr to use the currently active blitter.
  * @return Sprite raw data
  */
-void *GetRawSprite(SpriteID sprite, SpriteType type, AllocatorProc *allocator)
+void *GetRawSprite(SpriteID sprite, SpriteType type, AllocatorProc *allocator, SpriteEncoder *encoder)
 {
-	assert(type != ST_MAPGEN || IsMapgenSpriteID(sprite));
-	assert(type < ST_INVALID);
+	assert(type != SpriteType::MapGen || IsMapgenSpriteID(sprite));
+	assert(type < SpriteType::Invalid);
 
 	if (!SpriteExists(sprite)) {
-		DEBUG(sprite, 1, "Tried to load non-existing sprite #%d. Probable cause: Wrong/missing NewGRFs", sprite);
+		Debug(sprite, 1, "Tried to load non-existing sprite #{}. Probable cause: Wrong/missing NewGRFs", sprite);
 
 		/* SPR_IMG_QUERY is a BIG FAT RED ? */
 		sprite = SPR_IMG_QUERY;
@@ -863,19 +963,19 @@ void *GetRawSprite(SpriteID sprite, SpriteType type, AllocatorProc *allocator)
 
 	if (sc->type != type) return HandleInvalidSpriteRequest(sprite, type, sc, allocator);
 
-	if (allocator == nullptr) {
+	if (allocator == nullptr && encoder == nullptr) {
 		/* Load sprite into/from spritecache */
 
 		/* Update LRU */
 		sc->lru = ++_sprite_lru_counter;
 
 		/* Load the sprite, if it is not loaded, yet */
-		if (sc->ptr == nullptr) sc->ptr = ReadSprite(sc, sprite, type, AllocSprite);
+		if (sc->ptr == nullptr) sc->ptr = ReadSprite(sc, sprite, type, AllocSprite, nullptr);
 
 		return sc->ptr;
 	} else {
 		/* Do not use the spritecache, but a different allocator. */
-		return ReadSprite(sc, sprite, type, allocator);
+		return ReadSprite(sc, sprite, type, allocator, encoder);
 	}
 }
 
@@ -890,25 +990,21 @@ static void GfxInitSpriteCache()
 	static uint last_alloc_attempt = 0;
 
 	if (_spritecache_ptr == nullptr || (_allocated_sprite_cache_size != target_size && target_size != last_alloc_attempt)) {
-		delete[] reinterpret_cast<byte *>(_spritecache_ptr);
+		delete[] reinterpret_cast<uint8_t *>(_spritecache_ptr);
 
 		last_alloc_attempt = target_size;
 		_allocated_sprite_cache_size = target_size;
 
 		do {
-			try {
-				/* Try to allocate 50% more to make sure we do not allocate almost all available. */
-				_spritecache_ptr = reinterpret_cast<MemBlock *>(new byte[_allocated_sprite_cache_size + _allocated_sprite_cache_size / 2]);
-			} catch (std::bad_alloc &) {
-				_spritecache_ptr = nullptr;
-			}
+			/* Try to allocate 50% more to make sure we do not allocate almost all available. */
+			_spritecache_ptr = reinterpret_cast<MemBlock *>(new(std::nothrow) uint8_t[_allocated_sprite_cache_size + _allocated_sprite_cache_size / 2]);
 
 			if (_spritecache_ptr != nullptr) {
 				/* Allocation succeeded, but we wanted less. */
-				delete[] reinterpret_cast<byte *>(_spritecache_ptr);
-				_spritecache_ptr = reinterpret_cast<MemBlock *>(new byte[_allocated_sprite_cache_size]);
+				delete[] reinterpret_cast<uint8_t *>(_spritecache_ptr);
+				_spritecache_ptr = reinterpret_cast<MemBlock *>(new uint8_t[_allocated_sprite_cache_size]);
 			} else if (_allocated_sprite_cache_size < 2 * 1024 * 1024) {
-				usererror("Cannot allocate spritecache");
+				UserError("Cannot allocate spritecache");
 			} else {
 				/* Try again to allocate half. */
 				_allocated_sprite_cache_size >>= 1;
@@ -916,7 +1012,7 @@ static void GfxInitSpriteCache()
 		} while (_spritecache_ptr == nullptr);
 
 		if (_allocated_sprite_cache_size != target_size) {
-			DEBUG(misc, 0, "Not enough memory to allocate %d MiB of spritecache. Spritecache was reduced to %d MiB.", target_size / 1024 / 1024, _allocated_sprite_cache_size / 1024 / 1024);
+			Debug(misc, 0, "Not enough memory to allocate {} MiB of spritecache. Spritecache was reduced to {} MiB.", target_size / 1024 / 1024, _allocated_sprite_cache_size / 1024 / 1024);
 
 			ErrorMessageData msg(STR_CONFIG_ERROR_OUT_OF_MEMORY, STR_CONFIG_ERROR_SPRITECACHE_TOO_BIG);
 			msg.SetDParam(0, target_size);
@@ -941,6 +1037,7 @@ void GfxInitSpriteMem()
 	_spritecache = nullptr;
 
 	_compact_cache_counter = 0;
+	_sprite_files.clear();
 }
 
 /**
@@ -952,8 +1049,23 @@ void GfxClearSpriteCache()
 	/* Clear sprite ptr for all cached items */
 	for (uint i = 0; i != _spritecache_items; i++) {
 		SpriteCache *sc = GetSpriteCache(i);
-		if (sc->type != ST_RECOLOUR && sc->ptr != nullptr) DeleteEntryFromSpriteCache(i);
+		if (sc->type != SpriteType::Recolour && sc->ptr != nullptr) DeleteEntryFromSpriteCache(i);
+	}
+
+	VideoDriver::GetInstance()->ClearSystemSprites();
+}
+
+/**
+ * Remove all encoded font sprites from the sprite cache without
+ * discarding sprite location information.
+ */
+void GfxClearFontSpriteCache()
+{
+	/* Clear sprite ptr for all cached font items */
+	for (uint i = 0; i != _spritecache_items; i++) {
+		SpriteCache *sc = GetSpriteCache(i);
+		if (sc->type == SpriteType::Font && sc->ptr != nullptr) DeleteEntryFromSpriteCache(i);
 	}
 }
 
-/* static */ ReusableBuffer<SpriteLoader::CommonPixel> SpriteLoader::Sprite::buffer[ZOOM_LVL_COUNT];
+/* static */ ReusableBuffer<SpriteLoader::CommonPixel> SpriteLoader::Sprite::buffer[ZOOM_LVL_END];

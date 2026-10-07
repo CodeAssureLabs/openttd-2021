@@ -20,7 +20,7 @@
 #include "../../tile_type.h"
 #include "../../track_type.h"
 
-//#define AYSTAR_DEBUG
+static const int AYSTAR_DEF_MAX_SEARCH_NODES = 10000; ///< Reference limit for #AyStar::max_search_nodes
 
 /** Return status of #AyStar methods. */
 enum AystarStatus {
@@ -75,7 +75,7 @@ struct AyStar;
  *  - #AYSTAR_FOUND_END_NODE : indicates this is the end tile
  *  - #AYSTAR_DONE : indicates this is not the end tile (or direction was wrong)
  */
-typedef int32 AyStar_EndNodeCheck(const AyStar *aystar, const OpenListNode *current);
+typedef int32_t AyStar_EndNodeCheck(const AyStar *aystar, const OpenListNode *current);
 
 /**
  * Calculate the G-value for the %AyStar algorithm.
@@ -83,14 +83,14 @@ typedef int32 AyStar_EndNodeCheck(const AyStar *aystar, const OpenListNode *curr
  *  - #AYSTAR_INVALID_NODE : indicates an item is not valid (e.g.: unwalkable)
  *  - Any value >= 0 : the g-value for this tile
  */
-typedef int32 AyStar_CalculateG(AyStar *aystar, AyStarNode *current, OpenListNode *parent);
+typedef int32_t AyStar_CalculateG(AyStar *aystar, AyStarNode *current, OpenListNode *parent);
 
 /**
  * Calculate the H-value for the %AyStar algorithm.
  * Mostly, this must return the distance (Manhattan way) between the current point and the end point.
  * @return The h-value for this tile (any value >= 0)
  */
-typedef int32 AyStar_CalculateH(AyStar *aystar, AyStarNode *current, OpenListNode *parent);
+typedef int32_t AyStar_CalculateH(AyStar *aystar, AyStarNode *current, OpenListNode *parent);
 
 /**
  * This function requests the tiles around the current tile and put them in #neighbours.
@@ -135,14 +135,14 @@ struct AyStar {
 	void *user_target;
 	void *user_data;
 
-	byte loops_per_tick;   ///< How many loops are there called before Main() gives control back to the caller. 0 = until done.
+	uint8_t loops_per_tick;   ///< How many loops are there called before Main() gives control back to the caller. 0 = until done.
 	uint max_path_cost;    ///< If the g-value goes over this number, it stops searching, 0 = infinite.
 	uint max_search_nodes; ///< The maximum number of nodes that will be expanded, 0 = infinite.
 
 	/* These should be filled with the neighbours of a tile by
 	 * GetNeighbours */
 	AyStarNode neighbours[12];
-	byte num_neighbours;
+	uint8_t num_neighbours;
 
 	void Init(Hash_HashProc hash, uint num_buckets);
 
