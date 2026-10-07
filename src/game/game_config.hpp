@@ -2,7 +2,7 @@
  * This file is part of OpenTTD.
  * OpenTTD is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, version 2.
  * OpenTTD is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with OpenTTD. If not, see <http://www.gnu.org/licenses/>.
+ * See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with OpenTTD. If not, see <https://www.gnu.org/licenses/old-licenses/gpl-2.0>.
  */
 
 /** @file game_config.hpp GameConfig stores the configuration settings of every Game. */
@@ -23,7 +23,7 @@ public:
 		ScriptConfig()
 	{}
 
-	GameConfig(const GameConfig *config) :
+	GameConfig(const GameConfig &config) :
 		ScriptConfig(config)
 	{}
 
@@ -40,7 +40,7 @@ public:
 	bool ResetInfo(bool force_exact_match);
 
 protected:
-	ScriptInfo *FindInfo(const char *name, int version, bool force_exact_match) override;
+	ScriptInfo *FindInfo(const std::string &name, int version, bool force_exact_match) override;
 };
 
 #endif /* GAME_CONFIG_HPP */

@@ -2,8 +2,10 @@
  * This file is part of OpenTTD.
  * OpenTTD is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, version 2.
  * OpenTTD is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with OpenTTD. If not, see <http://www.gnu.org/licenses/>.
+ * See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with OpenTTD. If not, see <https://www.gnu.org/licenses/old-licenses/gpl-2.0>.
  */
+
+/** @file string_base.h Base types for interacting with strings. */
 
 #ifndef STRING_BASE_H
 #define STRING_BASE_H
@@ -14,7 +16,7 @@
 class StringIterator {
 public:
 	/** Type of the iterator. */
-	enum IterType {
+	enum IterType : uint8_t {
 		ITER_CHARACTER, ///< Iterate over characters (or more exactly grapheme clusters).
 		ITER_WORD,      ///< Iterate over words.
 	};
@@ -26,16 +28,16 @@ public:
 	 * Create a new iterator instance.
 	 * @return New iterator instance.
 	 */
-	static StringIterator *Create();
+	static std::unique_ptr<StringIterator> Create();
 
-	virtual ~StringIterator() {}
+	virtual ~StringIterator() = default;
 
 	/**
 	 * Set a new iteration string. Must also be called if the string contents
 	 * changed. The cursor is reset to the start of the string.
 	 * @param s New string.
 	 */
-	virtual void SetString(const char *s) = 0;
+	virtual void SetString(std::string_view s) = 0;
 
 	/**
 	 * Change the current string cursor.
