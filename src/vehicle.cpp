@@ -346,6 +346,7 @@ Vehicle::Vehicle(VehicleType type)
 {
 	this->type               = type;
 	this->coord.left         = INVALID_COORD;
+	this->sprite_cache.old_coord.left = INVALID_COORD;
 	this->group_id           = DEFAULT_GROUP;
 	this->fill_percent_te_id = INVALID_TE_ID;
 	this->first              = this;
@@ -643,11 +644,9 @@ static void UpdateVehicleTileHash(Vehicle *v, bool remove)
 
 static Vehicle *_vehicle_viewport_hash[1 << (GEN_HASHX_BITS + GEN_HASHY_BITS)];
 
-static void UpdateVehicleViewportHash(Vehicle *v, int x, int y)
+static void UpdateVehicleViewportHash(Vehicle *v, int x, int y, int old_x, int old_y)
 {
 	Vehicle **old_hash, **new_hash;
-	int old_x = v->coord.left;
-	int old_y = v->coord.top;
 
 	new_hash = (x == INVALID_COORD) ? nullptr : &_vehicle_viewport_hash[GEN_HASH(x, y)];
 	old_hash = (old_x == INVALID_COORD) ? nullptr : &_vehicle_viewport_hash[GEN_HASH(old_x, old_y)];
@@ -881,7 +880,7 @@ Vehicle::~Vehicle()
 	delete v;
 
 	UpdateVehicleTileHash(this, true);
-	UpdateVehicleViewportHash(this, INVALID_COORD, 0);
+	UpdateVehicleViewportHash(this, INVALID_COORD, 0, this->sprite_cache.old_coord.left, this->sprite_cache.old_coord.top);
 	DeleteVehicleNews(this->index, INVALID_STRING_ID);
 	DeleteNewGRFInspectWindow(GetGrfSpecFeature(this->type), this->index);
 }
@@ -973,7 +972,7 @@ void CallVehicleTicks()
 				Vehicle *front = v->First();
 
 				if (v->vcache.cached_cargo_age_period != 0) {
-					v->cargo_age_counter = min(v->cargo_age_counter, v->vcache.cached_cargo_age_period);
+					v->cargo_age_counter = std::min(v->cargo_age_counter, v->vcache.cached_cargo_age_period);
 					if (--v->cargo_age_counter == 0) {
 						v->cargo.AgeCargo();
 						v->cargo_age_counter = v->vcache.cached_cargo_age_period;
@@ -1092,10 +1091,10 @@ static void DoDrawVehicle(const Vehicle *v)
 	}
 
 	StartSpriteCombine();
-	for (uint i = 0; i < v->sprite_seq.count; ++i) {
-		PaletteID pal2 = v->sprite_seq.seq[i].pal;
+	for (uint i = 0; i < v->sprite_cache.sprite_seq.count; ++i) {
+		PaletteID pal2 = v->sprite_cache.sprite_seq.seq[i].pal;
 		if (!pal2 || (v->vehstatus & VS_CRASHED)) pal2 = pal;
-		AddSortableSpriteToDraw(v->sprite_seq.seq[i].sprite, pal2, v->x_pos + v->x_offs, v->y_pos + v->y_offs,
+		AddSortableSpriteToDraw(v->sprite_cache.sprite_seq.seq[i].sprite, pal2, v->x_pos + v->x_offs, v->y_pos + v->y_offs,
 			v->x_extent, v->y_extent, v->z_extent, v->z_pos, shadowed, v->x_bb_offs, v->y_bb_offs);
 	}
 	EndSpriteCombine();
@@ -1113,11 +1112,15 @@ void ViewportAddVehicles(DrawPixelInfo *dpi)
 	const int t = dpi->top;
 	const int b = dpi->top + dpi->height;
 
+	/* Border size of MAX_VEHICLE_PIXEL_xy */
+	const int xb = MAX_VEHICLE_PIXEL_X * ZOOM_LVL_BASE;
+	const int yb = MAX_VEHICLE_PIXEL_Y * ZOOM_LVL_BASE;
+
 	/* The hash area to scan */
 	int xl, xu, yl, yu;
 
-	if (dpi->width + (MAX_VEHICLE_PIXEL_X * ZOOM_LVL_BASE) < GEN_HASHX_SIZE) {
-		xl = GEN_HASHX(l - MAX_VEHICLE_PIXEL_X * ZOOM_LVL_BASE);
+	if (dpi->width + xb < GEN_HASHX_SIZE) {
+		xl = GEN_HASHX(l - xb);
 		xu = GEN_HASHX(r);
 	} else {
 		/* scan whole hash row */
@@ -1125,8 +1128,8 @@ void ViewportAddVehicles(DrawPixelInfo *dpi)
 		xu = GEN_HASHX_MASK;
 	}
 
-	if (dpi->height + (MAX_VEHICLE_PIXEL_Y * ZOOM_LVL_BASE) < GEN_HASHY_SIZE) {
-		yl = GEN_HASHY(t - MAX_VEHICLE_PIXEL_Y * ZOOM_LVL_BASE);
+	if (dpi->height + yb < GEN_HASHY_SIZE) {
+		yl = GEN_HASHY(t - yb);
 		yu = GEN_HASHY(b);
 	} else {
 		/* scan whole column */
@@ -1139,13 +1142,45 @@ void ViewportAddVehicles(DrawPixelInfo *dpi)
 			const Vehicle *v = _vehicle_viewport_hash[x + y]; // already masked & 0xFFF
 
 			while (v != nullptr) {
+
 				if (!(v->vehstatus & VS_HIDDEN) &&
-						l <= v->coord.right &&
+					l <= v->coord.right + xb &&
+					t <= v->coord.bottom + yb &&
+					r >= v->coord.left - xb &&
+					b >= v->coord.top - yb)
+				{
+					/*
+					 * This vehicle can potentially be drawn as part of this viewport and
+					 * needs to be revalidated, as the sprite may not be correct.
+					 */
+					if (v->sprite_cache.revalidate_before_draw) {
+						VehicleSpriteSeq seq;
+						v->GetImage(v->direction, EIT_ON_MAP, &seq);
+
+						if (seq.IsValid() && v->sprite_cache.sprite_seq != seq) {
+							v->sprite_cache.sprite_seq = seq;
+							/*
+							 * A sprite change may also result in a bounding box change,
+							 * so we need to update the bounding box again before we
+							 * check to see if the vehicle should be drawn. Note that
+							 * we can't interfere with the viewport hash at this point,
+							 * so we keep the original hash on the assumption there will
+							 * not be a significant change in the top and left coordinates
+							 * of the vehicle.
+							 */
+							v->UpdateBoundingBoxCoordinates(false);
+
+						}
+
+						v->sprite_cache.revalidate_before_draw = false;
+					}
+
+					if (l <= v->coord.right &&
 						t <= v->coord.bottom &&
 						r >= v->coord.left &&
-						b >= v->coord.top) {
-					DoDrawVehicle(v);
+						b >= v->coord.top) DoDrawVehicle(v);
 				}
+
 				v = v->hash_viewport_next;
 			}
 
@@ -1178,7 +1213,7 @@ Vehicle *CheckClickOnVehicle(const Viewport *vp, int x, int y)
 				x >= v->coord.left && x <= v->coord.right &&
 				y >= v->coord.top && y <= v->coord.bottom) {
 
-			dist = max(
+			dist = std::max(
 				abs(((v->coord.left + v->coord.right) >> 1) - x),
 				abs(((v->coord.top + v->coord.bottom) >> 1) - y)
 			);
@@ -1221,7 +1256,7 @@ void CheckVehicleBreakdown(Vehicle *v)
 	/* decrease reliability */
 	if (!_settings_game.order.no_servicing_if_no_breakdowns ||
 			_settings_game.difficulty.vehicle_breakdowns != 0) {
-		v->reliability = rel = max((rel_old = v->reliability) - v->reliability_spd_dec, 0);
+		v->reliability = rel = std::max((rel_old = v->reliability) - v->reliability_spd_dec, 0);
 		if ((rel_old >> 8) != (rel >> 8)) SetWindowDirty(WC_VEHICLE_DETAILS, v->index);
 	}
 
@@ -1236,7 +1271,7 @@ void CheckVehicleBreakdown(Vehicle *v)
 	/* increase chance of failure */
 	int chance = v->breakdown_chance + 1;
 	if (Chance16I(1, 25, r)) chance += 25;
-	v->breakdown_chance = min(255, chance);
+	v->breakdown_chance = std::min(255, chance);
 
 	/* calculate reliability value to use in comparison */
 	rel = v->reliability;
@@ -1246,7 +1281,7 @@ void CheckVehicleBreakdown(Vehicle *v)
 	if (_settings_game.difficulty.vehicle_breakdowns == 1) rel += 0x6666;
 
 	/* check if to break down */
-	if (_breakdown_chance[(uint)min(rel, 0xffff) >> 10] <= v->breakdown_chance) {
+	if (_breakdown_chance[(uint)std::min(rel, 0xffff) >> 10] <= v->breakdown_chance) {
 		v->breakdown_ctr    = GB(r, 16, 6) + 0x3F;
 		v->breakdown_delay  = GB(r, 24, 7) + 0x80;
 		v->breakdown_chance = 0;
@@ -1563,14 +1598,13 @@ void Vehicle::UpdatePosition()
 }
 
 /**
- * Update the vehicle on the viewport, updating the right hash and setting the
- *  new coordinates.
- * @param dirty Mark the (new and old) coordinates of the vehicle as dirty.
- */
-void Vehicle::UpdateViewport(bool dirty)
+ * Update the bounding box co-ordinates of the vehicle
+ * @param update_cache Update the cached values for previous co-ordinate values
+*/
+void Vehicle::UpdateBoundingBoxCoordinates(bool update_cache) const
 {
 	Rect new_coord;
-	this->sprite_seq.GetBounds(&new_coord);
+	this->sprite_cache.sprite_seq.GetBounds(&new_coord);
 
 	Point pt = RemapCoords(this->x_pos + this->x_offs, this->y_pos + this->y_offs, this->z_pos);
 	new_coord.left   += pt.x;
@@ -1578,20 +1612,44 @@ void Vehicle::UpdateViewport(bool dirty)
 	new_coord.right  += pt.x + 2 * ZOOM_LVL_BASE;
 	new_coord.bottom += pt.y + 2 * ZOOM_LVL_BASE;
 
-	UpdateVehicleViewportHash(this, new_coord.left, new_coord.top);
+	if (update_cache) {
+		/*
+		 * If the old coordinates are invalid, set the cache to the new coordinates for correct
+		 * behaviour the next time the coordinate cache is checked.
+		 */
+		this->sprite_cache.old_coord = this->coord.left == INVALID_COORD ? new_coord : this->coord;
+	}
+	else {
+		/* Extend the bounds of the existing cached bounding box so the next dirty window is correct */
+		this->sprite_cache.old_coord.left   = std::min(this->sprite_cache.old_coord.left,   this->coord.left);
+		this->sprite_cache.old_coord.top    = std::min(this->sprite_cache.old_coord.top,    this->coord.top);
+		this->sprite_cache.old_coord.right  = std::max(this->sprite_cache.old_coord.right,  this->coord.right);
+		this->sprite_cache.old_coord.bottom = std::max(this->sprite_cache.old_coord.bottom, this->coord.bottom);
+	}
 
-	Rect old_coord = this->coord;
 	this->coord = new_coord;
+}
+
+/**
+ * Update the vehicle on the viewport, updating the right hash and setting the new coordinates.
+ * @param dirty Mark the (new and old) coordinates of the vehicle as dirty.
+ */
+void Vehicle::UpdateViewport(bool dirty)
+{
+	Rect old_coord = this->sprite_cache.old_coord;
+
+	this->UpdateBoundingBoxCoordinates(true);
+	UpdateVehicleViewportHash(this, this->coord.left, this->coord.top, old_coord.left, old_coord.top);
 
 	if (dirty) {
 		if (old_coord.left == INVALID_COORD) {
-			this->MarkAllViewportsDirty();
+			this->sprite_cache.is_viewport_candidate = this->MarkAllViewportsDirty();
 		} else {
-			::MarkAllViewportsDirty(
-					min(old_coord.left,   this->coord.left),
-					min(old_coord.top,    this->coord.top),
-					max(old_coord.right,  this->coord.right),
-					max(old_coord.bottom, this->coord.bottom));
+			this->sprite_cache.is_viewport_candidate = ::MarkAllViewportsDirty(
+				std::min(this->sprite_cache.old_coord.left, this->coord.left),
+				std::min(this->sprite_cache.old_coord.top, this->coord.top),
+				std::max(this->sprite_cache.old_coord.right, this->coord.right),
+				std::max(this->sprite_cache.old_coord.bottom, this->coord.bottom));
 		}
 	}
 }
@@ -1607,10 +1665,11 @@ void Vehicle::UpdatePositionAndViewport()
 
 /**
  * Marks viewports dirty where the vehicle's image is.
+ * @return true if at least one viewport has a dirty block
  */
-void Vehicle::MarkAllViewportsDirty() const
+bool Vehicle::MarkAllViewportsDirty() const
 {
-	::MarkAllViewportsDirty(this->coord.left, this->coord.top, this->coord.right, this->coord.bottom);
+	return ::MarkAllViewportsDirty(this->coord.left, this->coord.top, this->coord.right, this->coord.bottom);
 }
 
 /**
@@ -1689,7 +1748,7 @@ FreeUnitIDGenerator::FreeUnitIDGenerator(VehicleType type, CompanyID owner) : ca
 	/* Find maximum */
 	for (const Vehicle *v : Vehicle::Iterate()) {
 		if (v->type == type && v->owner == owner) {
-			this->maxid = max<UnitID>(this->maxid, v->unitnumber);
+			this->maxid = std::max<UnitID>(this->maxid, v->unitnumber);
 		}
 	}
 
@@ -1757,7 +1816,6 @@ bool CanBuildVehicleInfrastructure(VehicleType type, byte subtype)
 	assert(IsCompanyBuildableVehicleType(type));
 
 	if (!Company::IsValidID(_local_company)) return false;
-	if (!_settings_client.gui.disable_unsuitable_building) return true;
 
 	UnitID max;
 	switch (type) {
@@ -2244,7 +2302,7 @@ void Vehicle::HandleLoading(bool mode)
 {
 	switch (this->current_order.GetType()) {
 		case OT_LOADING: {
-			uint wait_time = max(this->current_order.GetTimetabledWait() - this->lateness_counter, 0);
+			uint wait_time = std::max(this->current_order.GetTimetabledWait() - this->lateness_counter, 0);
 
 			/* Not the first call for this tick, or still loading */
 			if (mode || !HasBit(this->vehicle_flags, VF_LOADING_FINISHED) || this->current_order_time < wait_time) return;

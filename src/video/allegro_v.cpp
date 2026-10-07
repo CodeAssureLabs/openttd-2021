@@ -26,7 +26,6 @@
 #include "../thread.h"
 #include "allegro_v.h"
 #include <allegro.h>
-#include <algorithm>
 
 #include "../safeguards.h"
 
@@ -236,7 +235,7 @@ bool VideoDriver_Allegro::ClaimMousePointer()
 	return true;
 }
 
-struct VkMapping {
+struct AllegroVkMapping {
 	uint16 vk_from;
 	byte vk_count;
 	byte map_to;
@@ -245,7 +244,7 @@ struct VkMapping {
 #define AS(x, z) {x, 0, z}
 #define AM(x, y, z, w) {x, y - x, z}
 
-static const VkMapping _vk_mapping[] = {
+static const AllegroVkMapping _vk_mapping[] = {
 	/* Pageup stuff + up/down */
 	AM(KEY_PGUP, KEY_PGDN, WKC_PAGEUP, WKC_PAGEDOWN),
 	AS(KEY_UP,     WKC_UP),
@@ -303,7 +302,7 @@ static uint32 ConvertAllegroKeyIntoMy(WChar *character)
 	int scancode;
 	int unicode = ureadkey(&scancode);
 
-	const VkMapping *map;
+	const AllegroVkMapping *map;
 	uint key = 0;
 
 	for (map = _vk_mapping; map != endof(_vk_mapping); ++map) {
@@ -417,6 +416,8 @@ const char *VideoDriver_Allegro::Start(const StringList &parm)
 		return "Failed to set up Allegro";
 	}
 	_allegro_instance_count++;
+
+	this->UpdateAutoResolution();
 
 	install_timer();
 	install_mouse();

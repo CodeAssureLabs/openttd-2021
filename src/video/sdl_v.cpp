@@ -25,7 +25,6 @@
 #include <SDL.h>
 #include <mutex>
 #include <condition_variable>
-#include <algorithm>
 
 #include "../safeguards.h"
 
@@ -404,7 +403,7 @@ bool VideoDriver_SDL::ClaimMousePointer()
 	return true;
 }
 
-struct VkMapping {
+struct SDLVkMapping {
 #if SDL_VERSION_ATLEAST(1, 3, 0)
 	SDL_Keycode vk_from;
 #else
@@ -417,7 +416,7 @@ struct VkMapping {
 #define AS(x, z) {x, 0, z}
 #define AM(x, y, z, w) {x, (byte)(y - x), z}
 
-static const VkMapping _vk_mapping[] = {
+static const SDLVkMapping _vk_mapping[] = {
 	/* Pageup stuff + up/down */
 	AM(SDLK_PAGEUP, SDLK_PAGEDOWN, WKC_PAGEUP, WKC_PAGEDOWN),
 	AS(SDLK_UP,     WKC_UP),
@@ -471,7 +470,7 @@ static const VkMapping _vk_mapping[] = {
 
 static uint ConvertSdlKeyIntoMy(SDL_keysym *sym, WChar *character)
 {
-	const VkMapping *map;
+	const SDLVkMapping *map;
 	uint key = 0;
 
 	for (map = _vk_mapping; map != endof(_vk_mapping); ++map) {
@@ -583,8 +582,8 @@ int VideoDriver_SDL::PollEvent()
 			break;
 
 		case SDL_VIDEORESIZE: {
-			int w = max(ev.resize.w, 64);
-			int h = max(ev.resize.h, 64);
+			int w = std::max(ev.resize.w, 64);
+			int h = std::max(ev.resize.h, 64);
 			CreateMainSurface(w, h);
 			break;
 		}
@@ -614,6 +613,8 @@ const char *VideoDriver_SDL::Start(const StringList &parm)
 		ret_code = SDL_InitSubSystem(SDL_INIT_VIDEO);
 	}
 	if (ret_code < 0) return SDL_GetError();
+
+	this->UpdateAutoResolution();
 
 	GetVideoModes();
 	if (!CreateMainSurface(_cur_resolution.width, _cur_resolution.height)) {

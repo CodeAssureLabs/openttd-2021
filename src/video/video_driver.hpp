@@ -12,10 +12,20 @@
 
 #include "../driver.h"
 #include "../core/geometry_type.hpp"
+#include "../core/math_func.hpp"
+#include "../zoom_type.h"
 #include <vector>
+
+extern std::string _ini_videodriver;
+extern std::vector<Dimension> _resolutions;
+extern Dimension _cur_resolution;
+extern bool _rightclick_emulate;
 
 /** The base of all video drivers. */
 class VideoDriver : public Driver {
+	const uint DEFAULT_WINDOW_WIDTH = 640u;  ///< Default window width.
+	const uint DEFAULT_WINDOW_HEIGHT = 480u; ///< Default window height.
+
 public:
 	/**
 	 * Mark a particular area dirty.
@@ -97,16 +107,50 @@ public:
 	virtual void EditBoxGainedFocus() {}
 
 	/**
+	 * Get a suggested default GUI zoom taking screen DPI into account.
+	 */
+	virtual ZoomLevel GetSuggestedUIZoom()
+	{
+		float dpi_scale = this->GetDPIScale();
+
+		if (dpi_scale >= 3.0f) return ZOOM_LVL_NORMAL;
+		if (dpi_scale >= 1.5f) return ZOOM_LVL_OUT_2X;
+		return ZOOM_LVL_OUT_4X;
+	}
+
+	/**
 	 * Get the currently active instance of the video driver.
 	 */
 	static VideoDriver *GetInstance() {
 		return static_cast<VideoDriver*>(*DriverFactoryBase::GetActiveDriver(Driver::DT_VIDEO));
 	}
-};
 
-extern std::string _ini_videodriver;
-extern std::vector<Dimension> _resolutions;
-extern Dimension _cur_resolution;
-extern bool _rightclick_emulate;
+protected:
+	/**
+	 * Get the resolution of the main screen.
+	 */
+	virtual Dimension GetScreenSize() const { return { DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT }; }
+
+	/**
+	 * Get DPI scaling factor of the screen OTTD is displayed on.
+	 * @return 1.0 for default platform DPI, > 1.0 for higher DPI values, and < 1.0 for smaller DPI values.
+	 */
+	virtual float GetDPIScale() { return 1.0f; }
+
+	/**
+	 * Apply resolution auto-detection and clamp to sensible defaults.
+	 */
+	void UpdateAutoResolution()
+	{
+		if (_cur_resolution.width == 0 || _cur_resolution.height == 0) {
+			/* Auto-detect a good resolution. We aim for 75% of the screen size.
+			 * Limit width times height times bytes per pixel to fit a 32 bit
+			 * integer, This way all internal drawing routines work correctly. */
+			Dimension res = this->GetScreenSize();
+			_cur_resolution.width  = ClampU(res.width  * 3 / 4, DEFAULT_WINDOW_WIDTH, UINT16_MAX / 2);
+			_cur_resolution.height = ClampU(res.height * 3 / 4, DEFAULT_WINDOW_HEIGHT, UINT16_MAX / 2);
+		}
+	}
+};
 
 #endif /* VIDEO_VIDEO_DRIVER_HPP */

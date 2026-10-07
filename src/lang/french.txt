@@ -235,8 +235,6 @@ STR_TOOLTIP_SORT_ORDER                                          :{BLACK}Choisir 
 STR_TOOLTIP_SORT_CRITERIA                                       :{BLACK}Choisir le critère de tri
 STR_TOOLTIP_FILTER_CRITERIA                                     :{BLACK}Choisir le critère de filtrage
 STR_BUTTON_SORT_BY                                              :{BLACK}Trier par
-STR_BUTTON_LOCATION                                             :{BLACK}Emplacement
-STR_BUTTON_RENAME                                               :{BLACK}Renommer
 STR_BUTTON_CATCHMENT                                            :{BLACK}Couverture
 STR_TOOLTIP_CATCHMENT                                           :{BLACK}Basculer l'affichage de la zone couverte
 
@@ -750,6 +748,7 @@ STR_SMALLMAP_LEGENDA_DOCK                                       :{TINY_FONT}{BLA
 STR_SMALLMAP_LEGENDA_ROUGH_LAND                                 :{TINY_FONT}{BLACK}Terre en friche
 STR_SMALLMAP_LEGENDA_GRASS_LAND                                 :{TINY_FONT}{BLACK}Herbe
 STR_SMALLMAP_LEGENDA_BARE_LAND                                  :{TINY_FONT}{BLACK}Terre nue
+STR_SMALLMAP_LEGENDA_RAINFOREST                                 :{TINY_FONT}{BLACK}Région tropicale
 STR_SMALLMAP_LEGENDA_FIELDS                                     :{TINY_FONT}{BLACK}Champs
 STR_SMALLMAP_LEGENDA_TREES                                      :{TINY_FONT}{BLACK}Arbres
 STR_SMALLMAP_LEGENDA_ROCKS                                      :{TINY_FONT}{BLACK}Rochers
@@ -950,8 +949,6 @@ STR_GAME_OPTIONS_CURRENCY_HKD                                   :Dollar de Hong 
 STR_GAME_OPTIONS_CURRENCY_INR                                   :Roupie indienne (INR)
 ############ end of currency region
 
-STR_GAME_OPTIONS_ROAD_VEHICLES_FRAME                            :{BLACK}Véhicules routiers
-STR_GAME_OPTIONS_ROAD_VEHICLES_DROPDOWN_TOOLTIP                 :{BLACK}Choisir le côté de la route pour la conduite
 STR_GAME_OPTIONS_ROAD_VEHICLES_DROPDOWN_LEFT                    :Conduite à gauche
 STR_GAME_OPTIONS_ROAD_VEHICLES_DROPDOWN_RIGHT                   :Conduite à droite
 
@@ -1006,6 +1003,7 @@ STR_GAME_OPTIONS_RESOLUTION_OTHER                               :autre
 STR_GAME_OPTIONS_GUI_ZOOM_FRAME                                 :{BLACK}Taille d'interface
 STR_GAME_OPTIONS_GUI_ZOOM_DROPDOWN_TOOLTIP                      :{BLACK}Choisir la taille d'élément d'interface à utiliser
 
+STR_GAME_OPTIONS_GUI_ZOOM_DROPDOWN_AUTO                         :(auto-détection)
 STR_GAME_OPTIONS_GUI_ZOOM_DROPDOWN_NORMAL                       :Normal
 STR_GAME_OPTIONS_GUI_ZOOM_DROPDOWN_2X_ZOOM                      :Taille double
 STR_GAME_OPTIONS_GUI_ZOOM_DROPDOWN_4X_ZOOM                      :Taille quadruple
@@ -1013,6 +1011,7 @@ STR_GAME_OPTIONS_GUI_ZOOM_DROPDOWN_4X_ZOOM                      :Taille quadrupl
 STR_GAME_OPTIONS_FONT_ZOOM                                      :{BLACK}Taille de police
 STR_GAME_OPTIONS_FONT_ZOOM_DROPDOWN_TOOLTIP                     :{BLACK}Choisir la taille de police d'interface à utiliser
 
+STR_GAME_OPTIONS_FONT_ZOOM_DROPDOWN_AUTO                        :(auto-détection)
 STR_GAME_OPTIONS_FONT_ZOOM_DROPDOWN_NORMAL                      :Normal
 STR_GAME_OPTIONS_FONT_ZOOM_DROPDOWN_2X_ZOOM                     :Taille double
 STR_GAME_OPTIONS_FONT_ZOOM_DROPDOWN_4X_ZOOM                     :Taille quadruple
@@ -1452,6 +1451,8 @@ STR_CONFIG_SETTING_PERSISTENT_BUILDINGTOOLS                     :Conserver les o
 STR_CONFIG_SETTING_PERSISTENT_BUILDINGTOOLS_HELPTEXT            :Garde les outils de construction de ponts, tunnels, etc. ouverts après usage
 STR_CONFIG_SETTING_EXPENSES_LAYOUT                              :Regrouper les dépenses dans la fenêtre des finances{NBSP}: {STRING}
 STR_CONFIG_SETTING_EXPENSES_LAYOUT_HELPTEXT                     :Définit la mise en forme de la fenêtre des dépenses de la compagnie
+STR_CONFIG_SETTING_AUTO_REMOVE_SIGNALS                          :Retire automatiquement les signaux durant la construction de la voie ferrée: {STRING}
+STR_CONFIG_SETTING_AUTO_REMOVE_SIGNALS_HELPTEXT                 :Retire automatiquement les signaux durant la construction de la voie ferrée si les signaux sont sur le chemin. A noter que ça peut potentiellement mener à des accidents de trains.
 
 STR_CONFIG_SETTING_SOUND_TICKER                                 :Bulletin{NBSP}: {STRING}
 STR_CONFIG_SETTING_SOUND_TICKER_HELPTEXT                        :Jouer un son pour les bulletins
@@ -1836,7 +1837,7 @@ STR_ABANDON_SCENARIO_QUERY                                      :{YELLOW}Êtes-v
 # Cheat window
 STR_CHEATS                                                      :{WHITE}Triches
 STR_CHEATS_TOOLTIP                                              :{BLACK}Les cases à cocher montrent si vous avez déjà utilisé cette triche auparavant
-STR_CHEATS_WARNING                                              :{BLACK}Attention{NBSP}! Vous êtes sur le point de trahir vos adversaires. Vous et votre famille serez déshonoré pour l'éternité.
+STR_CHEATS_NOTE                                                 :{BLACK}Note{}: tout usage de ces paramètres sera enregistré dans la sauvegarde
 STR_CHEAT_MONEY                                                 :{LTBLUE}Augmenter l'argent de {CURRENCY_LONG}
 STR_CHEAT_CHANGE_COMPANY                                        :{LTBLUE}Jouer en tant que compagnie{NBSP}: {ORANGE}{COMMA}
 STR_CHEAT_EXTRA_DYNAMITE                                        :{LTBLUE}Bulldozer magique (enlèvement des industries et des objets fixes){NBSP}: {ORANGE}{STRING}
@@ -2123,7 +2124,6 @@ STR_NETWORK_COMPANY_LIST_NEW_COMPANY                            :Nouvelle compag
 # Network client list
 STR_NETWORK_CLIENTLIST_KICK                                     :Exclure
 STR_NETWORK_CLIENTLIST_BAN                                      :Bannir
-STR_NETWORK_CLIENTLIST_GIVE_MONEY                               :Donner de l'argent
 STR_NETWORK_CLIENTLIST_SPEAK_TO_ALL                             :Parler à tous
 STR_NETWORK_CLIENTLIST_SPEAK_TO_COMPANY                         :Parler à la compagnie
 STR_NETWORK_CLIENTLIST_SPEAK_TO_CLIENT                          :Message privé
@@ -2131,8 +2131,6 @@ STR_NETWORK_CLIENTLIST_SPEAK_TO_CLIENT                          :Message privé
 STR_NETWORK_SERVER                                              :Serveur
 STR_NETWORK_CLIENT                                              :Client
 STR_NETWORK_SPECTATORS                                          :Spectateurs
-
-STR_NETWORK_GIVE_MONEY_CAPTION                                  :{WHITE}Entrer le montant que vous voulez donner
 
 # Network set password
 STR_COMPANY_PASSWORD_CANCEL                                     :{BLACK}Ne pas sauver le mot de passe entré
@@ -2236,8 +2234,7 @@ STR_NETWORK_MESSAGE_CLIENT_COMPANY_SPECTATE                     :*** {STRING} a 
 STR_NETWORK_MESSAGE_CLIENT_COMPANY_NEW                          :*** {STRING} a lancé une nouvelle compagnie (n°{NBSP}{2:NUM})
 STR_NETWORK_MESSAGE_CLIENT_LEFT                                 :*** {STRING} a quitté la partie ({2:STRING})
 STR_NETWORK_MESSAGE_NAME_CHANGE                                 :*** {STRING} a changé son nom en {STRING}
-STR_NETWORK_MESSAGE_GIVE_MONEY                                  :*** {STRING} a donné {2:CURRENCY_LONG} à votre compagnie
-STR_NETWORK_MESSAGE_GAVE_MONEY_AWAY                             :*** Vous avez donné {2:CURRENCY_LONG} à {1:STRING}
+STR_NETWORK_MESSAGE_GIVE_MONEY                                  :*** {STRING} a donné {2:CURRENCY_LONG} à {1:STRING}
 STR_NETWORK_MESSAGE_SERVER_SHUTDOWN                             :{WHITE}Le serveur a fermé la session
 STR_NETWORK_MESSAGE_SERVER_REBOOT                               :{WHITE}Le serveur redémarre...{}Veuillez patienter...
 STR_NETWORK_MESSAGE_KICKED                                      :*** {STRING} a été exclu. Raison{NBSP}: ({STRING})
@@ -2355,6 +2352,9 @@ STR_JOIN_STATION_CREATE_SPLITTED_STATION                        :{YELLOW}Constru
 
 STR_JOIN_WAYPOINT_CAPTION                                       :{WHITE}Joindre un point de contrôle
 STR_JOIN_WAYPOINT_CREATE_SPLITTED_WAYPOINT                      :{YELLOW}Construire un point de contrôle séparé
+
+# Generic toolbar
+STR_TOOLBAR_DISABLED_NO_VEHICLE_AVAILABLE                       :{BLACK}Désactivé car aucun véhicule n'est actuellement disponible pour cette infrastructure
 
 # Rail construction toolbar
 STR_RAIL_TOOLBAR_RAILROAD_CONSTRUCTION_CAPTION                  :Construction de voie ferrée
@@ -2606,12 +2606,18 @@ STR_FOUND_TOWN_SELECT_LAYOUT_RANDOM                             :{BLACK}Aléatoi
 # Fund new industry window
 STR_FUND_INDUSTRY_CAPTION                                       :{WHITE}Financer une nouvelle industrie
 STR_FUND_INDUSTRY_SELECTION_TOOLTIP                             :{BLACK}Choisir l'industrie appropriée dans cette liste
-STR_FUND_INDUSTRY_MANY_RANDOM_INDUSTRIES                        :Beaucoup d'industries au hasard
+STR_FUND_INDUSTRY_MANY_RANDOM_INDUSTRIES                        :{BLACK}Créer des industries au hasard
 STR_FUND_INDUSTRY_MANY_RANDOM_INDUSTRIES_TOOLTIP                :{BLACK}Couvrir la carte d'industries placées au hasard
+STR_FUND_INDUSTRY_MANY_RANDOM_INDUSTRIES_CAPTION                :{WHITE}Créer des industries au hasard
+STR_FUND_INDUSTRY_MANY_RANDOM_INDUSTRIES_QUERY                  :{YELLOW}Êtes-vous sûr de vouloir créer beaucoup d'industries au hasard{NBSP}?
 STR_FUND_INDUSTRY_INDUSTRY_BUILD_COST                           :{BLACK}Prix{NBSP}: {YELLOW}{CURRENCY_LONG}
 STR_FUND_INDUSTRY_PROSPECT_NEW_INDUSTRY                         :{BLACK}Prospecter
 STR_FUND_INDUSTRY_BUILD_NEW_INDUSTRY                            :{BLACK}Construire
 STR_FUND_INDUSTRY_FUND_NEW_INDUSTRY                             :{BLACK}Fonder
+STR_FUND_INDUSTRY_REMOVE_ALL_INDUSTRIES                         :{BLACK}Enlever toutes les industries
+STR_FUND_INDUSTRY_REMOVE_ALL_INDUSTRIES_TOOLTIP                 :{BLACK}Enlève toutes les industries présentes sur la carte
+STR_FUND_INDUSTRY_REMOVE_ALL_INDUSTRIES_CAPTION                 :{WHITE}Enlever toutes les industries
+STR_FUND_INDUSTRY_REMOVE_ALL_INDUSTRIES_QUERY                   :{YELLOW}Êtes-vous sûr de vouloir enlever toutes les industries{NBSP}?
 
 # Industry cargoes window
 STR_INDUSTRY_CARGOES_INDUSTRY_CAPTION                           :{WHITE}Chaîne industrielle pour l'industrie «{NBSP}{STRING}{NBSP}»
@@ -2632,6 +2638,7 @@ STR_INDUSTRY_CARGOES_SELECT_INDUSTRY_TOOLTIP                    :{BLACK}Choisir 
 
 # Land area window
 STR_LAND_AREA_INFORMATION_CAPTION                               :{WHITE}Informations sur le terrain
+STR_LAND_AREA_INFORMATION_LOCATION_TOOLTIP                      :{BLACK}Centrer la vue sur la case. Ctrl-clic pour ouvrir une nouvelle vue sur la case
 STR_LAND_AREA_INFORMATION_COST_TO_CLEAR_N_A                     :{BLACK}Coût si démolition{NBSP}: {LTBLUE}N/D
 STR_LAND_AREA_INFORMATION_COST_TO_CLEAR                         :{BLACK}Coût si démolition{NBSP}: {RED}{CURRENCY_LONG}
 STR_LAND_AREA_INFORMATION_REVENUE_WHEN_CLEARED                  :{BLACK}Gain si démolition{NBSP}: {LTBLUE}{CURRENCY_LONG}
@@ -2841,6 +2848,8 @@ STR_SAVELOAD_DETAIL_GRFSTATUS                                   :{SILVER}NewGRF{
 STR_SAVELOAD_FILTER_TITLE                                       :{BLACK}Filtre{NBSP}:
 STR_SAVELOAD_OVERWRITE_TITLE                                    :{WHITE}Écraser le fichier
 STR_SAVELOAD_OVERWRITE_WARNING                                  :{YELLOW}Êtes-vous sûr de vouloir écraser le fichier existant{NBSP}?
+STR_SAVELOAD_DIRECTORY                                          :{STRING} (Répertoire)
+STR_SAVELOAD_PARENT_DIRECTORY                                   :{STRING} (Répertoire parent)
 
 STR_SAVELOAD_OSKTITLE                                           :{BLACK}Entrer un nom pour la sauvegarde
 
@@ -2859,7 +2868,6 @@ STR_MAPGEN_SNOW_LINE_HEIGHT                                     :{BLACK}Alt. d'e
 STR_MAPGEN_SNOW_LINE_UP                                         :{BLACK}Augmenter l'altitude d'enneigement
 STR_MAPGEN_SNOW_LINE_DOWN                                       :{BLACK}Baisser l'altitude d'enneigement
 STR_MAPGEN_LAND_GENERATOR                                       :{BLACK}Générateur{NBSP}:
-STR_MAPGEN_TREE_PLACER                                          :{BLACK}Ajout des arbres{NBSP}:
 STR_MAPGEN_TERRAIN_TYPE                                         :{BLACK}Type de terrain{NBSP}:
 STR_MAPGEN_QUANTITY_OF_SEA_LAKES                                :{BLACK}Niveau de la mer{NBSP}:
 STR_MAPGEN_QUANTITY_OF_RIVERS                                   :{BLACK}Nb. de rivières{NBSP}:
@@ -3102,6 +3110,7 @@ STR_SIGN_LIST_MATCH_CASE_TOOLTIP                                :{BLACK}Activer 
 
 # Sign window
 STR_EDIT_SIGN_CAPTION                                           :{WHITE}Éditer le texte du panneau
+STR_EDIT_SIGN_LOCATION_TOOLTIP                                  :{BLACK}Centrer la vue sur le panneau. Ctrl-clic pour ouvrir une nouvelle vue sur le panneau
 STR_EDIT_SIGN_NEXT_SIGN_TOOLTIP                                 :{BLACK}Aller au panneau suivant
 STR_EDIT_SIGN_PREVIOUS_SIGN_TOOLTIP                             :{BLACK}Aller au panneau précédent
 
@@ -3378,6 +3387,8 @@ STR_COMPANY_VIEW_RELOCATE_HQ                                    :{BLACK}Déména
 STR_COMPANY_VIEW_RELOCATE_COMPANY_HEADQUARTERS                  :{BLACK}Reconstruire ailleurs le siège de la compagnie pour le prix de 1{NBSP}% de sa valeur.{}Shift-clic pour afficher seulement le coût estimé.
 STR_COMPANY_VIEW_INFRASTRUCTURE_BUTTON                          :{BLACK}Détails
 STR_COMPANY_VIEW_INFRASTRUCTURE_TOOLTIP                         :{BLACK}Afficher le détail des calculs d'infrastructure
+STR_COMPANY_VIEW_GIVE_MONEY_BUTTON                              :Donner de l’argent
+STR_COMPANY_VIEW_GIVE_MONEY_TOOLTIP                             :{BLACK}Donner de l’argent à cette compagnie
 
 STR_COMPANY_VIEW_NEW_FACE_BUTTON                                :{BLACK}Nouveau visage
 STR_COMPANY_VIEW_NEW_FACE_TOOLTIP                               :{BLACK}Choix d'un nouveau visage pour le P.D.G.
@@ -3395,6 +3406,7 @@ STR_COMPANY_VIEW_SELL_SHARE_TOOLTIP                             :{BLACK}Vendre 2
 
 STR_COMPANY_VIEW_COMPANY_NAME_QUERY_CAPTION                     :Nom de la société
 STR_COMPANY_VIEW_PRESIDENT_S_NAME_QUERY_CAPTION                 :Nom du P.D.G.
+STR_COMPANY_VIEW_GIVE_MONEY_QUERY_CAPTION                       :Entrer le montant que vous souhaiter donner
 
 STR_BUY_COMPANY_MESSAGE                                         :{WHITE}Nous sommes à la recherche d'un repreneur pour notre compagnie{}{}Voulez-vous acheter {COMPANY} pour {CURRENCY_LONG}{NBSP}?
 
@@ -3755,10 +3767,10 @@ STR_REPLACE_REMOVE_WAGON_HELP                                   :{BLACK}Si l'aut
 # Vehicle view
 STR_VEHICLE_VIEW_CAPTION                                        :{WHITE}{VEHICLE}
 
-STR_VEHICLE_VIEW_TRAIN_LOCATION_TOOLTIP                         :{BLACK}Centrer la vue sur le train. Ctrl-clic pour le suivre dans la vue principale.
-STR_VEHICLE_VIEW_ROAD_VEHICLE_LOCATION_TOOLTIP                  :{BLACK}Centrer la vue sur le véhicule. Ctrl-clic pour le suivre dans la vue principale.
-STR_VEHICLE_VIEW_SHIP_LOCATION_TOOLTIP                          :{BLACK}Centrer la vue sur le navire. Ctrl-clic pour le suivre dans la vue principale.
-STR_VEHICLE_VIEW_AIRCRAFT_LOCATION_TOOLTIP                      :{BLACK}Centrer la vue sur l'aéronef. Ctrl-clic pour le suivre dans la vue principale.
+STR_VEHICLE_VIEW_TRAIN_CENTER_TOOLTIP                           :{BLACK}Centrer la vue sur le train. Double clic pour le suivre dans la vue principale. Ctrl-clic pour ouvrir une nouvelle vue sur le train
+STR_VEHICLE_VIEW_ROAD_VEHICLE_CENTER_TOOLTIP                    :{BLACK}Centrer la vue sur le véhicule. Double clic pour le suivre dans la vue principale. Ctrl-clic pour ouvrir une nouvelle vue sur le véhicule
+STR_VEHICLE_VIEW_SHIP_CENTER_TOOLTIP                            :{BLACK}Centrer la vue sur le navire. Double clic pour le suivre dans la vue principale. Ctrl-clic pour ouvrir une nouvelle vue sur le navire
+STR_VEHICLE_VIEW_AIRCRAFT_CENTER_TOOLTIP                        :{BLACK}Centrer la vue sur l'aéronef. Double clic pour le suivre dans la vue principale. Ctrl-clic pour ouvrir une nouvelle vue sur l'aéronef
 
 STR_VEHICLE_VIEW_TRAIN_SEND_TO_DEPOT_TOOLTIP                    :{BLACK}Envoyer le train au dépôt.{}Ctrl-clic pour un entretien seul.
 STR_VEHICLE_VIEW_ROAD_VEHICLE_SEND_TO_DEPOT_TOOLTIP             :{BLACK}Envoyer le véhicule au dépôt.{}Ctrl-clic pour un entretien seul.
@@ -3790,10 +3802,12 @@ STR_VEHICLE_VIEW_ROAD_VEHICLE_SHOW_DETAILS_TOOLTIP              :{BLACK}Afficher
 STR_VEHICLE_VIEW_SHIP_SHOW_DETAILS_TOOLTIP                      :{BLACK}Afficher les détails du navire
 STR_VEHICLE_VIEW_AIRCRAFT_SHOW_DETAILS_TOOLTIP                  :{BLACK}Afficher les détails de l'aéronef
 
-STR_VEHICLE_VIEW_TRAIN_STATE_START_STOP_TOOLTIP                 :{BLACK}Action courante du train - Cliquer pour le démarrer/l'arrêter. Ctrl-clic pour centrer la vue sur sa destination.
-STR_VEHICLE_VIEW_ROAD_VEHICLE_STATE_START_STOP_TOOLTIP          :{BLACK}Action courante du véhicule routier - Cliquer pour le démarrer/l'arrêter. Ctrl-clic pour centrer la vue sur sa destination.
-STR_VEHICLE_VIEW_SHIP_STATE_START_STOP_TOOLTIP                  :{BLACK}Action courante du navire - Cliquer pour le démarrer/l'arrêter. Ctrl-clic pour centrer la vue sur sa destination.
-STR_VEHICLE_VIEW_AIRCRAFT_STATE_START_STOP_TOOLTIP              :{BLACK}Action courante de l'aéronef - Cliquer pour le démarrer/l'arrêter. Ctrl-clic pour centrer la vue sur sa destination.
+STR_VEHICLE_VIEW_TRAIN_STATUS_START_STOP_TOOLTIP                :{BLACK}Action courante du train - cliquer pour le démarrer/l'arrêter
+STR_VEHICLE_VIEW_ROAD_VEHICLE_STATUS_START_STOP_TOOLTIP         :{BLACK}Action courante du véhicule - cliquer pour le démarrer/l'arrêter
+STR_VEHICLE_VIEW_SHIP_STATE_STATUS_STOP_TOOLTIP                 :{BLACK}Action courante du navire - cliquer pour le démarrer/l'arrêter
+STR_VEHICLE_VIEW_AIRCRAFT_STATUS_START_STOP_TOOLTIP             :{BLACK}Action courante de l'aéronef - cliquer pour le démarrer/l'arrêter
+
+STR_VEHICLE_VIEW_ORDER_LOCATION_TOOLTIP                         :{BLACK}Centrer la vue sur la destination. Ctrl-clic pour ouvrir une nouvelle vue sur la destination
 
 # Messages in the start stop button in the vehicle view
 STR_VEHICLE_STATUS_LOADING_UNLOADING                            :{LTBLUE}Chargement/Déchargement
@@ -4021,6 +4035,7 @@ STR_ORDER_REFIT_STOP_ORDER                                      :(Réaménager p
 STR_ORDER_STOP_ORDER                                            :(Arrêt)
 
 STR_ORDER_GO_TO_STATION                                         :{STRING} {STATION} {STRING}
+STR_ORDER_GO_TO_STATION_CAN_T_USE_STATION                       :{PUSH_COLOUR}{RED}(Station inutilisable){POP_COLOUR} {STRING} {STATION} {STRING}
 
 STR_ORDER_IMPLICIT                                              :(Implicite)
 
@@ -4346,6 +4361,7 @@ STR_ERROR_LOAN_ALREADY_REPAYED                                  :{WHITE}... empr
 STR_ERROR_CURRENCY_REQUIRED                                     :{WHITE}... {CURRENCY_LONG} nécessaires
 STR_ERROR_CAN_T_REPAY_LOAN                                      :{WHITE}Impossible de rembourser...
 STR_ERROR_INSUFFICIENT_FUNDS                                    :{WHITE}Impossible de distribuer de l'argent emprunté à la banque...
+STR_ERROR_CAN_T_GIVE_MONEY                                      :{WHITE}Vous ne pouvez pas donner de l’argent à cette compagnie
 STR_ERROR_CAN_T_BUY_COMPANY                                     :{WHITE}Impossible d'acheter la compagnie...
 STR_ERROR_CAN_T_BUILD_COMPANY_HEADQUARTERS                      :{WHITE}Impossible de construire le siège...
 STR_ERROR_CAN_T_BUY_25_SHARE_IN_THIS                            :{WHITE}Impossible d'acheter 25{NBSP}% des parts...
@@ -4472,6 +4488,8 @@ STR_ERROR_DEPOT_WRONG_DEPOT_TYPE                                :Dépôt incompa
 STR_ERROR_TRAIN_TOO_LONG_AFTER_REPLACEMENT                      :{WHITE}{VEHICLE} est trop long après remplacement
 STR_ERROR_AUTOREPLACE_NOTHING_TO_DO                             :{WHITE}Aucune règle de remplacement/renouvellement automatique appliquée
 STR_ERROR_AUTOREPLACE_MONEY_LIMIT                               :(limite d'argent)
+STR_ERROR_AUTOREPLACE_INCOMPATIBLE_CARGO                        :{WHITE}Le nouveau véhicule ne peut pas transporter {STRING}
+STR_ERROR_AUTOREPLACE_INCOMPATIBLE_REFIT                        :{WHITE}Le nouveau véhicule ne peut être réaménagé à l'ordre {NUM}
 
 # Rail construction errors
 STR_ERROR_IMPOSSIBLE_TRACK_COMBINATION                          :{WHITE}Combinaison de rails impossible
@@ -4679,7 +4697,7 @@ STR_TOWN_BUILDING_NAME_OFFICE_BLOCK_1                           :Immeuble de bur
 STR_TOWN_BUILDING_NAME_SMALL_BLOCK_OF_FLATS_1                   :Petit immeuble résidentiel
 STR_TOWN_BUILDING_NAME_CHURCH_1                                 :Église
 STR_TOWN_BUILDING_NAME_LARGE_OFFICE_BLOCK_1                     :Gros immeuble de bureaux
-STR_TOWN_BUILDING_NAME_TOWN_HOUSES_1                            :Bâtiments municipaux
+STR_TOWN_BUILDING_NAME_TOWN_HOUSES_1                            :Maisons de ville
 STR_TOWN_BUILDING_NAME_HOTEL_1                                  :Hôtel
 STR_TOWN_BUILDING_NAME_STATUE_1                                 :Statue
 STR_TOWN_BUILDING_NAME_FOUNTAIN_1                               :Fontaine
