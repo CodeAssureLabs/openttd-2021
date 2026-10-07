@@ -10,10 +10,7 @@
 #ifndef DBG_HELPERS_H
 #define DBG_HELPERS_H
 
-#include <map>
 #include <stack>
-
-#include "str.hpp"
 
 #include "../direction_type.h"
 #include "../signal_type.h"
@@ -26,7 +23,7 @@ template <typename T> struct ArrayT;
 /** Helper template class that provides C array length and item type */
 template <typename T, size_t N> struct ArrayT<T[N]> {
 	static const size_t length = N;
-	typedef T item_t;
+	using Item = T;
 };
 
 
@@ -35,9 +32,9 @@ template <typename T, size_t N> struct ArrayT<T[N]> {
  * or t_unk when index is out of bounds.
  */
 template <typename E, typename T>
-inline typename ArrayT<T>::item_t ItemAtT(E idx, const T &t, typename ArrayT<T>::item_t t_unk)
+inline typename ArrayT<T>::Item ItemAtT(E idx, const T &t, typename ArrayT<T>::Item t_unk)
 {
-	if ((size_t)idx >= ArrayT<T>::length) {
+	if (static_cast<size_t>(idx) >= ArrayT<T>::length) {
 		return t_unk;
 	}
 	return t[idx];
@@ -49,9 +46,9 @@ inline typename ArrayT<T>::item_t ItemAtT(E idx, const T &t, typename ArrayT<T>:
  * or t_unk when index is out of bounds.
  */
 template <typename E, typename T>
-inline typename ArrayT<T>::item_t ItemAtT(E idx, const T &t, typename ArrayT<T>::item_t t_unk, E idx_inv, typename ArrayT<T>::item_t t_inv)
+inline typename ArrayT<T>::Item ItemAtT(E idx, const T &t, typename ArrayT<T>::Item t_unk, E idx_inv, typename ArrayT<T>::Item t_inv)
 {
-	if ((size_t)idx < ArrayT<T>::length) {
+	if (static_cast<size_t>(idx) < ArrayT<T>::length) {
 		return t[idx];
 	}
 	if (idx == idx_inv) {
@@ -67,9 +64,9 @@ inline typename ArrayT<T>::item_t ItemAtT(E idx, const T &t, typename ArrayT<T>:
  * or t_unk when index is out of bounds.
  */
 template <typename E, typename T>
-inline CStrA ComposeNameT(E value, T &t, const char *t_unk, E val_inv, const char *name_inv)
+inline std::string ComposeNameT(E value, T &t, const char *t_unk, E val_inv, const char *name_inv)
 {
-	CStrA out;
+	std::string out;
 	if (value == val_inv) {
 		out = name_inv;
 	} else if (value == 0) {
@@ -77,18 +74,22 @@ inline CStrA ComposeNameT(E value, T &t, const char *t_unk, E val_inv, const cha
 	} else {
 		for (size_t i = 0; i < ArrayT<T>::length; i++) {
 			if ((value & (1 << i)) == 0) continue;
-			out.AddFormat("%s%s", (out.Size() > 0 ? "+" : ""), (const char*)t[i]);
+			out += (!out.empty() ? "+" : "");
+			out += t[i];
 			value &= ~(E)(1 << i);
 		}
-		if (value != 0) out.AddFormat("%s%s", (out.Size() > 0 ? "+" : ""), t_unk);
+		if (value != 0) {
+			out += (!out.empty() ? "+" : "");
+			out += t_unk;
+		}
 	}
-	return out.Transfer();
+	return out;
 }
 
-CStrA ValueStr(Trackdir td);
-CStrA ValueStr(TrackdirBits td_bits);
-CStrA ValueStr(DiagDirection dd);
-CStrA ValueStr(SignalType t);
+std::string ValueStr(Trackdir td);
+std::string ValueStr(TrackdirBits td_bits);
+std::string ValueStr(DiagDirection dd);
+std::string ValueStr(SignalType t);
 
 /** Class that represents the dump-into-string target. */
 struct DumpTarget {
@@ -103,12 +104,6 @@ struct DumpTarget {
 			, m_ptr(ptr)
 		{}
 
-		KnownStructKey(const KnownStructKey &src)
-		{
-			m_type_id = src.m_type_id;
-			m_ptr = src.m_ptr;
-		}
-
 		bool operator<(const KnownStructKey &other) const
 		{
 			if ((size_t)m_ptr < (size_t)other.m_ptr) return true;
@@ -118,54 +113,83 @@ struct DumpTarget {
 		}
 	};
 
-	typedef std::map<KnownStructKey, CStrA> KNOWN_NAMES;
+	typedef std::map<KnownStructKey, std::string> KNOWN_NAMES;
 
-	CStrA              m_out;         ///< the output string
-	int                m_indent;      ///< current indent/nesting level
-	std::stack<CStrA>  m_cur_struct;  ///< here we will track the current structure name
-	KNOWN_NAMES        m_known_names; ///< map of known object instances and their structured names
+	std::string m_out;                    ///< the output string
+	int m_indent;                         ///< current indent/nesting level
+	std::stack<std::string> m_cur_struct; ///< here we will track the current structure name
+	KNOWN_NAMES m_known_names;            ///< map of known object instances and their structured names
 
 	DumpTarget()
 		: m_indent(0)
 	{}
 
-	static size_t& LastTypeId();
-	CStrA GetCurrentStructName();
-	bool FindKnownName(size_t type_id, const void *ptr, CStrA &name);
+	static size_t &LastTypeId();
+	std::string GetCurrentStructName();
+	bool FindKnownName(size_t type_id, const void *ptr, std::string &name);
 
 	void WriteIndent();
 
-	void CDECL WriteLine(const char *format, ...) WARN_FORMAT(2, 3);
-	void WriteValue(const char *name, const char *value_str);
-	void WriteTile(const char *name, TileIndex t);
+	void WriteValue(const std::string &name, int value);
+	void WriteValue(const std::string &name, const std::string &value_str);
+	void WriteTile(const std::string &name, TileIndex t);
 
 	/** Dump given enum value (as a number and as named value) */
-	template <typename E> void WriteEnumT(const char *name, E e)
+	template <typename E> void WriteEnumT(const std::string &name, E e)
 	{
-		WriteValue(name, ValueStr(e).Data());
+		WriteValue(name, ValueStr(e));
 	}
 
-	void BeginStruct(size_t type_id, const char *name, const void *ptr);
+	void BeginStruct(size_t type_id, const std::string &name, const void *ptr);
 	void EndStruct();
 
 	/** Dump nested object (or only its name if this instance is already known). */
-	template <typename S> void WriteStructT(const char *name, const S *s)
+	template <typename S> void WriteStructT(const std::string &name, const S *s)
 	{
 		static size_t type_id = ++LastTypeId();
 
 		if (s == nullptr) {
 			/* No need to dump nullptr struct. */
-			WriteLine("%s = <null>", name);
+			WriteValue(name, "<null>");
 			return;
 		}
-		CStrA known_as;
+		std::string known_as;
 		if (FindKnownName(type_id, s, known_as)) {
 			/* We already know this one, no need to dump it. */
-			WriteLine("%s = known_as.%s", name, known_as.Data());
+			std::string known_as_str = std::string("known_as.") + name;
+			WriteValue(name, known_as_str);
 		} else {
 			/* Still unknown, dump it */
 			BeginStruct(type_id, name, s);
 			s->Dump(*this);
+			EndStruct();
+		}
+	}
+
+	/** Dump nested object (or only its name if this instance is already known). */
+	template <typename S> void WriteStructT(const std::string &name, const std::deque<S> *s)
+	{
+		static size_t type_id = ++LastTypeId();
+
+		if (s == nullptr) {
+			/* No need to dump nullptr struct. */
+			WriteValue(name, "<null>");
+			return;
+		}
+		std::string known_as;
+		if (FindKnownName(type_id, s, known_as)) {
+			/* We already know this one, no need to dump it. */
+			std::string known_as_str = std::string("known_as.") + name;
+			WriteValue(name, known_as_str);
+		} else {
+			/* Still unknown, dump it */
+			BeginStruct(type_id, name, s);
+			size_t num_items = s->size();
+			this->WriteValue("num_items", std::to_string(num_items));
+			for (size_t i = 0; i < num_items; i++) {
+				const auto &item = (*s)[i];
+				this->WriteStructT(fmt::format("item[{}]", i), &item);
+			}
 			EndStruct();
 		}
 	}

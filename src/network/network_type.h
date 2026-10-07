@@ -10,7 +10,7 @@
 #ifndef NETWORK_TYPE_H
 #define NETWORK_TYPE_H
 
-#include "core/game.h"
+#include "../core/enum_type.hpp"
 
 /** How many clients can we have */
 static const uint MAX_CLIENTS = 255;
@@ -35,18 +35,28 @@ enum NetworkVehicleType {
 	NETWORK_VEH_END
 };
 
+/**
+ * Game type the server can be using.
+ * Used on the network protocol to communicate with Game Coordinator.
+ */
+enum ServerGameType : uint8_t {
+	SERVER_GAME_TYPE_LOCAL = 0,
+	SERVER_GAME_TYPE_PUBLIC,
+	SERVER_GAME_TYPE_INVITE_ONLY,
+};
+
 /** 'Unique' identifier to be given to clients */
-enum ClientID : uint32 {
+enum ClientID : uint32_t {
 	INVALID_CLIENT_ID = 0, ///< Client is not part of anything
 	CLIENT_ID_SERVER  = 1, ///< Servers always have this ID
 	CLIENT_ID_FIRST   = 2, ///< The first client ID
 };
 
 /** Indices into the client tables */
-typedef uint8 ClientIndex;
+typedef uint8_t ClientIndex;
 
 /** Indices into the admin tables. */
-typedef uint8 AdminIndex;
+typedef uint8_t AdminIndex;
 
 /** Maximum number of allowed admins. */
 static const AdminIndex MAX_ADMINS = 16;
@@ -55,15 +65,9 @@ static const AdminIndex INVALID_ADMIN_ID = UINT8_MAX;
 
 /** Simple calculated statistics of a company */
 struct NetworkCompanyStats {
-	uint16 num_vehicle[NETWORK_VEH_END];            ///< How many vehicles are there of this type?
-	uint16 num_station[NETWORK_VEH_END];            ///< How many stations are there of this type?
+	uint16_t num_vehicle[NETWORK_VEH_END];            ///< How many vehicles are there of this type?
+	uint16_t num_station[NETWORK_VEH_END];            ///< How many stations are there of this type?
 	bool ai;                                        ///< Is this company an AI
-};
-
-/** Some state information of a company, especially for servers */
-struct NetworkCompanyState {
-	char password[NETWORK_PASSWORD_LENGTH];         ///< The password for the company
-	uint16 months_empty;                            ///< How many months the company is empty
 };
 
 struct NetworkClientInfo;
@@ -78,11 +82,12 @@ enum NetworkPasswordType {
  * Destination of our chat messages.
  * @warning The values of the enum items are part of the admin network API. Only append at the end.
  */
-enum DestType {
+enum DestType : uint8_t {
 	DESTTYPE_BROADCAST, ///< Send message/notice to all clients (All)
 	DESTTYPE_TEAM,      ///< Send message/notice to everyone playing the same company (Team)
 	DESTTYPE_CLIENT,    ///< Send message/notice to only a certain client (Private)
 };
+DECLARE_ENUM_AS_ADDABLE(DestType)
 
 /**
  * Actions that can be used for NetworkTextMessage.
@@ -101,6 +106,7 @@ enum NetworkAction {
 	NETWORK_ACTION_COMPANY_JOIN,
 	NETWORK_ACTION_COMPANY_NEW,
 	NETWORK_ACTION_KICKED,
+	NETWORK_ACTION_EXTERNAL_CHAT,
 };
 
 /**
@@ -132,8 +138,23 @@ enum NetworkErrorCode {
 	NETWORK_ERROR_TIMEOUT_COMPUTER,
 	NETWORK_ERROR_TIMEOUT_MAP,
 	NETWORK_ERROR_TIMEOUT_JOIN,
+	NETWORK_ERROR_INVALID_CLIENT_NAME,
+	NETWORK_ERROR_NOT_ON_ALLOW_LIST,
 
 	NETWORK_ERROR_END,
+};
+
+/**
+ * Simple helper to (more easily) manage authorized keys.
+ *
+ * The authorized keys are hexadecimal representations of their binary form.
+ * The authorized keys are case insensitive.
+ */
+class NetworkAuthorizedKeys : public std::vector<std::string> {
+public:
+	bool Contains(std::string_view key) const;
+	bool Add(std::string_view key);
+	bool Remove(std::string_view key);
 };
 
 #endif /* NETWORK_TYPE_H */

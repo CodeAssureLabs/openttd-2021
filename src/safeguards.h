@@ -28,7 +28,7 @@
 /* Use ReallocT instead. */
 #define realloc   SAFEGUARD_DO_NOT_USE_THIS_METHOD
 
-/* Use stredup instead. */
+/* Use std::string instead. */
 #define strdup    SAFEGUARD_DO_NOT_USE_THIS_METHOD
 #define strndup   SAFEGUARD_DO_NOT_USE_THIS_METHOD
 
@@ -36,15 +36,15 @@
 #define strcpy    SAFEGUARD_DO_NOT_USE_THIS_METHOD
 #define strncpy   SAFEGUARD_DO_NOT_USE_THIS_METHOD
 
-/* Use strecat instead. */
+/* Use std::string concatenation/fmt::format instead. */
 #define strcat    SAFEGUARD_DO_NOT_USE_THIS_METHOD
 #define strncat   SAFEGUARD_DO_NOT_USE_THIS_METHOD
 
-/* Use seprintf instead. */
+/* Use fmt::format instead. */
 #define sprintf   SAFEGUARD_DO_NOT_USE_THIS_METHOD
 #define snprintf  SAFEGUARD_DO_NOT_USE_THIS_METHOD
 
-/* Use vseprintf instead. */
+/* Use fmt::format instead. */
 #define vsprintf  SAFEGUARD_DO_NOT_USE_THIS_METHOD
 #define vsnprintf SAFEGUARD_DO_NOT_USE_THIS_METHOD
 
@@ -53,6 +53,13 @@
 
 /* No clear replacement. */
 #define strtok    SAFEGUARD_DO_NOT_USE_THIS_METHOD
+
+/* Use fmt::print instead. */
+#define printf    SAFEGUARD_DO_NOT_USE_THIS_METHOD
+#define fprintf   SAFEGUARD_DO_NOT_USE_THIS_METHOD
+#define puts      SAFEGUARD_DO_NOT_USE_THIS_METHOD
+#define fputs     SAFEGUARD_DO_NOT_USE_THIS_METHOD
+#define putchar   SAFEGUARD_DO_NOT_USE_THIS_METHOD
 
 /* Use our own templated implementation instead of a macro or function with only one type. */
 #ifdef min
@@ -68,5 +75,18 @@
 #ifdef abs
 #undef abs
 #endif
+
+#if defined(NETWORK_CORE_OS_ABSTRACTION_H) && defined(_WIN32)
+/* Use NetworkError::GetLast() instead of errno, or do not (indirectly) include network/core/os_abstraction.h.
+ * Winsock does not set errno, but one should rather call WSAGetLastError. NetworkError::GetLast abstracts that away. */
+#ifdef errno
+#undef errno
+#endif
+#define errno    SAFEGUARD_DO_NOT_USE_THIS_METHOD
+
+/* Use NetworkError::AsString() instead of strerror, or do not (indirectly) include network/core/os_abstraction.h.
+ * Winsock errors are not handled by strerror, but one should rather call FormatMessage. NetworkError::AsString abstracts that away. */
+#define strerror SAFEGUARD_DO_NOT_USE_THIS_METHOD
+#endif /* defined(NETWORK_CORE_OS_ABSTRACTION_H) && defined(_WIN32) */
 
 #endif /* SAFEGUARDS_H */

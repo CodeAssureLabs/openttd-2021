@@ -19,8 +19,7 @@
 
 ScriptCargoList::ScriptCargoList()
 {
-	const CargoSpec *cs;
-	FOR_ALL_CARGOSPECS(cs) {
+	for (const CargoSpec *cs : CargoSpec::Iterate()) {
 		this->AddItem(cs->Index());
 	}
 }
@@ -30,10 +29,9 @@ ScriptCargoList_IndustryAccepting::ScriptCargoList_IndustryAccepting(IndustryID 
 	if (!ScriptIndustry::IsValidIndustry(industry_id)) return;
 
 	Industry *ind = ::Industry::Get(industry_id);
-	for (uint i = 0; i < lengthof(ind->accepts_cargo); i++) {
-		CargoID cargo_id = ind->accepts_cargo[i];
-		if (cargo_id != CT_INVALID) {
-			this->AddItem(cargo_id);
+	for (const auto &a : ind->accepted) {
+		if (::IsValidCargoID(a.cargo)) {
+			this->AddItem(a.cargo);
 		}
 	}
 }
@@ -43,10 +41,9 @@ ScriptCargoList_IndustryProducing::ScriptCargoList_IndustryProducing(IndustryID 
 	if (!ScriptIndustry::IsValidIndustry(industry_id)) return;
 
 	Industry *ind = ::Industry::Get(industry_id);
-	for (uint i = 0; i < lengthof(ind->produced_cargo); i++) {
-		CargoID cargo_id = ind->produced_cargo[i];
-		if (cargo_id != CT_INVALID) {
-			this->AddItem(cargo_id);
+	for (const auto &p : ind->produced) {
+		if (::IsValidCargoID(p.cargo)) {
+			this->AddItem(p.cargo);
 		}
 	}
 }
