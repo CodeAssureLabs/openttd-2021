@@ -9,13 +9,13 @@
 
 #include "../../stdafx.h"
 #include "../../script/squirrel.hpp"
-#include "../../command_func.h"
 #include "../../company_func.h"
 #include "../../company_base.h"
 #include "../../network/network.h"
 #include "../../genworld.h"
 #include "../../string_func.h"
 #include "../../strings_func.h"
+#include "../../command_func.h"
 
 #include "../script_storage.hpp"
 #include "../script_instance.hpp"
@@ -82,24 +82,22 @@ ScriptObject::ActiveInstance::~ActiveInstance()
 	return GetStorage()->mode_instance;
 }
 
-/* static */ void ScriptObject::SetLastCommand(TileIndex tile, uint32 p1, uint32 p2, uint32 cmd)
+/* static */ void ScriptObject::SetLastCommand(TileIndex tile, const CommandDataBuffer &data, Commands cmd)
 {
 	ScriptStorage *s = GetStorage();
-	DEBUG(script, 6, "SetLastCommand company=%02d tile=%06x p1=%08x p2=%08x cmd=%d", s->root_company, tile, p1, p2, cmd);
+	Debug(script, 6, "SetLastCommand company={:02d} tile={:06x} cmd={} data={}", s->root_company, tile, cmd, FormatArrayAsHex(data));
 	s->last_tile = tile;
-	s->last_p1 = p1;
-	s->last_p2 = p2;
-	s->last_cmd = cmd & CMD_ID_MASK;
+	s->last_data = data;
+	s->last_cmd = cmd;
 }
 
-/* static */ bool ScriptObject::CheckLastCommand(TileIndex tile, uint32 p1, uint32 p2, uint32 cmd)
+/* static */ bool ScriptObject::CheckLastCommand(TileIndex tile, const CommandDataBuffer &data, Commands cmd)
 {
 	ScriptStorage *s = GetStorage();
-	DEBUG(script, 6, "CheckLastCommand company=%02d tile=%06x p1=%08x p2=%08x cmd=%d", s->root_company, tile, p1, p2, cmd);
+	Debug(script, 6, "CheckLastCommand company={:02d} tile={:06x} cmd={} data={}", s->root_company, tile, cmd, FormatArrayAsHex(data));
 	if (s->last_tile != tile) return false;
-	if (s->last_p1 != p1) return false;
-	if (s->last_p2 != p2) return false;
-	if (s->last_cmd != (cmd & CMD_ID_MASK)) return false;
+	if (s->last_cmd != cmd) return false;
+	if (s->last_data != data) return false;
 	return true;
 }
 
@@ -283,7 +281,7 @@ ScriptObject::ActiveInstance::~ActiveInstance()
 {
 	char buffer[64];
 	::GetString(buffer, string, lastof(buffer));
-	::str_validate(buffer, lastof(buffer), SVS_NONE);
+	::StrMakeValidInPlace(buffer, lastof(buffer), SVS_NONE);
 	return ::stredup(buffer);
 }
 
@@ -298,37 +296,34 @@ ScriptObject::ActiveInstance::~ActiveInstance()
 	return GetStorage()->callback_value[index];
 }
 
-/* static */ bool ScriptObject::DoCommand(TileIndex tile, uint32 p1, uint32 p2, uint cmd, const char *text, Script_SuspendCallbackProc *callback)
+/* static */ CommandCallback *ScriptObject::GetDoCommandCallback()
+{
+	return ScriptObject::GetActiveInstance()->GetDoCommandCallback();
+}
+
+std::tuple<bool, bool, bool> ScriptObject::DoCommandPrep()
 {
 	if (!ScriptObject::CanSuspend()) {
 		throw Script_FatalError("You are not allowed to execute any DoCommand (even indirect) in your constructor, Save(), Load(), and any valuator.");
 	}
 
-	if (ScriptObject::GetCompany() != OWNER_DEITY && !::Company::IsValidID(ScriptObject::GetCompany())) {
-		ScriptObject::SetLastError(ScriptError::ERR_PRECONDITION_INVALID_COMPANY);
-		return false;
-	}
-
-	if (!StrEmpty(text) && (GetCommandFlags(cmd) & CMD_STR_CTRL) == 0) {
-		/* The string must be valid, i.e. not contain special codes. Since some
-		 * can be made with GSText, make sure the control codes are removed. */
-		::str_validate(const_cast<char *>(text), text + strlen(text), SVS_NONE);
-	}
-
-	/* Set the default callback to return a true/false result of the DoCommand */
-	if (callback == nullptr) callback = &ScriptInstance::DoCommandReturn;
-
 	/* Are we only interested in the estimate costs? */
 	bool estimate_only = GetDoCommandMode() != nullptr && !GetDoCommandMode()();
 
-	/* Only set p2 when the command does not come from the network. */
-	if (GetCommandFlags(cmd) & CMD_CLIENT_ID && p2 == 0) p2 = UINT32_MAX;
+	bool networking = _networking && !_generating_world;
 
-	/* Store the command for command callback validation. */
-	if (!estimate_only && _networking && !_generating_world) SetLastCommand(tile, p1, p2, cmd);
+	if (ScriptObject::GetCompany() != OWNER_DEITY && !::Company::IsValidID(ScriptObject::GetCompany())) {
+		ScriptObject::SetLastError(ScriptError::ERR_PRECONDITION_INVALID_COMPANY);
+		return { true, estimate_only, networking };
+	}
 
-	/* Try to perform the command. */
-	CommandCost res = ::DoCommandPInternal(tile, p1, p2, cmd, (_networking && !_generating_world) ? ScriptObject::GetActiveInstance()->GetDoCommandCallback() : nullptr, text, false, estimate_only);
+	return { false, estimate_only, networking };
+}
+
+bool ScriptObject::DoCommandProcessResult(const CommandCost &res, Script_SuspendCallbackProc *callback, bool estimate_only)
+{
+	/* Set the default callback to return a true/false result of the DoCommand */
+	if (callback == nullptr) callback = &ScriptInstance::DoCommandReturn;
 
 	/* We failed; set the error and bail out */
 	if (res.Failed()) {
@@ -365,7 +360,7 @@ ScriptObject::ActiveInstance::~ActiveInstance()
 		IncreaseDoCommandCosts(res.GetCost());
 
 		/* Suspend the script player for 1+ ticks, so it simulates multiplayer. This
-		 *  both avoids confusion when a developer launched his script in a
+		 *  both avoids confusion when a developer launched the script in a
 		 *  multiplayer game, but also gives time for the GUI and human player
 		 *  to interact with the game. */
 		throw Script_Suspend(GetDoCommandDelay(), callback);

@@ -25,6 +25,7 @@
 #include "game/game.hpp"
 #include "script/api/script_story_page.hpp"
 #include "script/api/script_event_types.hpp"
+#include "story_cmd.h"
 
 #include "safeguards.h"
 
@@ -196,15 +197,15 @@ bool StoryPageButtonData::ValidateVehicleType() const
 
 /**
  * Create a new story page.
- * @param tile unused.
  * @param flags type of operation
+ * @param tile unused.
  * @param p1 various bitstuffed elements
  * - p1 = (bit  0 -  7) - Company for which this story page belongs to.
  * @param p2 unused.
  * @param text Title of the story page. Null is allowed in which case a generic page title is provided by OpenTTD.
  * @return the cost of this operation or an error
  */
-CommandCost CmdCreateStoryPage(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 p2, const char *text)
+CommandCost CmdCreateStoryPage(DoCommandFlag flags, TileIndex tile, uint32 p1, uint32 p2, const std::string &text)
 {
 	if (!StoryPage::CanAllocateItem()) return CMD_ERROR;
 
@@ -223,10 +224,10 @@ CommandCost CmdCreateStoryPage(TileIndex tile, DoCommandFlag flags, uint32 p1, u
 		s->sort_value = _story_page_next_sort_value;
 		s->date = _date;
 		s->company = company;
-		if (StrEmpty(text)) {
+		if (text.empty()) {
 			s->title = nullptr;
 		} else {
-			s->title = stredup(text);
+			s->title = stredup(text.c_str());
 		}
 
 		InvalidateWindowClassesData(WC_STORY_BOOK, -1);
@@ -241,8 +242,8 @@ CommandCost CmdCreateStoryPage(TileIndex tile, DoCommandFlag flags, uint32 p1, u
 
 /**
  * Create a new story page element.
- * @param tile Tile location if it is a location page element, otherwise unused.
  * @param flags type of operation
+ * @param tile Tile location if it is a location page element, otherwise unused.
  * @param p1 various bitstuffed elements
  * - p1 = (bit  0 -  15) - The page which the element belongs to.
  *        (bit  16 -  23) - Page element type
@@ -250,7 +251,7 @@ CommandCost CmdCreateStoryPage(TileIndex tile, DoCommandFlag flags, uint32 p1, u
  * @param text Text content in case it is a text or location page element
  * @return the cost of this operation or an error
  */
-CommandCost CmdCreateStoryPageElement(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 p2, const char *text)
+CommandCost CmdCreateStoryPageElement(DoCommandFlag flags, TileIndex tile, uint32 p1, uint32 p2, const std::string &text)
 {
 	if (!StoryPageElement::CanAllocateItem()) return CMD_ERROR;
 
@@ -266,7 +267,7 @@ CommandCost CmdCreateStoryPageElement(TileIndex tile, DoCommandFlag flags, uint3
 
 	if (_current_company != OWNER_DEITY) return CMD_ERROR;
 	if (!StoryPage::IsValidID(page_id)) return CMD_ERROR;
-	if (!VerifyElementContentParameters(page_id, type, tile, p2, text)) return CMD_ERROR;
+	if (!VerifyElementContentParameters(page_id, type, tile, p2, text.c_str())) return CMD_ERROR;
 
 	if (flags & DC_EXEC) {
 		if (_story_page_element_pool.items == 0) {
@@ -278,7 +279,7 @@ CommandCost CmdCreateStoryPageElement(TileIndex tile, DoCommandFlag flags, uint3
 		pe->sort_value = _story_page_element_next_sort_value;
 		pe->type = type;
 		pe->page = page_id;
-		UpdateElement(*pe, tile, p2, text);
+		UpdateElement(*pe, tile, p2, text.c_str());
 
 		InvalidateWindowClassesData(WC_STORY_BOOK, page_id);
 
@@ -291,8 +292,8 @@ CommandCost CmdCreateStoryPageElement(TileIndex tile, DoCommandFlag flags, uint3
 
 /**
  * Update a new story page element.
- * @param tile Tile location if it is a location page element, otherwise unused.
  * @param flags type of operation
+ * @param tile Tile location if it is a location page element, otherwise unused.
  * @param p1 various bitstuffed elements
  * - p1 = (bit  0 -  15) - The page element to update.
  *        (bit  16 -  31) - unused
@@ -300,7 +301,7 @@ CommandCost CmdCreateStoryPageElement(TileIndex tile, DoCommandFlag flags, uint3
  * @param text Text content in case it is a text or location page element
  * @return the cost of this operation or an error
  */
-CommandCost CmdUpdateStoryPageElement(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 p2, const char *text)
+CommandCost CmdUpdateStoryPageElement(DoCommandFlag flags, TileIndex tile, uint32 p1, uint32 p2, const std::string &text)
 {
 	StoryPageElementID page_element_id = (StoryPageElementID)GB(p1, 0, 16);
 
@@ -311,10 +312,10 @@ CommandCost CmdUpdateStoryPageElement(TileIndex tile, DoCommandFlag flags, uint3
 	StoryPageID page_id = pe->page;
 	StoryPageElementType type = pe->type;
 
-	if (!VerifyElementContentParameters(page_id, type, tile, p2, text)) return CMD_ERROR;
+	if (!VerifyElementContentParameters(page_id, type, tile, p2, text.c_str())) return CMD_ERROR;
 
 	if (flags & DC_EXEC) {
-		UpdateElement(*pe, tile, p2, text);
+		UpdateElement(*pe, tile, p2, text.c_str());
 		InvalidateWindowClassesData(WC_STORY_BOOK, pe->page);
 	}
 
@@ -323,14 +324,14 @@ CommandCost CmdUpdateStoryPageElement(TileIndex tile, DoCommandFlag flags, uint3
 
 /**
  * Update title of a story page.
- * @param tile unused.
  * @param flags type of operation
+ * @param tile unused.
  * @param p1 = (bit 0 - 15) - StoryPageID to update.
  * @param p2 unused
  * @param text title text of the story page.
  * @return the cost of this operation or an error
  */
-CommandCost CmdSetStoryPageTitle(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 p2, const char *text)
+CommandCost CmdSetStoryPageTitle(DoCommandFlag flags, TileIndex tile, uint32 p1, uint32 p2, const std::string &text)
 {
 	if (_current_company != OWNER_DEITY) return CMD_ERROR;
 	StoryPageID page_id = (StoryPageID)GB(p1, 0, 16);
@@ -339,10 +340,10 @@ CommandCost CmdSetStoryPageTitle(TileIndex tile, DoCommandFlag flags, uint32 p1,
 	if (flags & DC_EXEC) {
 		StoryPage *p = StoryPage::Get(page_id);
 		free(p->title);
-		if (StrEmpty(text)) {
+		if (text.empty()) {
 			p->title = nullptr;
 		} else {
-			p->title = stredup(text);
+			p->title = stredup(text.c_str());
 		}
 
 		InvalidateWindowClassesData(WC_STORY_BOOK, page_id);
@@ -353,14 +354,14 @@ CommandCost CmdSetStoryPageTitle(TileIndex tile, DoCommandFlag flags, uint32 p1,
 
 /**
  * Update date of a story page.
- * @param tile unused.
  * @param flags type of operation
+ * @param tile unused.
  * @param p1 = (bit 0 - 15) - StoryPageID to update.
  * @param p2 = (bit 0 - 31) - date
  * @param text unused
  * @return the cost of this operation or an error
  */
-CommandCost CmdSetStoryPageDate(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 p2, const char *text)
+CommandCost CmdSetStoryPageDate(DoCommandFlag flags, TileIndex tile, uint32 p1, uint32 p2, const std::string &text)
 {
 	if (_current_company != OWNER_DEITY) return CMD_ERROR;
 	StoryPageID page_id = (StoryPageID)GB(p1, 0, 16);
@@ -380,14 +381,14 @@ CommandCost CmdSetStoryPageDate(TileIndex tile, DoCommandFlag flags, uint32 p1, 
 /**
  * Display a story page for all clients that are allowed to
  * view the story page.
- * @param tile unused.
  * @param flags type of operation
+ * @param tile unused.
  * @param p1 = (bit 0 - 15) - StoryPageID to show.
  * @param p2 unused
  * @param text unused
  * @return the cost of this operation or an error
  */
-CommandCost CmdShowStoryPage(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 p2, const char *text)
+CommandCost CmdShowStoryPage(DoCommandFlag flags, TileIndex tile, uint32 p1, uint32 p2, const std::string &text)
 {
 	if (_current_company != OWNER_DEITY) return CMD_ERROR;
 	StoryPageID page_id = (StoryPageID)GB(p1, 0, 16);
@@ -402,14 +403,14 @@ CommandCost CmdShowStoryPage(TileIndex tile, DoCommandFlag flags, uint32 p1, uin
 }
 /**
  * Remove a story page and associated story page elements.
- * @param tile unused.
  * @param flags type of operation
+ * @param tile unused.
  * @param p1 = (bit 0 - 15) - StoryPageID to remove.
  * @param p2 unused.
  * @param text unused.
  * @return the cost of this operation or an error
  */
-CommandCost CmdRemoveStoryPage(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 p2, const char *text)
+CommandCost CmdRemoveStoryPage(DoCommandFlag flags, TileIndex tile, uint32 p1, uint32 p2, const std::string &text)
 {
 	if (_current_company != OWNER_DEITY) return CMD_ERROR;
 	StoryPageID page_id = (StoryPageID)p1;
@@ -435,14 +436,14 @@ CommandCost CmdRemoveStoryPage(TileIndex tile, DoCommandFlag flags, uint32 p1, u
 
 /**
  * Remove a story page element
- * @param tile unused.
  * @param flags type of operation
+ * @param tile unused.
  * @param p1 = (bit 0 - 15) - StoryPageElementID to remove.
  * @param p2 unused.
  * @param text unused.
  * @return the cost of this operation or an error
  */
-CommandCost CmdRemoveStoryPageElement(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 p2, const char *text)
+CommandCost CmdRemoveStoryPageElement(DoCommandFlag flags, TileIndex tile, uint32 p1, uint32 p2, const std::string &text)
 {
 	if (_current_company != OWNER_DEITY) return CMD_ERROR;
 	StoryPageElementID page_element_id = (StoryPageElementID)p1;
@@ -462,14 +463,14 @@ CommandCost CmdRemoveStoryPageElement(TileIndex tile, DoCommandFlag flags, uint3
 
 /**
  * Clicked/used a button on a story page.
- * @param tile   Tile selected, for tile selection buttons, otherwise unused.
  * @param flags  Type of operation.
+ * @param tile   Tile selected, for tile selection buttons, otherwise unused.
  * @param p1     Bit 0..15 = story page element id of button.
  * @param p2     ID of selected item for buttons that select an item (e.g. vehicle), otherwise unused.
  * @param text   Unused.
  * @return The cost of the operation, or an error.
  */
-CommandCost CmdStoryPageButton(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 p2, const char *text)
+CommandCost CmdStoryPageButton(DoCommandFlag flags, TileIndex tile, uint32 p1, uint32 p2, const std::string &text)
 {
 	StoryPageElementID page_element_id = (StoryPageElementID)GB(p1, 0, 16);
 

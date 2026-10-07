@@ -23,6 +23,7 @@
 #include "roadveh.h"
 #include "ship.h"
 #include "aircraft.h"
+#include "engine_cmd.h"
 
 #include "widgets/engine_widget.h"
 
@@ -93,9 +94,9 @@ struct EnginePreviewWindow : Window {
 			case VEH_SHIP:     GetShipSpriteSize(    engine, x, y, x_offs, y_offs, image_type); break;
 			case VEH_AIRCRAFT: GetAircraftSpriteSize(engine, x, y, x_offs, y_offs, image_type); break;
 		}
-		this->vehicle_space = max<int>(40, y - y_offs);
+		this->vehicle_space = std::max<int>(40, y - y_offs);
 
-		size->width = max(size->width, x - x_offs);
+		size->width = std::max(size->width, x - x_offs);
 		SetDParam(0, GetEngineCategoryName(engine));
 		size->height = GetStringHeight(STR_ENGINE_PREVIEW_MESSAGE, size->width) + WD_PAR_VSEP_WIDE + FONT_HEIGHT_NORMAL + this->vehicle_space;
 		SetDParam(0, engine);
@@ -125,10 +126,10 @@ struct EnginePreviewWindow : Window {
 	{
 		switch (widget) {
 			case WID_EP_YES:
-				DoCommandP(0, this->window_number, 0, CMD_WANT_ENGINE_PREVIEW);
+				Command<CMD_WANT_ENGINE_PREVIEW>::Post(this->window_number);
 				FALLTHROUGH;
 			case WID_EP_NO:
-				if (!_shift_pressed) delete this;
+				if (!_shift_pressed) this->Close();
 				break;
 		}
 	}
@@ -138,7 +139,7 @@ struct EnginePreviewWindow : Window {
 		if (!gui_scope) return;
 
 		EngineID engine = this->window_number;
-		if (Engine::Get(engine)->preview_company != _local_company) delete this;
+		if (Engine::Get(engine)->preview_company != _local_company) this->Close();
 	}
 };
 

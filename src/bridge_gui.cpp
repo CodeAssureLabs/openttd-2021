@@ -23,6 +23,7 @@
 #include "cmd_helper.h"
 #include "tunnelbridge_map.h"
 #include "road_gui.h"
+#include "tunnelbridge_cmd.h"
 
 #include "widgets/bridge_widget.h"
 
@@ -50,18 +51,16 @@ typedef GUIList<BuildBridgeData> GUIBridgeList; ///< List of bridges, used in #B
  * Callback executed after a build Bridge CMD has been called
  *
  * @param result Whether the build succeeded
- * @param end_tile End tile of the bridge.
- * @param p1 packed start tile coords (~ dx)
- * @param p2 various bitstuffed elements
- * - p2 = (bit  0- 7) - bridge type (hi bh)
- * - p2 = (bit  8-13) - rail type or road types.
- * - p2 = (bit 15-16) - transport type.
  * @param cmd unused
+ * @param end_tile End tile of the bridge.
+ * @param data Additional bitstuffed command data.
  */
-void CcBuildBridge(const CommandCost &result, TileIndex end_tile, uint32 p1, uint32 p2, uint32 cmd)
+void CcBuildBridge(Commands cmd, const CommandCost &result, TileIndex end_tile, const CommandDataBuffer &data)
 {
 	if (result.Failed()) return;
-	if (_settings_client.sound.confirm) SndPlayTileFx(SND_27_BLACKSMITH_ANVIL, end_tile);
+	if (_settings_client.sound.confirm) SndPlayTileFx(SND_27_CONSTRUCTION_BRIDGE, end_tile);
+
+	auto [tile, p1, p2, text] = EndianBufferReader::ToValue<CommandTraits<CMD_BUILD_BRIDGE>::Args>(data);
 
 	TransportType transport_type = Extract<TransportType, 15, 2>(p2);
 
@@ -117,8 +116,8 @@ private:
 			case TRANSPORT_ROAD: _last_roadbridge_type = this->bridges->at(i).index; break;
 			default: break;
 		}
-		DoCommandP(this->end_tile, this->start_tile, this->type | this->bridges->at(i).index,
-					CMD_BUILD_BRIDGE | CMD_MSG(STR_ERROR_CAN_T_BUILD_BRIDGE_HERE), CcBuildBridge);
+		Command<CMD_BUILD_BRIDGE>::Post(STR_ERROR_CAN_T_BUILD_BRIDGE_HERE, CcBuildBridge,
+					this->end_tile, this->start_tile, this->type | this->bridges->at(i).index, {});
 	}
 
 	/** Sort the builable bridges */
@@ -197,7 +196,7 @@ public:
 				}
 				sprite_dim.height++; // Sprite is rendered one pixel down in the matrix field.
 				text_dim.height++; // Allowing the bottom row pixels to be rendered on the edge of the matrix field.
-				resize->height = max(sprite_dim.height, text_dim.height) + 2; // Max of both sizes + account for matrix edges.
+				resize->height = std::max(sprite_dim.height, text_dim.height) + 2; // Max of both sizes + account for matrix edges.
 
 				this->bridgetext_offset = WD_MATRIX_LEFT + sprite_dim.width + 1; // Left edge of text, 1 pixel distance from the sprite.
 				size->width = this->bridgetext_offset + text_dim.width + WD_MATRIX_RIGHT;
@@ -249,7 +248,7 @@ public:
 		if (i < 9 && i < this->bridges->size()) {
 			/* Build the requested bridge */
 			this->BuildBridge(i);
-			delete this;
+			this->Close();
 			return ES_HANDLED;
 		}
 		return ES_NOT_HANDLED;
@@ -263,7 +262,7 @@ public:
 				uint i = this->vscroll->GetScrolledRowFromWidget(pt.y, this, WID_BBS_BRIDGE_LIST);
 				if (i < this->bridges->size()) {
 					this->BuildBridge(i);
-					delete this;
+					this->Close();
 				}
 				break;
 			}
@@ -360,7 +359,7 @@ static WindowDesc _build_bridge_desc(
  */
 void ShowBuildBridgeWindow(TileIndex start, TileIndex end, TransportType transport_type, byte road_rail_type)
 {
-	DeleteWindowByClass(WC_BUILD_BRIDGE);
+	CloseWindowByClass(WC_BUILD_BRIDGE);
 
 	/* Data type for the bridge.
 	 * Bit 16,15 = transport type,
@@ -383,14 +382,14 @@ void ShowBuildBridgeWindow(TileIndex start, TileIndex end, TransportType transpo
 		default: break; // water ways and air routes don't have bridge types
 	}
 	if (_ctrl_pressed && CheckBridgeAvailability(last_bridge_type, bridge_len).Succeeded()) {
-		DoCommandP(end, start, type | last_bridge_type, CMD_BUILD_BRIDGE | CMD_MSG(STR_ERROR_CAN_T_BUILD_BRIDGE_HERE), CcBuildBridge);
+		Command<CMD_BUILD_BRIDGE>::Post(STR_ERROR_CAN_T_BUILD_BRIDGE_HERE, CcBuildBridge, end, start, type | last_bridge_type, {});
 		return;
 	}
 
 	/* only query bridge building possibility once, result is the same for all bridges!
 	 * returns CMD_ERROR on failure, and price on success */
 	StringID errmsg = INVALID_STRING_ID;
-	CommandCost ret = DoCommand(end, start, type, CommandFlagsToDCFlags(GetCommandFlags(CMD_BUILD_BRIDGE)) | DC_QUERY_COST, CMD_BUILD_BRIDGE);
+	CommandCost ret = Command<CMD_BUILD_BRIDGE>::Do(CommandFlagsToDCFlags(GetCommandFlags<CMD_BUILD_BRIDGE>()) | DC_QUERY_COST, end, start, type, {});
 
 	GUIBridgeList *bl = nullptr;
 	if (ret.Failed()) {

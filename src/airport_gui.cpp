@@ -26,6 +26,9 @@
 #include "hotkeys.h"
 #include "vehicle_func.h"
 #include "gui.h"
+#include "command_func.h"
+#include "airport_cmd.h"
+#include "station_cmd.h"
 
 #include "widgets/airport_widget.h"
 
@@ -40,11 +43,11 @@ static void ShowBuildAirportPicker(Window *parent);
 
 SpriteID GetCustomAirportSprite(const AirportSpec *as, byte layout);
 
-void CcBuildAirport(const CommandCost &result, TileIndex tile, uint32 p1, uint32 p2, uint32 cmd)
+void CcBuildAirport(Commands cmd, const CommandCost &result, TileIndex tile, const CommandDataBuffer &)
 {
 	if (result.Failed()) return;
 
-	if (_settings_client.sound.confirm) SndPlayTileFx(SND_1F_SPLAT_OTHER, tile);
+	if (_settings_client.sound.confirm) SndPlayTileFx(SND_1F_CONSTRUCTION_OTHER, tile);
 	if (!_settings_client.gui.persistent_buildingtools) ResetObjectToPlace();
 }
 
@@ -55,13 +58,20 @@ void CcBuildAirport(const CommandCost &result, TileIndex tile, uint32 p1, uint32
 static void PlaceAirport(TileIndex tile)
 {
 	if (_selected_airport_index == -1) return;
-	uint32 p2 = _ctrl_pressed;
-	SB(p2, 16, 16, INVALID_STATION); // no station to join
 
-	uint32 p1 = AirportClass::Get(_selected_airport_class)->GetSpec(_selected_airport_index)->GetIndex();
-	p1 |= _selected_airport_layout << 8;
-	CommandContainer cmdcont = { tile, p1, p2, CMD_BUILD_AIRPORT | CMD_MSG(STR_ERROR_CAN_T_BUILD_AIRPORT_HERE), CcBuildAirport, "" };
-	ShowSelectStationIfNeeded(cmdcont, TileArea(tile, _thd.size.x / TILE_SIZE, _thd.size.y / TILE_SIZE));
+	byte airport_type = AirportClass::Get(_selected_airport_class)->GetSpec(_selected_airport_index)->GetIndex();
+	byte layout = _selected_airport_layout;
+	bool adjacent = _ctrl_pressed;
+
+	auto proc = [=](bool test, StationID to_join) -> bool {
+		if (test) {
+			return Command<CMD_BUILD_AIRPORT>::Do(CommandFlagsToDCFlags(GetCommandFlags<CMD_BUILD_AIRPORT>()), tile, airport_type, layout, INVALID_STATION, adjacent).Succeeded();
+		} else {
+			return Command<CMD_BUILD_AIRPORT>::Post(STR_ERROR_CAN_T_BUILD_AIRPORT_HERE, CcBuildAirport, tile, airport_type, layout, to_join, adjacent);
+		}
+	};
+
+	ShowSelectStationIfNeeded(TileArea(tile, _thd.size.x / TILE_SIZE, _thd.size.y / TILE_SIZE), proc);
 }
 
 /** Airport build toolbar window handler. */
@@ -71,14 +81,16 @@ struct BuildAirToolbarWindow : Window {
 	BuildAirToolbarWindow(WindowDesc *desc, WindowNumber window_number) : Window(desc)
 	{
 		this->InitNested(window_number);
+		this->OnInvalidateData();
 		if (_settings_client.gui.link_terraform_toolbar) ShowTerraformToolbar(this);
 		this->last_user_action = WIDGET_LIST_END;
 	}
 
-	~BuildAirToolbarWindow()
+	void Close() override
 	{
 		if (this->IsWidgetLowered(WID_AT_AIRPORT)) SetViewportCatchmentStation(nullptr, true);
-		if (_settings_client.gui.link_terraform_toolbar) DeleteWindowById(WC_SCEN_LAND_GEN, 0, false);
+		if (_settings_client.gui.link_terraform_toolbar) CloseWindowById(WC_SCEN_LAND_GEN, 0, false);
+		this->Window::Close();
 	}
 
 	/**
@@ -90,7 +102,18 @@ struct BuildAirToolbarWindow : Window {
 	{
 		if (!gui_scope) return;
 
-		if (!CanBuildVehicleInfrastructure(VEH_AIRCRAFT)) delete this;
+		bool can_build = CanBuildVehicleInfrastructure(VEH_AIRCRAFT);
+		this->SetWidgetsDisabledState(!can_build,
+			WID_AT_AIRPORT,
+			WIDGET_LIST_END);
+		if (!can_build) {
+			CloseWindowById(WC_BUILD_STATION, TRANSPORT_AIR);
+
+			/* Show in the tooltip why this button is disabled. */
+			this->GetWidget<NWidgetCore>(WID_AT_AIRPORT)->SetToolTip(STR_TOOLBAR_DISABLED_NO_VEHICLE_AVAILABLE);
+		} else {
+			this->GetWidget<NWidgetCore>(WID_AT_AIRPORT)->SetToolTip(STR_TOOLBAR_AIRCRAFT_BUILD_AIRPORT_TOOLTIP);
+		}
 	}
 
 	void OnClick(Point pt, int widget, int click_count) override
@@ -146,8 +169,8 @@ struct BuildAirToolbarWindow : Window {
 
 		this->RaiseButtons();
 
-		DeleteWindowById(WC_BUILD_STATION, TRANSPORT_AIR);
-		DeleteWindowById(WC_SELECT_STATION, 0);
+		CloseWindowById(WC_BUILD_STATION, TRANSPORT_AIR);
+		CloseWindowById(WC_SELECT_STATION, 0);
 	}
 
 	static HotkeyList hotkeys;
@@ -160,7 +183,7 @@ struct BuildAirToolbarWindow : Window {
  */
 static EventState AirportToolbarGlobalHotkeys(int hotkey)
 {
-	if (_game_mode != GM_NORMAL || !CanBuildVehicleInfrastructure(VEH_AIRCRAFT)) return ES_NOT_HANDLED;
+	if (_game_mode != GM_NORMAL) return ES_NOT_HANDLED;
 	Window *w = ShowBuildAirToolbar();
 	if (w == nullptr) return ES_NOT_HANDLED;
 	return w->OnHotkey(hotkey);
@@ -205,7 +228,7 @@ Window *ShowBuildAirToolbar()
 {
 	if (!Company::IsValidID(_local_company)) return nullptr;
 
-	DeleteWindowByClass(WC_BUILD_TOOLBAR);
+	CloseWindowByClass(WC_BUILD_TOOLBAR);
 	return AllocateWindowDescFront<BuildAirToolbarWindow>(&_air_toolbar_desc, TRANSPORT_AIR);
 }
 
@@ -264,9 +287,10 @@ public:
 		if (selectFirstAirport) this->SelectFirstAvailableAirport(true);
 	}
 
-	virtual ~BuildAirportWindow()
+	void Close() override
 	{
-		DeleteWindowById(WC_SELECT_STATION, 0);
+		CloseWindowById(WC_SELECT_STATION, 0);
+		this->PickerWindowBase::Close();
 	}
 
 	void SetStringParameters(int widget) const override
@@ -314,7 +338,7 @@ public:
 					const AirportSpec *as = AirportSpec::Get(i);
 					if (!as->enabled) continue;
 
-					size->width = max(size->width, GetStringBoundingBox(as->name).width);
+					size->width = std::max(size->width, GetStringBoundingBox(as->name).width);
 				}
 
 				this->line_height = FONT_HEIGHT_NORMAL + WD_MATRIX_TOP + WD_MATRIX_BOTTOM;
@@ -471,7 +495,7 @@ public:
 				break;
 
 			case WID_AP_AIRPORT_LIST: {
-				int num_clicked = this->vscroll->GetPosition() + (pt.y - this->nested_array[widget]->pos_y) / this->line_height;
+				int num_clicked = this->vscroll->GetPosition() + (pt.y - this->GetWidget<NWidgetBase>(widget)->pos_y) / this->line_height;
 				if (num_clicked >= this->vscroll->GetCount()) break;
 				const AirportSpec *as = AirportClass::Get(_selected_airport_class)->GetSpec(num_clicked);
 				if (as->IsAvailable()) this->SelectOtherAirport(num_clicked);
