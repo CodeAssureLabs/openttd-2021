@@ -87,7 +87,7 @@ SQLexer::SQLexer(SQSharedState *ss, SQLEXREADFUNC rg, SQUserPointer up,CompilerE
 	_prevtoken = -1;
 	_curtoken = -1;
 
-	_svalue = NULL;
+	_svalue = nullptr;
 	_nvalue = 0;
 	_fvalue = 0;
 
@@ -119,7 +119,7 @@ const SQChar *SQLexer::Tok2Str(SQInteger tok)
 		if(((SQInteger)_integer(val)) == tok)
 			return _stringval(key);
 	}
-	return NULL;
+	return nullptr;
 }
 
 void SQLexer::LexBlockComment()
@@ -177,7 +177,6 @@ SQInteger SQLexer::Lex()
 			else if ( CUR_CHAR == '-' ) { NEXT(); RETURN_TOKEN(TK_NEWSLOT); }
 			else if ( CUR_CHAR == '<' ) { NEXT(); RETURN_TOKEN(TK_SHIFTL); }
 			else if ( CUR_CHAR == '/' ) { NEXT(); RETURN_TOKEN(TK_ATTR_OPEN); }
-			//else if ( CUR_CHAR == '[' ) { NEXT(); ReadMultilineString(); RETURN_TOKEN(TK_STRING_LITERAL); }
 			else { RETURN_TOKEN('<') }
 		case '>':
 			NEXT();

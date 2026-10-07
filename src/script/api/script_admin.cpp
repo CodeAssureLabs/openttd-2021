@@ -28,9 +28,7 @@
 			SQInteger res;
 			sq_getinteger(vm, index, &res);
 
-			char buf[10];
-			seprintf(buf, lastof(buf), "%d", (int32)res);
-			data = buf;
+			data = fmt::format("{}", res);
 			return true;
 		}
 
@@ -44,7 +42,7 @@
 				return false;
 			}
 
-			data = std::string("\"") + buf + "\"";
+			data = fmt::format("\"{}\"", buf);
 			return true;
 		}
 
@@ -139,7 +137,7 @@
 		return 1;
 	}
 
-	NetworkAdminGameScript(json.c_str());
+	NetworkAdminGameScript(json);
 
 	sq_pushinteger(vm, 1);
 	return 1;

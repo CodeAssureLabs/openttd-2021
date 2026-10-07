@@ -74,7 +74,7 @@ inline void Blitter_32bppAnim::Draw(const Blitter::BlitterParams *bp, ZoomLevel 
 					dst = dst_end - bp->skip_left;
 					dst_end = dst + bp->width;
 
-					n = min<uint>(n - d, (uint)bp->width);
+					n = std::min(n - d, (uint)bp->width);
 					goto draw;
 				}
 				dst += n;
@@ -89,7 +89,7 @@ inline void Blitter_32bppAnim::Draw(const Blitter::BlitterParams *bp, ZoomLevel 
 		dst_end += bp->width;
 
 		while (dst < dst_end) {
-			n = min<uint>(*src_n++, (uint)(dst_end - dst));
+			n = std::min<uint>(*src_n++, dst_end - dst);
 
 			if (src_px->a == 0) {
 				anim += n;
@@ -307,7 +307,7 @@ void Blitter_32bppAnim::DrawColourMappingRect(void *dst, int width, int height, 
 		return;
 	}
 
-	DEBUG(misc, 0, "32bpp blitter doesn't know how to draw this colour table ('%d')", pal);
+	Debug(misc, 0, "32bpp blitter doesn't know how to draw this colour table ('{}')", pal);
 }
 
 void Blitter_32bppAnim::SetPixel(void *video, int x, int y, uint8 colour)
@@ -383,7 +383,7 @@ void Blitter_32bppAnim::CopyFromBuffer(void *video, const void *src, int width, 
 		dst += _screen.pitch;
 		/* Copy back the anim-buffer */
 		memcpy(anim_line, usrc, width * sizeof(uint16));
-		usrc = (const uint32 *)((const uint16 *)usrc + width);
+		usrc = (const uint32 *)&((const uint16 *)usrc)[width];
 		anim_line += this->anim_buf_pitch;
 
 		/* Okay, it is *very* likely that the image we stored is using
@@ -422,7 +422,7 @@ void Blitter_32bppAnim::CopyToBuffer(const void *video, void *dst, int width, in
 		udst += width;
 		/* Copy the anim-buffer */
 		memcpy(udst, anim_line, width * sizeof(uint16));
-		udst = (uint32 *)((uint16 *)udst + width);
+		udst = (uint32 *)&((uint16 *)udst)[width];
 		anim_line += this->anim_buf_pitch;
 	}
 }
@@ -478,9 +478,9 @@ void Blitter_32bppAnim::ScrollBuffer(void *video, int &left, int &top, int &widt
 	Blitter_32bppBase::ScrollBuffer(video, left, top, width, height, scroll_x, scroll_y);
 }
 
-int Blitter_32bppAnim::BufferSize(int width, int height)
+size_t Blitter_32bppAnim::BufferSize(uint width, uint height)
 {
-	return width * height * (sizeof(uint32) + sizeof(uint16));
+	return (sizeof(uint32) + sizeof(uint16)) * width * height;
 }
 
 void Blitter_32bppAnim::PaletteAnimate(const Palette &palette)

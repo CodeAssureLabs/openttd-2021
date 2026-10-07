@@ -11,8 +11,6 @@
 #define INI_TYPE_H
 
 #include "fileio_type.h"
-#include <string>
-#include <optional>
 
 /** Types of groups */
 enum IniGroupType {
@@ -31,7 +29,7 @@ struct IniItem {
 	IniItem(struct IniGroup *parent, const std::string &name);
 	~IniItem();
 
-	void SetValue(const char *value);
+	void SetValue(const std::string_view value);
 };
 
 /** A group within an ini file. */
@@ -46,7 +44,9 @@ struct IniGroup {
 	IniGroup(struct IniLoadFile *parent, const std::string &name);
 	~IniGroup();
 
-	IniItem *GetItem(const std::string &name, bool create);
+	IniItem *GetItem(const std::string &name) const;
+	IniItem &GetOrCreateItem(const std::string &name);
+	void RemoveItem(const std::string &name);
 	void Clear();
 };
 

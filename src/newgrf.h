@@ -16,7 +16,7 @@
 #include "fileio_type.h"
 #include "core/bitmath_func.hpp"
 #include "core/alloc_type.hpp"
-#include "core/smallvec_type.hpp"
+#include "core/mem_func.hpp"
 
 /**
  * List of different canal 'features'.
@@ -84,6 +84,7 @@ enum GrfSpecFeature {
 	GSF_AIRPORTTILES,
 	GSF_ROADTYPES,
 	GSF_TRAMTYPES,
+	GSF_ROADSTOPS,
 	GSF_END,
 
 	GSF_FAKE_TOWNS = GSF_END, ///< Fake town GrfSpecFeature for NewGRF debugging (parent scope)
@@ -98,30 +99,32 @@ struct GRFLabel {
 	byte label;
 	uint32 nfo_line;
 	size_t pos;
-	struct GRFLabel *next;
+
+	GRFLabel(byte label, uint32 nfo_line, size_t pos) : label(label), nfo_line(nfo_line), pos(pos) {}
 };
 
 /** Dynamic data of a loaded NewGRF */
 struct GRFFile : ZeroedMemoryAllocator {
-	char *filename;
+	std::string filename;
 	uint32 grfid;
 	byte grf_version;
 
 	uint sound_offset;
 	uint16 num_sounds;
 
-	struct StationSpec **stations;
-	struct HouseSpec **housespec;
-	struct IndustrySpec **industryspec;
-	struct IndustryTileSpec **indtspec;
-	struct ObjectSpec **objectspec;
-	struct AirportSpec **airportspec;
-	struct AirportTileSpec **airtspec;
+	std::vector<std::unique_ptr<struct StationSpec>> stations;
+	std::vector<std::unique_ptr<struct HouseSpec>> housespec;
+	std::vector<std::unique_ptr<struct IndustrySpec>> industryspec;
+	std::vector<std::unique_ptr<struct IndustryTileSpec>> indtspec;
+	std::vector<std::unique_ptr<struct ObjectSpec>> objectspec;
+	std::vector<std::unique_ptr<struct AirportSpec>> airportspec;
+	std::vector<std::unique_ptr<struct AirportTileSpec>> airtspec;
+	std::vector<std::unique_ptr<struct RoadStopSpec>> roadstops;
 
-	uint32 param[0x80];
+	std::array<uint32_t, 0x80> param;
 	uint param_end;  ///< one more than the highest set parameter
 
-	GRFLabel *label; ///< Pointer to the first label. This is a linked list, not an array.
+	std::vector<GRFLabel> labels;                   ///< List of labels
 
 	std::vector<CargoLabel> cargo_list;             ///< Cargo translation table (local ID -> label)
 	uint8 cargo_map[NUM_CARGO];                     ///< Inverse cargo translation table (CargoID -> local ID)
@@ -151,9 +154,9 @@ struct GRFFile : ZeroedMemoryAllocator {
 	/** Get GRF Parameter with range checking */
 	uint32 GetParam(uint number) const
 	{
-		/* Note: We implicitly test for number < lengthof(this->param) and return 0 for invalid parameters.
+		/* Note: We implicitly test for number < this->param.size() and return 0 for invalid parameters.
 		 *       In fact this is the more important test, as param is zeroed anyway. */
-		assert(this->param_end <= lengthof(this->param));
+		assert(this->param_end <= this->param.size());
 		return (number < this->param_end) ? this->param[number] : 0;
 	}
 };
@@ -192,15 +195,14 @@ static inline bool HasGrfMiscBit(GrfMiscBit bit)
 /* Indicates which are the newgrf features currently loaded ingame */
 extern GRFLoadedFeatures _loaded_newgrf_features;
 
-byte GetGRFContainerVersion();
-
-void LoadNewGRFFile(struct GRFConfig *config, uint file_index, GrfLoadingStage stage, Subdirectory subdir);
-void LoadNewGRF(uint load_index, uint file_index, uint num_baseset);
+void LoadNewGRFFile(struct GRFConfig *config, GrfLoadingStage stage, Subdirectory subdir, bool temporary);
+void LoadNewGRF(uint load_index, uint num_baseset);
 void ReloadNewGRFData(); // in saveload/afterload.cpp
 void ResetNewGRFData();
 void ResetPersistentNewGRFData();
 
-void CDECL grfmsg(int severity, const char *str, ...) WARN_FORMAT(2, 3);
+void GrfMsgI(int severity, const std::string &msg);
+#define GrfMsg(severity, format_string, ...) GrfMsgI(severity, fmt::format(FMT_STRING(format_string), ## __VA_ARGS__))
 
 bool GetGlobalVariable(byte param, uint32 *value, const GRFFile *grffile);
 
