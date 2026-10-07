@@ -15,97 +15,74 @@
  */
 class CrashLog {
 private:
-	/** Pointer to the error message. */
-	static const char *message;
-
-	/** Temporary 'local' location of the buffer. */
-	static char *gamelog_buffer;
-
-	/** Temporary 'local' location of the end of the buffer. */
-	static const char *gamelog_last;
-
-	static void GamelogFillCrashLog(const char *s);
+	/** Error message coming from #FatalError(format, ...). */
+	static std::string message;
 protected:
 	/**
 	 * Writes OS' version to the buffer.
-	 * @param buffer The begin where to write at.
-	 * @param last   The last position in the buffer to write to.
-	 * @return the position of the \c '\0' character after the buffer.
+	 * @param output_iterator Iterator to write the output to.
 	 */
-	virtual char *LogOSVersion(char *buffer, const char *last) const = 0;
+	virtual void LogOSVersion(std::back_insert_iterator<std::string> &output_iterator) const = 0;
 
 	/**
 	 * Writes compiler (and its version, if available) to the buffer.
-	 * @param buffer The begin where to write at.
-	 * @param last   The last position in the buffer to write to.
-	 * @return the position of the \c '\0' character after the buffer.
+	 * @param output_iterator Iterator to write the output to.
 	 */
-	virtual char *LogCompiler(char *buffer, const char *last) const;
+	virtual void LogCompiler(std::back_insert_iterator<std::string> &output_iterator) const;
 
 	/**
 	 * Writes actually encountered error to the buffer.
-	 * @param buffer  The begin where to write at.
-	 * @param last    The last position in the buffer to write to.
-	 * @param message Message passed to use for possible errors. Can be nullptr.
-	 * @return the position of the \c '\0' character after the buffer.
+	 * @param output_iterator Iterator to write the output to.
+	 * @param message Message passed to use for errors.
 	 */
-	virtual char *LogError(char *buffer, const char *last, const char *message) const = 0;
+	virtual void LogError(std::back_insert_iterator<std::string> &output_iterator, const std::string_view message) const = 0;
 
 	/**
 	 * Writes the stack trace to the buffer, if there is information about it
 	 * available.
-	 * @param buffer The begin where to write at.
-	 * @param last   The last position in the buffer to write to.
-	 * @return the position of the \c '\0' character after the buffer.
+	 * @param output_iterator Iterator to write the output to.
 	 */
-	virtual char *LogStacktrace(char *buffer, const char *last) const = 0;
+	virtual void LogStacktrace(std::back_insert_iterator<std::string> &output_iterator) const = 0;
+
+	void LogOpenTTDVersion(std::back_insert_iterator<std::string> &output_iterator) const;
+	void LogConfiguration(std::back_insert_iterator<std::string> &output_iterator) const;
+	void LogLibraries(std::back_insert_iterator<std::string> &output_iterator) const;
+	void LogGamelog(std::back_insert_iterator<std::string> &output_iterator) const;
+	void LogRecentNews(std::back_insert_iterator<std::string> &output_iterator) const;
+
+	std::string CreateFileName(const char *ext, bool with_dir = true) const;
 
 	/**
-	 * Writes information about the data in the registers, if there is
-	 * information about it available.
-	 * @param buffer The begin where to write at.
-	 * @param last   The last position in the buffer to write to.
-	 * @return the position of the \c '\0' character after the buffer.
+	 * Execute the func() and return its value. If any exception / signal / crash happens,
+	 * catch it and return false. This function should, in theory, never not return, even
+	 * in the worst conditions.
+	 *
+	 * @param section_name The name of the section to be executed. Printed when a crash happens.
+	 * @param func The function to call.
+	 * @return true iff the function returned true.
 	 */
-	virtual char *LogRegisters(char *buffer, const char *last) const;
-
-	/**
-	 * Writes the dynamically linked libraries/modules to the buffer, if there
-	 * is information about it available.
-	 * @param buffer The begin where to write at.
-	 * @param last   The last position in the buffer to write to.
-	 * @return the position of the \c '\0' character after the buffer.
-	 */
-	virtual char *LogModules(char *buffer, const char *last) const;
-
-
-	char *LogOpenTTDVersion(char *buffer, const char *last) const;
-	char *LogConfiguration(char *buffer, const char *last) const;
-	char *LogLibraries(char *buffer, const char *last) const;
-	char *LogGamelog(char *buffer, const char *last) const;
-	char *LogRecentNews(char *buffer, const char *list) const;
+	virtual bool TryExecute(std::string_view section_name, std::function<bool()> &&func) = 0;
 
 public:
 	/** Stub destructor to silence some compilers. */
-	virtual ~CrashLog() {}
+	virtual ~CrashLog() = default;
 
-	char *FillCrashLog(char *buffer, const char *last) const;
-	bool WriteCrashLog(const char *buffer, char *filename, const char *filename_last) const;
+	std::string crashlog;
+	std::string crashlog_filename;
+	std::string crashdump_filename;
+	std::string savegame_filename;
+	std::string screenshot_filename;
 
-	/**
-	 * Write the (crash) dump to a file.
-	 * @note On success the filename will be filled with the full path of the
-	 *       crash dump file. Make sure filename is at least \c MAX_PATH big.
-	 * @param filename      Output for the filename of the written file.
-	 * @param filename_last The last position in the filename buffer.
-	 * @return if less than 0, error. If 0 no dump is made, otherwise the dump
-	 *         was successful (not all OSes support dumping files).
-	 */
-	virtual int WriteCrashDump(char *filename, const char *filename_last) const;
-	bool WriteSavegame(char *filename, const char *filename_last) const;
-	bool WriteScreenshot(char *filename, const char *filename_last) const;
+	void FillCrashLog(std::back_insert_iterator<std::string> &output_iterator) const;
+	bool WriteCrashLog();
 
-	bool MakeCrashLog() const;
+	virtual bool WriteCrashDump();
+	bool WriteSavegame();
+	bool WriteScreenshot();
+
+	void SendSurvey() const;
+
+	void MakeCrashLog();
 
 	/**
 	 * Initialiser for crash logs; do the appropriate things so crashes are
@@ -114,7 +91,13 @@ public:
 	 */
 	static void InitialiseCrashLog();
 
-	static void SetErrorMessage(const char *message);
+	/**
+	 * Prepare crash log handler for a newly started thread.
+	 * @note must be implemented by all implementers of CrashLog.
+	 */
+	static void InitThread();
+
+	static void SetErrorMessage(const std::string &message);
 	static void AfterCrashLogCleanup();
 };
 

@@ -8,11 +8,13 @@
 /** @file labelmaps_sl.cpp Code handling saving and loading of rail type label mappings */
 
 #include "../stdafx.h"
-#include "../station_map.h"
-#include "../tunnelbridge_map.h"
 
 #include "saveload.h"
+#include "compat/labelmaps_sl_compat.h"
+
 #include "saveload_internal.h"
+#include "../station_map.h"
+#include "../tunnelbridge_map.h"
 
 #include "../safeguards.h"
 
@@ -50,7 +52,7 @@ void AfterLoadLabelMaps()
 			railtype_conversion_map.push_back(r);
 		}
 
-		for (TileIndex t = 0; t < MapSize(); t++) {
+		for (TileIndex t = 0; t < Map::Size(); t++) {
 			switch (GetTileType(t)) {
 				case MP_RAILWAY:
 					SetRailType(t, railtype_conversion_map[GetRailType(t)]);
@@ -90,39 +92,49 @@ void ResetLabelMaps()
 
 /** Container for a label for SaveLoad system */
 struct LabelObject {
-	uint32 label;
+	uint32_t label;
 };
 
 static const SaveLoad _label_object_desc[] = {
 	SLE_VAR(LabelObject, label, SLE_UINT32),
-	SLE_END(),
 };
 
-static void Save_RAIL()
-{
-	LabelObject lo;
+struct RAILChunkHandler : ChunkHandler {
+	RAILChunkHandler() : ChunkHandler('RAIL', CH_TABLE) {}
 
-	for (RailType r = RAILTYPE_BEGIN; r != RAILTYPE_END; r++) {
-		lo.label = GetRailTypeInfo(r)->label;
+	void Save() const override
+	{
+		SlTableHeader(_label_object_desc);
 
-		SlSetArrayIndex(r);
-		SlObject(&lo, _label_object_desc);
+		LabelObject lo;
+
+		for (RailType r = RAILTYPE_BEGIN; r != RAILTYPE_END; r++) {
+			lo.label = GetRailTypeInfo(r)->label;
+
+			SlSetArrayIndex(r);
+			SlObject(&lo, _label_object_desc);
+		}
 	}
-}
 
-static void Load_RAIL()
-{
-	ResetLabelMaps();
+	void Load() const override
+	{
+		const std::vector<SaveLoad> slt = SlCompatTableHeader(_label_object_desc, _label_object_sl_compat);
 
-	LabelObject lo;
+		ResetLabelMaps();
 
-	while (SlIterateArray() != -1) {
-		SlObject(&lo, _label_object_desc);
-		_railtype_list.push_back((RailTypeLabel)lo.label);
+		LabelObject lo;
+
+		while (SlIterateArray() != -1) {
+			SlObject(&lo, slt);
+			_railtype_list.push_back((RailTypeLabel)lo.label);
+		}
 	}
-}
-
-extern const ChunkHandler _labelmaps_chunk_handlers[] = {
-	{ 'RAIL', Save_RAIL, Load_RAIL, nullptr, nullptr, CH_ARRAY | CH_LAST},
 };
+
+static const RAILChunkHandler RAIL;
+static const ChunkHandlerRef labelmaps_chunk_handlers[] = {
+	RAIL,
+};
+
+extern const ChunkHandlerTable _labelmaps_chunk_handlers(labelmaps_chunk_handlers);
 

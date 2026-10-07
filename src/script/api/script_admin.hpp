@@ -10,7 +10,6 @@
 #ifndef SCRIPT_ADMIN_HPP
 #define SCRIPT_ADMIN_HPP
 
-#include <string>
 #include "script_object.hpp"
 
 /**
@@ -37,7 +36,7 @@ public:
 	static bool Send(void *table);
 #endif /* DOXYGEN_API */
 
-private:
+protected:
 	/**
 	 * Convert a Squirrel structure into a JSON string.
 	 * @param vm The VM to operate on.

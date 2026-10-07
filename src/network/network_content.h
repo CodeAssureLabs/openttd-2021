@@ -11,7 +11,9 @@
 #define NETWORK_CONTENT_H
 
 #include "core/tcp_content.h"
-#include "core/tcp_http.h"
+#include "core/http.h"
+#include <unordered_map>
+#include "../core/container_func.hpp"
 
 /** Vector with content info */
 typedef std::vector<ContentInfo *> ContentVector;
@@ -56,7 +58,7 @@ struct ContentCallback {
 	virtual void OnDownloadComplete(ContentID cid) {}
 
 	/** Silentium */
-	virtual ~ContentCallback() {}
+	virtual ~ContentCallback() = default;
 };
 
 /**
@@ -68,20 +70,22 @@ protected:
 	std::vector<ContentCallback *> callbacks;     ///< Callbacks to notify "the world"
 	ContentIDList requested;                      ///< ContentIDs we already requested (so we don't do it again)
 	ContentVector infos;                          ///< All content info we received
+	std::unordered_multimap<ContentID, ContentID> reverse_dependency_map; ///< Content reverse dependency map
 	std::vector<char> http_response;              ///< The HTTP response to the requests we've been doing
 	int http_response_index;                      ///< Where we are, in the response, with handling it
 
 	FILE *curFile;        ///< Currently downloaded file
 	ContentInfo *curInfo; ///< Information about the currently downloaded file
 	bool isConnecting;    ///< Whether we're connecting
-	uint32 lastActivity;  ///< The last time there was network activity
+	bool isCancelled;     ///< Whether the download has been cancelled
+	std::chrono::steady_clock::time_point lastActivity;  ///< The last time there was network activity
 
 	friend class NetworkContentConnecter;
 
 	bool Receive_SERVER_INFO(Packet *p) override;
 	bool Receive_SERVER_CONTENT(Packet *p) override;
 
-	ContentInfo *GetContent(ContentID cid);
+	ContentInfo *GetContent(ContentID cid) const;
 	void DownloadContentInfo(ContentID cid);
 
 	void OnConnect(bool success) override;
@@ -92,6 +96,7 @@ protected:
 
 	void OnFailure() override;
 	void OnReceiveData(const char *data, size_t length) override;
+	bool IsCancelled() const override;
 
 	bool BeforeDownload();
 	void AfterDownload();
@@ -100,14 +105,14 @@ protected:
 	void DownloadSelectedContentFallback(const ContentIDList &content);
 public:
 	/** The idle timeout; when to close the connection because it's idle. */
-	static const int IDLE_TIMEOUT = 60 * 1000;
+	static constexpr std::chrono::seconds IDLE_TIMEOUT = std::chrono::seconds(60);
 
 	ClientNetworkContentSocketHandler();
 	~ClientNetworkContentSocketHandler();
 
 	void Connect();
 	void SendReceive();
-	void Close() override;
+	NetworkRecvStatus CloseConnection(bool error = true) override;
 
 	void RequestContentList(ContentType type);
 	void RequestContentList(uint count, const ContentID *content_ids);
@@ -131,7 +136,7 @@ public:
 	/** Get the begin of the content inf iterator. */
 	ConstContentIterator Begin() const { return this->infos.data(); }
 	/** Get the nth position of the content inf iterator. */
-	ConstContentIterator Get(uint32 index) const { return this->infos.data() + index; }
+	ConstContentIterator Get(uint32_t index) const { return this->infos.data() + index; }
 	/** Get the end of the content inf iterator. */
 	ConstContentIterator End() const { return this->Begin() + this->Length(); }
 

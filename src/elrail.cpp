@@ -124,6 +124,9 @@ static TrackBits GetRailTrackBitsUniversal(TileIndex t, byte *override)
  */
 static TrackBits MaskWireBits(TileIndex t, TrackBits tracks)
 {
+	/* Single track bits are never masked out. */
+	if (likely(HasAtMostOneBit(tracks))) return tracks;
+
 	if (!IsPlainRailTile(t)) return tracks;
 
 	TrackdirBits neighbour_tdb = TRACKDIR_BIT_NONE;
@@ -229,8 +232,11 @@ static int GetPCPElevation(TileIndex tile, DiagDirection PCPpos)
 	 * Also note that the result of GetSlopePixelZ() is very special on bridge-ramps.
 	 */
 
-	int z = GetSlopePixelZ(TileX(tile) * TILE_SIZE + min(x_pcp_offsets[PCPpos], TILE_SIZE - 1), TileY(tile) * TILE_SIZE + min(y_pcp_offsets[PCPpos], TILE_SIZE - 1));
-	return (z + 2) & ~3; // this means z = (z + TILE_HEIGHT / 4) / (TILE_HEIGHT / 2) * (TILE_HEIGHT / 2);
+	int z = GetSlopePixelZ(TileX(tile) * TILE_SIZE + std::min<int8_t>(x_pcp_offsets[PCPpos], TILE_SIZE - 1),
+	                       TileY(tile) * TILE_SIZE + std::min<int8_t>(y_pcp_offsets[PCPpos], TILE_SIZE - 1), true);
+	/* Round the Z to the nearest half tile height. */
+	static const uint HALF_TILE_HEIGHT = TILE_HEIGHT / 2;
+	return (z + HALF_TILE_HEIGHT / 2) / HALF_TILE_HEIGHT * HALF_TILE_HEIGHT;
 }
 
 /**
@@ -466,8 +472,7 @@ static void DrawRailCatenaryRailway(const TileInfo *ti)
 	}
 
 	/* Drawing of pylons is finished, now draw the wires */
-	Track t;
-	FOR_EACH_SET_TRACK(t, wireconfig[TS_HOME]) {
+	for (Track t : SetTrackBitIterator(wireconfig[TS_HOME])) {
 		SpriteID wire_base = (t == halftile_track) ? wire_halftile : wire_normal;
 		byte PCPconfig = HasBit(PCPstatus, PCPpositions[t][0]) +
 			(HasBit(PCPstatus, PCPpositions[t][1]) << 1);
@@ -482,10 +487,11 @@ static void DrawRailCatenaryRailway(const TileInfo *ti)
 		/*
 		 * The "wire"-sprite position is inside the tile, i.e. 0 <= sss->?_offset < TILE_SIZE.
 		 * Therefore it is safe to use GetSlopePixelZ() for the elevation.
-		 * Also note that the result of GetSlopePixelZ() is very special for bridge-ramps.
+		 * Also note that the result of GetSlopePixelZ() is very special for bridge-ramps, so we round the result up or
+		 * down to the nearest full height change.
 		 */
 		AddSortableSpriteToDraw(wire_base + sss->image_offset, PAL_NONE, ti->x + sss->x_offset, ti->y + sss->y_offset,
-			sss->x_size, sss->y_size, sss->z_size, GetSlopePixelZ(ti->x + sss->x_offset, ti->y + sss->y_offset) + sss->z_offset,
+			sss->x_size, sss->y_size, sss->z_size, (GetSlopePixelZ(ti->x + sss->x_offset, ti->y + sss->y_offset, true) + 4) / 8 * 8 + sss->z_offset,
 			IsTransparencySet(TO_CATENARY));
 	}
 }
@@ -589,20 +595,18 @@ void DrawRailCatenary(const TileInfo *ti)
 	DrawRailCatenaryRailway(ti);
 }
 
-bool SettingsDisableElrail(int32 p1)
+void SettingsDisableElrail(int32_t new_value)
 {
-	bool disable = (p1 != 0);
+	bool disable = (new_value != 0);
 
-	/* we will now walk through all electric train engines and change their railtypes if it is the wrong one*/
-	const RailType old_railtype = disable ? RAILTYPE_ELECTRIC : RAILTYPE_RAIL;
+	/* pick appropriate railtype for elrail engines depending on setting */
 	const RailType new_railtype = disable ? RAILTYPE_RAIL : RAILTYPE_ELECTRIC;
 
 	/* walk through all train engines */
 	for (Engine *e : Engine::IterateType(VEH_TRAIN)) {
 		RailVehicleInfo *rv_info = &e->u.rail;
-		/* if it is an electric rail engine and its railtype is the wrong one */
-		if (rv_info->engclass == 2 && rv_info->railtype == old_railtype) {
-			/* change it to the proper one */
+		/* update railtype of engines intended to use elrail */
+		if (rv_info->intended_railtype == RAILTYPE_ELECTRIC) {
 			rv_info->railtype = new_railtype;
 		}
 	}
@@ -635,5 +639,4 @@ bool SettingsDisableElrail(int32 p1)
 	 * rails. It may have unintended consequences if that function is ever
 	 * extended, though. */
 	ReinitGuiAfterToggleElrail(disable);
-	return true;
 }

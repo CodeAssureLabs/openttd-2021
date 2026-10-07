@@ -1,3 +1,6 @@
+add_subdirectory(catch2)
+add_subdirectory(fmt)
+add_subdirectory(icu)
 add_subdirectory(md5)
 add_subdirectory(squirrel)
-add_subdirectory(os2)
+add_subdirectory(opengl)

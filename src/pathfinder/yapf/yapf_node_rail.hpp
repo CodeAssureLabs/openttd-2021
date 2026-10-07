@@ -13,9 +13,7 @@
 /** key for cached segment cost for rail YAPF */
 struct CYapfRailSegmentKey
 {
-	uint32    m_value;
-
-	inline CYapfRailSegmentKey(const CYapfRailSegmentKey &src) : m_value(src.m_value) {}
+	uint32_t    m_value;
 
 	inline CYapfRailSegmentKey(const CYapfNodeKeyTrackDir &node_key)
 	{
@@ -29,10 +27,10 @@ struct CYapfRailSegmentKey
 
 	inline void Set(const CYapfNodeKeyTrackDir &node_key)
 	{
-		m_value = (((int)node_key.m_tile) << 4) | node_key.m_td;
+		m_value = (static_cast<uint32_t>(node_key.m_tile) << 4) | node_key.m_td;
 	}
 
-	inline int32 CalcHash() const
+	inline int32_t CalcHash() const
 	{
 		return m_value;
 	}
@@ -109,7 +107,7 @@ struct CYapfRailSegment
 		dmp.WriteStructT("m_key", &m_key);
 		dmp.WriteTile("m_last_tile", m_last_tile);
 		dmp.WriteEnumT("m_last_td", m_last_td);
-		dmp.WriteLine("m_cost = %d", m_cost);
+		dmp.WriteValue("m_cost", m_cost);
 		dmp.WriteTile("m_last_signal_tile", m_last_signal_tile);
 		dmp.WriteEnumT("m_last_signal_td", m_last_signal_td);
 		dmp.WriteEnumT("m_end_segment_reason", m_end_segment_reason);
@@ -125,9 +123,9 @@ struct CYapfRailNodeT
 	typedef CYapfRailSegment CachedData;
 
 	CYapfRailSegment *m_segment;
-	uint16            m_num_signals_passed;
+	uint16_t            m_num_signals_passed;
 	union {
-		uint32          m_inherited_flags;
+		uint32_t          m_inherited_flags;
 		struct {
 			bool          m_targed_seen : 1;
 			bool          m_choice_seen : 1;
@@ -207,10 +205,10 @@ struct CYapfRailNodeT
 	{
 		base::Dump(dmp);
 		dmp.WriteStructT("m_segment", m_segment);
-		dmp.WriteLine("m_num_signals_passed = %d", m_num_signals_passed);
-		dmp.WriteLine("m_targed_seen = %s", flags_u.flags_s.m_targed_seen ? "Yes" : "No");
-		dmp.WriteLine("m_choice_seen = %s", flags_u.flags_s.m_choice_seen ? "Yes" : "No");
-		dmp.WriteLine("m_last_signal_was_red = %s", flags_u.flags_s.m_last_signal_was_red ? "Yes" : "No");
+		dmp.WriteValue("m_num_signals_passed", m_num_signals_passed);
+		dmp.WriteValue("m_targed_seen", flags_u.flags_s.m_targed_seen ? "Yes" : "No");
+		dmp.WriteValue("m_choice_seen", flags_u.flags_s.m_choice_seen ? "Yes" : "No");
+		dmp.WriteValue("m_last_signal_was_red", flags_u.flags_s.m_last_signal_was_red ? "Yes" : "No");
 		dmp.WriteEnumT("m_last_red_signal_type", m_last_red_signal_type);
 	}
 };
