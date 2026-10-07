@@ -12,10 +12,13 @@
 
 #include "music_driver.hpp"
 
+/* For BMidiSynthFile */
+#include <MidiSynthFile.h>
+
 /** The midi player for BeOS. */
 class MusicDriver_BeMidi : public MusicDriver {
 public:
-	const char *Start(const StringList &param) override;
+	std::optional<std::string_view> Start(const StringList &param) override;
 
 	void Stop() override;
 
@@ -25,8 +28,13 @@ public:
 
 	bool IsSongPlaying() override;
 
-	void SetVolume(byte vol) override;
-	const char *GetName() const override { return "bemidi"; }
+	void SetVolume(uint8_t vol) override;
+	std::string_view GetName() const override { return "bemidi"; }
+
+private:
+	BMidiSynthFile *midi_synth_file = nullptr;
+	double current_volume = 1.0;
+	bool just_started = false;
 };
 
 /** Factory for the BeOS midi player. */
