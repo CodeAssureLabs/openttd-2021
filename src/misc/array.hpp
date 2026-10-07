@@ -11,7 +11,7 @@
 #define ARRAY_HPP
 
 #include "fixedsizearray.hpp"
-#include "str.hpp"
+#include "../string_func.h"
 
 /**
  * Flexible array with size limit. Implemented as fixed size
@@ -28,7 +28,7 @@ protected:
 	SuperArray data; ///< array of arrays of items
 
 	/** return first sub-array with free space for new item */
-	inline SubArray& FirstFreeSubArray()
+	inline SubArray &FirstFreeSubArray()
 	{
 		uint super_size = data.Length();
 		if (super_size > 0) {
@@ -103,14 +103,12 @@ public:
 	 */
 	template <typename D> void Dump(D &dmp) const
 	{
-		dmp.WriteLine("capacity = %d", Tcapacity);
+		dmp.WriteValue("capacity", Tcapacity);
 		uint num_items = Length();
-		dmp.WriteLine("num_items = %d", num_items);
-		CStrA name;
+		dmp.WriteValue("num_items", num_items);
 		for (uint i = 0; i < num_items; i++) {
 			const T &item = (*this)[i];
-			name.Format("item[%d]", i);
-			dmp.WriteStructT(name.Data(), &item);
+			dmp.WriteStructT(fmt::format("item[{}]", i), &item);
 		}
 	}
 };

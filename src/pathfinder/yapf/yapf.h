@@ -22,18 +22,18 @@
  * @param v        the ship that needs to find a path
  * @param tile     the tile to find the path from (should be next tile the ship is about to enter)
  * @param enterdir diagonal direction which the ship will enter this new tile from
- * @param tracks   available tracks on the new tile (to choose from)
  * @param path_found [out] Whether a path has been found (true) or has been guessed (false)
  * @return         the best trackdir for next turn or INVALID_TRACK if the path could not be found
  */
-Track YapfShipChooseTrack(const Ship *v, TileIndex tile, DiagDirection enterdir, TrackBits tracks, bool &path_found, ShipPathCache &path_cache);
+Track YapfShipChooseTrack(const Ship *v, TileIndex tile, DiagDirection enterdir, bool &path_found, ShipPathCache &path_cache);
 
 /**
  * Returns true if it is better to reverse the ship before leaving depot using YAPF.
  * @param v the ship leaving the depot
+ * @param trackdir [out] the best of all possible reversed trackdirs
  * @return true if reversing is better
  */
-bool YapfShipCheckReverse(const Ship *v);
+bool YapfShipCheckReverse(const Ship *v, Trackdir *trackdir);
 
 /**
  * Finds the best path for given road vehicle using YAPF.
@@ -55,9 +55,10 @@ Trackdir YapfRoadVehicleChooseTrack(const RoadVehicle *v, TileIndex tile, DiagDi
  * @param path_found [out] Whether a path has been found (true) or has been guessed (false)
  * @param reserve_track indicates whether YAPF should try to reserve the found path
  * @param target   [out] the target tile of the reservation, free is set to true if path was reserved
+ * @param dest     [out] the final tile of the best path found
  * @return         the best track for next turn
  */
-Track YapfTrainChooseTrack(const Train *v, TileIndex tile, DiagDirection enterdir, TrackBits tracks, bool &path_found, bool reserve_track, struct PBSTileInfo *target);
+Track YapfTrainChooseTrack(const Train *v, TileIndex tile, DiagDirection enterdir, TrackBits tracks, bool &path_found, bool reserve_track, struct PBSTileInfo *target, TileIndex *dest);
 
 /**
  * Used when user sends road vehicle to the nearest depot or if road vehicle needs servicing using YAPF.

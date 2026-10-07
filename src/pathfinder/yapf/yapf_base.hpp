@@ -13,8 +13,6 @@
 #include "../../debug.h"
 #include "../../settings_type.h"
 
-extern int _total_pf_time_us;
-
 /**
  * CYapfBaseT - A-star type path finder base class.
  *  Derive your own pathfinder from it. You must provide the following template argument:
@@ -68,12 +66,6 @@ protected:
 	int                  m_stats_cache_hits;   ///< stats - how many node's costs were reused from cache
 
 public:
-	CPerformanceTimer    m_perf_cost;          ///< stats - total CPU time of this run
-	CPerformanceTimer    m_perf_slope_cost;    ///< stats - slope calculation CPU time
-	CPerformanceTimer    m_perf_ts_cost;       ///< stats - GetTrackStatus() CPU time
-	CPerformanceTimer    m_perf_other_cost;    ///< stats - other CPU time
-
-public:
 	int                  m_num_steps;          ///< this is there for debugging purposes (hope it doesn't hurt)
 
 public:
@@ -95,14 +87,14 @@ public:
 
 protected:
 	/** to access inherited path finder */
-	inline Tpf& Yapf()
+	inline Tpf &Yapf()
 	{
 		return *static_cast<Tpf *>(this);
 	}
 
 public:
 	/** return current settings (can be custom - company based - but later) */
-	inline const YAPFSettings& PfGetSettings() const
+	inline const YAPFSettings &PfGetSettings() const
 	{
 		return *m_settings;
 	}
@@ -120,56 +112,40 @@ public:
 	{
 		m_veh = v;
 
-		CPerformanceTimer perf;
-		perf.Start();
-
 		Yapf().PfSetStartupNodes();
-		bool bDestFound = true;
 
 		for (;;) {
 			m_num_steps++;
-			Node *n = m_nodes.GetBestOpenNode();
-			if (n == nullptr) {
+			Node *best_open_node = m_nodes.GetBestOpenNode();
+			if (best_open_node == nullptr) break;
+
+			if (Yapf().PfDetectDestination(*best_open_node)) {
+				m_pBestDestNode = best_open_node;
 				break;
 			}
 
-			/* if the best open node was worse than the best path found, we can finish */
-			if (m_pBestDestNode != nullptr && m_pBestDestNode->GetCost() < n->GetCostEstimate()) {
-				break;
-			}
+			Yapf().PfFollowNode(*best_open_node);
+			if (m_max_search_nodes != 0 && m_nodes.ClosedCount() >= m_max_search_nodes) break;
 
-			Yapf().PfFollowNode(*n);
-			if (m_max_search_nodes == 0 || m_nodes.ClosedCount() < m_max_search_nodes) {
-				m_nodes.PopOpenNode(n->GetKey());
-				m_nodes.InsertClosedNode(*n);
-			} else {
-				bDestFound = false;
-				break;
-			}
+			m_nodes.PopOpenNode(best_open_node->GetKey());
+			m_nodes.InsertClosedNode(*best_open_node);
 		}
 
-		bDestFound &= (m_pBestDestNode != nullptr);
+		const bool destination_found = (m_pBestDestNode != nullptr);
 
-		perf.Stop();
-		if (_debug_yapf_level >= 2) {
-			int t = perf.Get(1000000);
-			_total_pf_time_us += t;
+		if (_debug_yapf_level >= 3) {
+			const UnitID veh_idx = (m_veh != nullptr) ? m_veh->unitnumber : 0;
+			const char ttc = Yapf().TransportTypeChar();
+			const float cache_hit_ratio = (m_stats_cache_hits == 0) ? 0.0f : ((float)m_stats_cache_hits / (float)(m_stats_cache_hits + m_stats_cost_calcs) * 100.0f);
+			const int cost = destination_found ? m_pBestDestNode->m_cost : -1;
+			const int dist = destination_found ? m_pBestDestNode->m_estimate - m_pBestDestNode->m_cost : -1;
 
-			if (_debug_yapf_level >= 3) {
-				UnitID veh_idx = (m_veh != nullptr) ? m_veh->unitnumber : 0;
-				char ttc = Yapf().TransportTypeChar();
-				float cache_hit_ratio = (m_stats_cache_hits == 0) ? 0.0f : ((float)m_stats_cache_hits / (float)(m_stats_cache_hits + m_stats_cost_calcs) * 100.0f);
-				int cost = bDestFound ? m_pBestDestNode->m_cost : -1;
-				int dist = bDestFound ? m_pBestDestNode->m_estimate - m_pBestDestNode->m_cost : -1;
-
-				DEBUG(yapf, 3, "[YAPF%c]%c%4d- %d us - %d rounds - %d open - %d closed - CHR %4.1f%% - C %d D %d - c%d(sc%d, ts%d, o%d) -- ",
-					ttc, bDestFound ? '-' : '!', veh_idx, t, m_num_steps, m_nodes.OpenCount(), m_nodes.ClosedCount(),
-					cache_hit_ratio, cost, dist, m_perf_cost.Get(1000000), m_perf_slope_cost.Get(1000000),
-					m_perf_ts_cost.Get(1000000), m_perf_other_cost.Get(1000000)
-				);
-			}
+			Debug(yapf, 3, "[YAPF{}]{}{:4d} - {} rounds - {} open - {} closed - CHR {:4.1f}% - C {} D {}",
+				ttc, destination_found ? '-' : '!', veh_idx, m_num_steps, m_nodes.OpenCount(), m_nodes.ClosedCount(), cache_hit_ratio, cost, dist
+			);
 		}
-		return bDestFound;
+
+		return destination_found;
 	}
 
 	/**
@@ -185,7 +161,7 @@ public:
 	 * Calls NodeList::CreateNewNode() - allocates new node that can be filled and used
 	 *  as argument for AddStartupNode() or AddNewNode()
 	 */
-	inline Node& CreateNewNode()
+	inline Node &CreateNewNode()
 	{
 		Node &node = *m_nodes.CreateNewNode();
 		return node;
@@ -210,7 +186,7 @@ public:
 	{
 		bool is_choice = (KillFirstBit(tf.m_new_td_bits) != TRACKDIR_BIT_NONE);
 		for (TrackdirBits rtds = tf.m_new_td_bits; rtds != TRACKDIR_BIT_NONE; rtds = KillFirstBit(rtds)) {
-			Trackdir td = (Trackdir)FindFirstBit2x64(rtds);
+			Trackdir td = (Trackdir)FindFirstBit(rtds);
 			Node &n = Yapf().CreateNewNode();
 			n.Set(parent, tf.m_new_tile, td, is_choice);
 			Yapf().AddNewNode(n, tf);
@@ -225,11 +201,14 @@ public:
 	 * remain the best intermediate node, and thus the vehicle would still
 	 * go towards the red EOL signal.
 	 */
-	void PruneIntermediateNodeBranch()
+	void PruneIntermediateNodeBranch(Node *n)
 	{
-		while (Yapf().m_pBestIntermediateNode != nullptr && (Yapf().m_pBestIntermediateNode->m_segment->m_end_segment_reason & ESRB_CHOICE_FOLLOWS) == 0) {
-			Yapf().m_pBestIntermediateNode = Yapf().m_pBestIntermediateNode->m_parent;
+		bool intermediate_on_branch = false;
+		while (n != nullptr && (n->m_segment->m_end_segment_reason & ESRB_CHOICE_FOLLOWS) == 0) {
+			if (n == Yapf().m_pBestIntermediateNode) intermediate_on_branch = true;
+			n = n->m_parent;
 		}
+		if (intermediate_on_branch) Yapf().m_pBestIntermediateNode = n;
 	}
 
 	/**
@@ -257,19 +236,9 @@ public:
 		/* have the cost or estimate callbacks marked this node as invalid? */
 		if (!bValid) return;
 
-		/* detect the destination */
-		bool bDestination = Yapf().PfDetectDestination(n);
-		if (bDestination) {
-			if (m_pBestDestNode == nullptr || n < *m_pBestDestNode) {
-				m_pBestDestNode = &n;
-			}
-			m_nodes.FoundBestNode(n);
-			return;
-		}
-
-		if (m_max_search_nodes > 0 && (m_pBestIntermediateNode == nullptr || (m_pBestIntermediateNode->GetCostEstimate() - m_pBestIntermediateNode->GetCost()) > (n.GetCostEstimate() - n.GetCost()))) {
-			m_pBestIntermediateNode = &n;
-		}
+		/* The new node can be set as the best intermediate node only once we're
+		 * certain it will be finalized by being inserted into the open list. */
+		bool set_intermediate = m_max_search_nodes > 0 && (m_pBestIntermediateNode == nullptr || (m_pBestIntermediateNode->GetCostEstimate() - m_pBestIntermediateNode->GetCost()) > (n.GetCostEstimate() - n.GetCost()));
 
 		/* check new node against open list */
 		Node *openNode = m_nodes.FindOpenNode(n.GetKey());
@@ -282,6 +251,7 @@ public:
 				*openNode = n;
 				/* add the updated old node back to open list */
 				m_nodes.InsertOpenNode(*openNode);
+				if (set_intermediate) m_pBestIntermediateNode = openNode;
 			}
 			return;
 		}
@@ -307,6 +277,7 @@ public:
 		/* the new node is really new
 		 * add it to the open list */
 		m_nodes.InsertOpenNode(n);
+		if (set_intermediate) m_pBestIntermediateNode = &n;
 	}
 
 	const VehicleType * GetVehicle() const
@@ -317,63 +288,8 @@ public:
 	void DumpBase(DumpTarget &dmp) const
 	{
 		dmp.WriteStructT("m_nodes", &m_nodes);
-		dmp.WriteLine("m_num_steps = %d", m_num_steps);
+		dmp.WriteValue("m_num_steps", m_num_steps);
 	}
-
-	/* methods that should be implemented at derived class Types::Tpf (derived from CYapfBaseT) */
-
-#if 0
-	/** Example: PfSetStartupNodes() - set source (origin) nodes */
-	inline void PfSetStartupNodes()
-	{
-		/* example: */
-		Node &n1 = *base::m_nodes.CreateNewNode();
-		.
-		. // setup node members here
-		.
-		base::m_nodes.InsertOpenNode(n1);
-	}
-
-	/** Example: PfFollowNode() - set following (child) nodes of the given node */
-	inline void PfFollowNode(Node &org)
-	{
-		for (each follower of node org) {
-			Node &n = *base::m_nodes.CreateNewNode();
-			.
-			. // setup node members here
-			.
-			n.m_parent   = &org; // set node's parent to allow back tracking
-			AddNewNode(n);
-		}
-	}
-
-	/** Example: PfCalcCost() - set path cost from origin to the given node */
-	inline bool PfCalcCost(Node &n)
-	{
-		/* evaluate last step cost */
-		int cost = ...;
-		/* set the node cost as sum of parent's cost and last step cost */
-		n.m_cost = n.m_parent->m_cost + cost;
-		return true; // true if node is valid follower (i.e. no obstacle was found)
-	}
-
-	/** Example: PfCalcEstimate() - set path cost estimate from origin to the target through given node */
-	inline bool PfCalcEstimate(Node &n)
-	{
-		/* evaluate the distance to our destination */
-		int distance = ...;
-		/* set estimate as sum of cost from origin + distance to the target */
-		n.m_estimate = n.m_cost + distance;
-		return true; // true if node is valid (i.e. not too far away :)
-	}
-
-	/** Example: PfDetectDestination() - return true if the given node is our destination */
-	inline bool PfDetectDestination(Node &n)
-	{
-		bool bDest = (n.m_key.m_x == m_x2) && (n.m_key.m_y == m_y2);
-		return bDest;
-	}
-#endif
 };
 
 #endif /* YAPF_BASE_HPP */
