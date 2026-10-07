@@ -11,7 +11,7 @@
 #define WIDGETS_ORDER_WIDGET_H
 
 /** Widgets of the #OrdersWindow class. */
-enum OrderWidgets {
+enum OrderWidgets : WidgetID {
 	WID_O_CAPTION,                   ///< Caption of the window.
 	WID_O_TIMETABLE_VIEW,            ///< Toggle timetable view.
 	WID_O_ORDER_LIST,                ///< Order list panel.
@@ -25,7 +25,6 @@ enum OrderWidgets {
 	WID_O_UNLOAD,                    ///< Select unload.
 	WID_O_REFIT,                     ///< Select refit.
 	WID_O_SERVICE,                   ///< Select service (at depot).
-	WID_O_EMPTY,                     ///< Placeholder for refit dropdown when not owner.
 	WID_O_REFIT_DROPDOWN,            ///< Open refit options.
 	WID_O_COND_VARIABLE,             ///< Choose condition variable.
 	WID_O_COND_COMPARATOR,           ///< Choose condition type.

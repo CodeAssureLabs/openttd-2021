@@ -11,7 +11,7 @@
 #include "landscape.h"
 #include "mixer.h"
 #include "newgrf_sound.h"
-#include "fios.h"
+#include "random_access_file_type.h"
 #include "window_gui.h"
 #include "vehicle_base.h"
 
@@ -23,16 +23,22 @@
 
 static SoundEntry _original_sounds[ORIGINAL_SAMPLE_COUNT];
 
-static void OpenBankFile(const char *filename)
+static void OpenBankFile(const std::string &filename)
 {
+	/**
+	 * The sound file for the original sounds, i.e. those not defined/overridden by a NewGRF.
+	 * Needs to be kept alive during the game as _original_sounds[n].file refers to this.
+	 */
+	static std::unique_ptr<RandomAccessFile> original_sound_file;
+
 	memset(_original_sounds, 0, sizeof(_original_sounds));
 
 	/* If there is no sound file (nosound set), don't load anything */
-	if (filename == nullptr) return;
+	if (filename.empty()) return;
 
-	FioOpenFile(SOUND_SLOT, filename, BASESET_DIR);
-	size_t pos = FioGetPos();
-	uint count = FioReadDword();
+	original_sound_file.reset(new RandomAccessFile(filename, BASESET_DIR));
+	size_t pos = original_sound_file->GetPos();
+	uint count = original_sound_file->ReadDword();
 
 	/* The new format has the highest bit always set */
 	bool new_format = HasBit(count, 31);
@@ -44,47 +50,47 @@ static void OpenBankFile(const char *filename)
 		/* Corrupt sample data? Just leave the allocated memory as those tell
 		 * there is no sound to play (size = 0 due to calloc). Not allocating
 		 * the memory disables valid NewGRFs that replace sounds. */
-		DEBUG(misc, 6, "Incorrect number of sounds in '%s', ignoring.", filename);
+		Debug(misc, 6, "Incorrect number of sounds in '{}', ignoring.", filename);
 		return;
 	}
 
-	FioSeekTo(pos, SEEK_SET);
+	original_sound_file->SeekTo(pos, SEEK_SET);
 
 	for (uint i = 0; i != ORIGINAL_SAMPLE_COUNT; i++) {
-		_original_sounds[i].file_slot = SOUND_SLOT;
-		_original_sounds[i].file_offset = GB(FioReadDword(), 0, 31) + pos;
-		_original_sounds[i].file_size = FioReadDword();
+		_original_sounds[i].file = original_sound_file.get();
+		_original_sounds[i].file_offset = GB(original_sound_file->ReadDword(), 0, 31) + pos;
+		_original_sounds[i].file_size = original_sound_file->ReadDword();
 	}
 
 	for (uint i = 0; i != ORIGINAL_SAMPLE_COUNT; i++) {
 		SoundEntry *sound = &_original_sounds[i];
 		char name[255];
 
-		FioSeekTo(sound->file_offset, SEEK_SET);
+		original_sound_file->SeekTo(sound->file_offset, SEEK_SET);
 
 		/* Check for special case, see else case */
-		FioReadBlock(name, FioReadByte()); // Read the name of the sound
+		original_sound_file->ReadBlock(name, original_sound_file->ReadByte()); // Read the name of the sound
 		if (new_format || strcmp(name, "Corrupt sound") != 0) {
-			FioSeekTo(12, SEEK_CUR); // Skip past RIFF header
+			original_sound_file->SeekTo(12, SEEK_CUR); // Skip past RIFF header
 
 			/* Read riff tags */
 			for (;;) {
-				uint32 tag = FioReadDword();
-				uint32 size = FioReadDword();
+				uint32_t tag = original_sound_file->ReadDword();
+				uint32_t size = original_sound_file->ReadDword();
 
 				if (tag == ' tmf') {
-					FioReadWord(); // wFormatTag
-					sound->channels = FioReadWord();        // wChannels
-					sound->rate     = FioReadDword();       // samples per second
-					if (!new_format) sound->rate = 11025;   // seems like all old samples should be played at this rate.
-					FioReadDword();                         // avg bytes per second
-					FioReadWord();                          // alignment
-					sound->bits_per_sample = FioReadByte(); // bits per sample
-					FioSeekTo(size - (2 + 2 + 4 + 4 + 2 + 1), SEEK_CUR);
+					original_sound_file->ReadWord();                          // wFormatTag
+					sound->channels = original_sound_file->ReadWord();        // wChannels
+					sound->rate     = original_sound_file->ReadDword();       // samples per second
+					if (!new_format) sound->rate = 11025;                      // seems like all old samples should be played at this rate.
+					original_sound_file->ReadDword();                         // avg bytes per second
+					original_sound_file->ReadWord();                          // alignment
+					sound->bits_per_sample = original_sound_file->ReadByte(); // bits per sample
+					original_sound_file->SeekTo(size - (2 + 2 + 4 + 4 + 2 + 1), SEEK_CUR);
 				} else if (tag == 'atad') {
 					sound->file_size = size;
-					sound->file_slot = SOUND_SLOT;
-					sound->file_offset = FioGetPos();
+					sound->file = original_sound_file.get();
+					sound->file_offset = original_sound_file->GetPos();
 					break;
 				} else {
 					sound->file_size = 0;
@@ -100,8 +106,8 @@ static void OpenBankFile(const char *filename)
 			sound->channels = 1;
 			sound->rate = 11025;
 			sound->bits_per_sample = 8;
-			sound->file_slot = SOUND_SLOT;
-			sound->file_offset = FioGetPos();
+			sound->file = original_sound_file.get();
+			sound->file_offset = original_sound_file->GetPos();
 		}
 	}
 }
@@ -113,14 +119,15 @@ static bool SetBankSource(MixerChannel *mc, const SoundEntry *sound)
 	/* Check for valid sound size. */
 	if (sound->file_size == 0 || sound->file_size > ((size_t)-1) - 2) return false;
 
-	int8 *mem = MallocT<int8>(sound->file_size + 2);
+	int8_t *mem = MallocT<int8_t>(sound->file_size + 2);
 	/* Add two extra bytes so rate conversion can read these
 	 * without reading out of its input buffer. */
 	mem[sound->file_size    ] = 0;
 	mem[sound->file_size + 1] = 0;
 
-	FioSeekToFile(sound->file_slot, sound->file_offset);
-	FioReadBlock(mem, sound->file_size);
+	RandomAccessFile *file = sound->file;
+	file->SeekTo(sound->file_offset, SEEK_SET);
+	file->ReadBlock(mem, sound->file_size);
 
 	/* 16-bit PCM WAV files should be signed by default */
 	if (sound->bits_per_sample == 8) {
@@ -132,7 +139,7 @@ static bool SetBankSource(MixerChannel *mc, const SoundEntry *sound)
 #if TTD_ENDIAN == TTD_BIG_ENDIAN
 	if (sound->bits_per_sample == 16) {
 		uint num_samples = sound->file_size / 2;
-		int16 *samples = (int16 *)mem;
+		int16_t *samples = (int16_t *)mem;
 		for (uint i = 0; i < num_samples; i++) {
 			samples[i] = BSWAP16(samples[i]);
 		}
@@ -150,7 +157,7 @@ static bool SetBankSource(MixerChannel *mc, const SoundEntry *sound)
 
 void InitializeSound()
 {
-	DEBUG(misc, 1, "Loading sound effects...");
+	Debug(misc, 1, "Loading sound effects...");
 	OpenBankFile(BaseSounds::GetUsedSet()->files->filename);
 }
 
@@ -163,10 +170,10 @@ static void StartSound(SoundID sound_id, float pan, uint volume)
 	if (sound == nullptr) return;
 
 	/* NewGRF sound that wasn't loaded yet? */
-	if (sound->rate == 0 && sound->file_slot != 0) {
+	if (sound->rate == 0 && sound->file != nullptr) {
 		if (!LoadNewGRFSound(sound)) {
 			/* Mark as invalid. */
-			sound->file_slot = 0;
+			sound->file = nullptr;
 			return;
 		}
 	}
@@ -188,7 +195,7 @@ static void StartSound(SoundID sound_id, float pan, uint volume)
 
 
 static const byte _vol_factor_by_zoom[] = {255, 255, 255, 190, 134, 87};
-static_assert(lengthof(_vol_factor_by_zoom) == ZOOM_LVL_COUNT);
+static_assert(lengthof(_vol_factor_by_zoom) == ZOOM_LVL_END);
 
 static const byte _sound_base_vol[] = {
 	128,  90, 128, 128, 128, 128, 128, 128,
@@ -228,6 +235,7 @@ void SndCopyToPool()
 
 /**
  * Decide 'where' (between left and right speaker) to play the sound effect.
+ * Note: Callers must determine if sound effects are enabled. This plays a sound regardless of the setting.
  * @param sound Sound effect to play
  * @param left   Left edge of virtual coordinates where the sound is produced
  * @param right  Right edge of virtual coordinates where the sound is produced
@@ -236,10 +244,8 @@ void SndCopyToPool()
  */
 static void SndPlayScreenCoordFx(SoundID sound, int left, int right, int top, int bottom)
 {
-	if (_settings_client.music.effect_vol == 0) return;
-
-	const Window *w;
-	FOR_ALL_WINDOWS_FROM_BACK(w) {
+	/* Iterate from back, so that main viewport is checked first */
+	for (const Window *w : Window::IterateFromBack()) {
 		const Viewport *vp = w->viewport;
 
 		if (vp != nullptr &&
@@ -252,7 +258,7 @@ static void SndPlayScreenCoordFx(SoundID sound, int left, int right, int top, in
 			StartSound(
 				sound,
 				panning,
-				(_settings_client.music.effect_vol * _vol_factor_by_zoom[vp->zoom - ZOOM_LVL_BEGIN]) / 256
+				_vol_factor_by_zoom[vp->zoom]
 			);
 			return;
 		}
@@ -262,8 +268,8 @@ static void SndPlayScreenCoordFx(SoundID sound, int left, int right, int top, in
 void SndPlayTileFx(SoundID sound, TileIndex tile)
 {
 	/* emits sound from center of the tile */
-	int x = min(MapMaxX() - 1, TileX(tile)) * TILE_SIZE + TILE_SIZE / 2;
-	int y = min(MapMaxY() - 1, TileY(tile)) * TILE_SIZE - TILE_SIZE / 2;
+	int x = std::min(Map::MaxX() - 1, TileX(tile)) * TILE_SIZE + TILE_SIZE / 2;
+	int y = std::min(Map::MaxY() - 1, TileY(tile)) * TILE_SIZE - TILE_SIZE / 2;
 	int z = (y < 0 ? 0 : GetSlopePixelZ(x, y));
 	Point pt = RemapCoords(x, y, z);
 	y += 2 * TILE_SIZE;
@@ -281,7 +287,7 @@ void SndPlayVehicleFx(SoundID sound, const Vehicle *v)
 
 void SndPlayFx(SoundID sound)
 {
-	StartSound(sound, 0.5, _settings_client.music.effect_vol);
+	StartSound(sound, 0.5, UINT8_MAX);
 }
 
 INSTANTIATE_BASE_MEDIA_METHODS(BaseMedia<SoundsSet>, SoundsSet)
