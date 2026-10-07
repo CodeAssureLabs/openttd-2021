@@ -1,0 +1,78 @@
+schema_version: 1
+manifest_version: 1
+repo: CodeAssureLabs/openttd-2021
+# DRAFT target architecture (CodeAssure internal test plan, 2026-10-06) — needs review by an engineer.
+# OpenTTD declares no layering; this is a target derived from the src/ directory structure, the file
+# naming conventions (*_gui, *_cmd, *_base.h, *_type.h, *_map.h) and the direction of recent
+# Codechange refactors (moving GUI parts out of logic, removing mutable globals, scoped enums).
+#   entry        openttd.cpp, OS / video / music / sound drivers
+#   api          GUI (windows, widgets, viewport, drawing) and the AI/GS script API
+#   integration  network (client, server, admin, content, coordinator)
+#   service      game logic: commands (*_cmd), economy, vehicles, pathfinder, linkgraph, NewGRF, timers
+#   data         savegame load/save (src/saveload)
+#   domain       game-state model: *_base.h, *_type.h, *_map.h, map/tile accessors, static tables
+#   config       settings types and ini handling, language files
+#   utils        src/core, src/misc, string/debug helpers, bundled 3rdparty (cross-cutting)
+layers:
+  entry: [api, integration, service, data, domain, config]
+  api: [service, domain, config]          # GUI and scripts drive the game through commands
+  integration: [service, domain, config]  # network executes commands, never touches GUI
+  service: [domain, config]               # game logic never includes GUI, network or saveload
+  data: [domain, config]                  # saveload (de)serialises the model; no GUI, no logic
+  domain: [config]                        # the model includes no logic, GUI or saveload
+  config: []
+  tests: [entry, api, service, integration, data, domain, config]   # test code may exercise any layer
+cross_cutting: [utils]
+forbidden_edges:
+  - id: model-no-gui
+    from: domain
+    to: api
+    reason: "game-state headers (*_base.h, *_type.h, *_map.h) must not include GUI or script code"
+    check: blocking
+    severity: high
+  - id: logic-no-gui
+    from: service
+    to: api
+    reason: "commands and game logic must not include GUI or script headers; GUI code calls commands, not the reverse"
+    check: detect_only
+    severity: medium
+  - id: logic-no-saveload
+    from: service
+    to: data
+    reason: "game logic must not depend on savegame internals; saveload depends on the model, not the reverse"
+    check: blocking
+    severity: high
+  - id: saveload-no-gui
+    from: data
+    to: api
+    reason: "savegame code must not include GUI code"
+    check: blocking
+    severity: high
+  - id: network-no-gui
+    from: integration
+    to: api
+    reason: "the network layer executes commands; it must not include GUI headers"
+    check: detect_only
+    severity: medium
+required_companions:
+  - id: new-source-in-cmake
+    when: "src/**/*.cpp"
+    require: ["src/**/CMakeLists.txt"]
+    reason: "OpenTTD lists every source file in its directory's CMakeLists.txt add_files(); a new file must be added there"
+    check: detect_only
+  - id: saveload-chunk-needs-compat
+    when: "src/saveload/*_sl.cpp"
+    require: ["src/saveload/compat/*_sl_compat.h"]
+    reason: "a saveload chunk keeps its pre-table compatibility description in src/saveload/compat/"
+    check: detect_only
+invariants:
+  - id: no-printf-logging
+    within: "src/saveload/**"
+    forbid_pattern: '\b(printf|fprintf)\s*\('
+    reason: "log through Debug(category, level, ...) (CODINGSTYLE.md), never printf"
+    check: detect_only
+  - id: no-raw-new-array-in-model
+    within: "src/*_base.h"
+    forbid_pattern: '\bnew\s+\w+\s*\['
+    reason: "modernisation direction: containers and pools, not raw new[] in game-state classes"
+    check: detect_only

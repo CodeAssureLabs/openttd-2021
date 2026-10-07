@@ -1,0 +1,457 @@
+{
+ "artifact_version": 1,
+ "source_manifest_version": 1,
+ "layer_map": {},
+ "path_globs": [
+  {
+   "glob": "src/tests/**",
+   "layer": "tests"
+  },
+  {
+   "glob": "regression/**",
+   "layer": "tests"
+  },
+  {
+   "glob": "src/3rdparty/**",
+   "layer": "utils"
+  },
+  {
+   "glob": "src/core/**",
+   "layer": "utils"
+  },
+  {
+   "glob": "src/misc/**",
+   "layer": "utils"
+  },
+  {
+   "glob": "src/debug*",
+   "layer": "utils"
+  },
+  {
+   "glob": "src/fileio*",
+   "layer": "utils"
+  },
+  {
+   "glob": "src/ini*",
+   "layer": "config"
+  },
+  {
+   "glob": "src/random_access_file*",
+   "layer": "utils"
+  },
+  {
+   "glob": "src/thread.h",
+   "layer": "utils"
+  },
+  {
+   "glob": "src/safeguards.h",
+   "layer": "utils"
+  },
+  {
+   "glob": "src/stdafx.h",
+   "layer": "utils"
+  },
+  {
+   "glob": "src/settingsgen/**",
+   "layer": "build-infra"
+  },
+  {
+   "glob": "src/strgen/**",
+   "layer": "build-infra"
+  },
+  {
+   "glob": "src/string.cpp",
+   "layer": "utils"
+  },
+  {
+   "glob": "src/string_func.h",
+   "layer": "utils"
+  },
+  {
+   "glob": "src/string_type.h",
+   "layer": "utils"
+  },
+  {
+   "glob": "src/string_base.h",
+   "layer": "utils"
+  },
+  {
+   "glob": "src/string_builder*",
+   "layer": "utils"
+  },
+  {
+   "glob": "src/string_consumer*",
+   "layer": "utils"
+  },
+  {
+   "glob": "src/string_inplace*",
+   "layer": "utils"
+  },
+  {
+   "glob": "src/strings.cpp",
+   "layer": "service"
+  },
+  {
+   "glob": "src/strings_internal.h",
+   "layer": "service"
+  },
+  {
+   "glob": "src/settings_type.h",
+   "layer": "config"
+  },
+  {
+   "glob": "src/settings_internal.h",
+   "layer": "config"
+  },
+  {
+   "glob": "src/widgets/*_widget.h",
+   "layer": "domain"
+  },
+  {
+   "glob": "src/openttd.h",
+   "layer": "domain"
+  },
+  {
+   "glob": "src/*_type.h",
+   "layer": "domain"
+  },
+  {
+   "glob": "src/*_func.h",
+   "layer": "domain"
+  },
+  {
+   "glob": "src/**/*_type.h",
+   "layer": "domain"
+  },
+  {
+   "glob": "src/**/*_type.hpp",
+   "layer": "domain"
+  },
+  {
+   "glob": "src/fios*",
+   "layer": "api"
+  },
+  {
+   "glob": "src/tests/**",
+   "layer": "tests"
+  },
+  {
+   "glob": "regression/**",
+   "layer": "tests"
+  },
+  {
+   "glob": "src/3rdparty/**",
+   "layer": "utils"
+  },
+  {
+   "glob": "src/strings_func.h",
+   "layer": "utils"
+  },
+  {
+   "glob": "src/settingsgen/**",
+   "layer": "build-infra"
+  },
+  {
+   "glob": "src/strgen/**",
+   "layer": "build-infra"
+  },
+  {
+   "glob": "src/lang/**",
+   "layer": "config"
+  },
+  {
+   "glob": "src/settings_type.h",
+   "layer": "config"
+  },
+  {
+   "glob": "src/settings_internal.h",
+   "layer": "config"
+  },
+  {
+   "glob": "src/openttd.*",
+   "layer": "entry"
+  },
+  {
+   "glob": "src/os/**",
+   "layer": "entry"
+  },
+  {
+   "glob": "src/video/**",
+   "layer": "entry"
+  },
+  {
+   "glob": "src/music/**",
+   "layer": "entry"
+  },
+  {
+   "glob": "src/sound/**",
+   "layer": "entry"
+  },
+  {
+   "glob": "src/crashlog*",
+   "layer": "entry"
+  },
+  {
+   "glob": "src/mixer*",
+   "layer": "entry"
+  },
+  {
+   "glob": "src/sound*",
+   "layer": "entry"
+  },
+  {
+   "glob": "src/music*",
+   "layer": "entry"
+  },
+  {
+   "glob": "src/driver*",
+   "layer": "entry"
+  },
+  {
+   "glob": "src/network/**",
+   "layer": "integration"
+  },
+  {
+   "glob": "src/script/**",
+   "layer": "api"
+  },
+  {
+   "glob": "src/ai/**",
+   "layer": "api"
+  },
+  {
+   "glob": "src/game/**",
+   "layer": "api"
+  },
+  {
+   "glob": "src/widgets/**",
+   "layer": "api"
+  },
+  {
+   "glob": "src/*_gui.*",
+   "layer": "api"
+  },
+  {
+   "glob": "src/*_gui_*",
+   "layer": "api"
+  },
+  {
+   "glob": "src/window*",
+   "layer": "api"
+  },
+  {
+   "glob": "src/widget*",
+   "layer": "api"
+  },
+  {
+   "glob": "src/viewport*",
+   "layer": "api"
+  },
+  {
+   "glob": "src/gfx*",
+   "layer": "api"
+  },
+  {
+   "glob": "src/blitter/**",
+   "layer": "api"
+  },
+  {
+   "glob": "src/fontcache/**",
+   "layer": "api"
+  },
+  {
+   "glob": "src/fontcache*",
+   "layer": "api"
+  },
+  {
+   "glob": "src/spriteloader/**",
+   "layer": "api"
+  },
+  {
+   "glob": "src/spritecache*",
+   "layer": "api"
+  },
+  {
+   "glob": "src/textbuf*",
+   "layer": "api"
+  },
+  {
+   "glob": "src/console*",
+   "layer": "api"
+  },
+  {
+   "glob": "src/dropdown*",
+   "layer": "api"
+  },
+  {
+   "glob": "src/querystring*",
+   "layer": "api"
+  },
+  {
+   "glob": "src/hotkeys*",
+   "layer": "api"
+  },
+  {
+   "glob": "src/zoom*",
+   "layer": "api"
+  },
+  {
+   "glob": "src/screenshot*",
+   "layer": "api"
+  },
+  {
+   "glob": "src/smallmap*",
+   "layer": "api"
+  },
+  {
+   "glob": "src/news*",
+   "layer": "api"
+  },
+  {
+   "glob": "src/error*",
+   "layer": "api"
+  },
+  {
+   "glob": "src/sprite.*",
+   "layer": "api"
+  },
+  {
+   "glob": "src/palette*",
+   "layer": "api"
+  },
+  {
+   "glob": "src/textfile*",
+   "layer": "api"
+  },
+  {
+   "glob": "src/help*",
+   "layer": "api"
+  },
+  {
+   "glob": "src/intro*",
+   "layer": "api"
+  },
+  {
+   "glob": "src/toolbar*",
+   "layer": "api"
+  },
+  {
+   "glob": "src/main_gui*",
+   "layer": "api"
+  },
+  {
+   "glob": "src/tilehighlight*",
+   "layer": "api"
+  },
+  {
+   "glob": "src/linkgraph/linkgraph_gui*",
+   "layer": "api"
+  },
+  {
+   "glob": "src/timer/timer_window*",
+   "layer": "api"
+  },
+  {
+   "glob": "src/saveload/**",
+   "layer": "data"
+  },
+  {
+   "glob": "src/fios*",
+   "layer": "data"
+  },
+  {
+   "glob": "src/table/**",
+   "layer": "domain"
+  },
+  {
+   "glob": "src/*_base.h",
+   "layer": "domain"
+  },
+  {
+   "glob": "src/*_type.h",
+   "layer": "domain"
+  },
+  {
+   "glob": "src/*_map.h",
+   "layer": "domain"
+  },
+  {
+   "glob": "src/map*.h",
+   "layer": "domain"
+  },
+  {
+   "glob": "src/tile_*.h",
+   "layer": "domain"
+  },
+  {
+   "glob": "src/tile*.h",
+   "layer": "domain"
+  },
+  {
+   "glob": "src/direction*.h",
+   "layer": "domain"
+  },
+  {
+   "glob": "src/*_func.h",
+   "layer": "domain"
+  },
+  {
+   "glob": "src/**",
+   "layer": "service"
+  }
+ ],
+ "compiled_rules": {
+  "allowed": {
+   "entry": [
+    "api",
+    "config",
+    "data",
+    "domain",
+    "integration",
+    "service",
+    "utils"
+   ],
+   "api": [
+    "config",
+    "domain",
+    "service",
+    "utils"
+   ],
+   "integration": [
+    "config",
+    "domain",
+    "service",
+    "utils"
+   ],
+   "service": [
+    "config",
+    "domain",
+    "utils"
+   ],
+   "data": [
+    "config",
+    "domain",
+    "utils"
+   ],
+   "domain": [
+    "config",
+    "utils"
+   ],
+   "config": [
+    "utils"
+   ],
+   "utils": [],
+   "tests": [
+    "api",
+    "config",
+    "data",
+    "domain",
+    "entry",
+    "integration",
+    "service",
+    "tests",
+    "utils"
+   ]
+  }
+ }
+}
