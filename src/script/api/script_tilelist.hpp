@@ -12,6 +12,7 @@
 
 #include "script_station.hpp"
 #include "script_list.hpp"
+#include "../../industry_type.h"
 
 /**
  * Creates an empty list, in which you can add tiles.
@@ -19,6 +20,8 @@
  * @ingroup ScriptList
  */
 class ScriptTileList : public ScriptList {
+protected:
+	virtual bool SaveObject(HSQUIRRELVM) override;
 public:
 	/**
 	 * Adds the rectangle between tile_from and tile_to to the to-be-evaluated tiles.
@@ -37,7 +40,7 @@ public:
 	void AddTile(TileIndex tile);
 
 	/**
-	 * Remove the tiles inside the rectangle between tile_from and tile_to form the list.
+	 * Remove the tiles inside the rectangle between tile_from and tile_to from the list.
 	 * @param tile_from One corner of the tiles to remove.
 	 * @param tile_to The other corner of the files to remove.
 	 * @pre ScriptMap::IsValidTile(tile_from).
@@ -68,7 +71,7 @@ public:
 	 * @pre radius > 0.
 	 * @note A station part built on any of the returned tiles will give you coverage.
 	 */
-	ScriptTileList_IndustryAccepting(IndustryID industry_id, int radius);
+	ScriptTileList_IndustryAccepting(IndustryID industry_id, SQInteger radius);
 };
 
 /**
@@ -86,7 +89,7 @@ public:
 	 * @pre radius > 0.
 	 * @note A station part built on any of the returned tiles will give you acceptance.
 	 */
-	ScriptTileList_IndustryProducing(IndustryID industry_id, int radius);
+	ScriptTileList_IndustryProducing(IndustryID industry_id, SQInteger radius);
 };
 
 /**
@@ -102,6 +105,19 @@ public:
 	 * @param station_type The StationType to create the ScriptList for.
 	 */
 	ScriptTileList_StationType(StationID station_id, ScriptStation::StationType station_type);
+};
+
+/**
+ * Creates a list of tiles in the catchment area of the StationID.
+ * @api ai game
+ * @ingroup ScriptList
+ */
+class ScriptTileList_StationCoverage : public ScriptTileList {
+public:
+	/**
+	 * @param station_id The station to create the ScriptTileList for.
+	 */
+	ScriptTileList_StationCoverage(StationID station_id);
 };
 
 #endif /* SCRIPT_TILELIST_HPP */

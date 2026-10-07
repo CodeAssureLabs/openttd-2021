@@ -14,16 +14,15 @@
 #include "cargo_type.h"
 #include "gfx_type.h"
 
-static const CargoID CT_DEFAULT      = NUM_CARGO + 0;
-static const CargoID CT_PURCHASE     = NUM_CARGO + 1;
-static const CargoID CT_DEFAULT_NA   = NUM_CARGO + 2;
-
 /* Forward declarations of structs used */
 struct CargoSpec;
 struct GRFFile;
 
 SpriteID GetCustomCargoSprite(const CargoSpec *cs);
-uint16 GetCargoCallback(CallbackID callback, uint32 param1, uint32 param2, const CargoSpec *cs);
-CargoID GetCargoTranslation(uint8 cargo, const GRFFile *grffile, bool usebit = false);
+uint16_t GetCargoCallback(CallbackID callback, uint32_t param1, uint32_t param2, const CargoSpec *cs, std::span<int32_t> regs100 = {});
+CargoType GetCargoTranslation(uint8_t cargo, const GRFFile *grffile, bool usebit = false);
+
+std::span<const CargoLabel> GetClimateDependentCargoTranslationTable();
+std::span<const CargoLabel> GetClimateIndependentCargoTranslationTable();
 
 #endif /* NEWGRF_CARGO_H */
