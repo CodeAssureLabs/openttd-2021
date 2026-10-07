@@ -2,7 +2,7 @@
  * This file is part of OpenTTD.
  * OpenTTD is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, version 2.
  * OpenTTD is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with OpenTTD. If not, see <http://www.gnu.org/licenses/>.
+ * See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with OpenTTD. If not, see <https://www.gnu.org/licenses/old-licenses/gpl-2.0>.
  */
 
 /** @file macos.h Functions related to MacOS support. */
@@ -11,7 +11,7 @@
 #define MACOS_H
 
 /** Helper function displaying a message the best possible way. */
-void ShowMacDialog(const char *title, const char *message, const char *button_label);
+void ShowMacDialog(std::string_view title, std::string_view message, std::string_view button_label);
 
 void GetMacOSVersion(int *return_major, int *return_minor, int *return_bugfix);
 
@@ -22,7 +22,7 @@ void GetMacOSVersion(int *return_major, int *return_minor, int *return_bugfix);
  * @param bugfix bugfix version of the os. This would be 11 in the case of 10.4.11.
  * @return true if the running os is at least what we asked, false otherwise.
  */
-static inline bool MacOSVersionIsAtLeast(long major, long minor, long bugfix)
+inline bool MacOSVersionIsAtLeast(long major, long minor, long bugfix)
 {
 	int version_major, version_minor, version_bugfix;
 	GetMacOSVersion(&version_major, &version_minor, &version_bugfix);
@@ -36,7 +36,9 @@ static inline bool MacOSVersionIsAtLeast(long major, long minor, long bugfix)
 
 bool IsMonospaceFont(CFStringRef name);
 
-void MacOSSetThreadName(const char *name);
+void MacOSSetThreadName(const std::string &name);
+
+uint64_t MacOSGetPhysicalMemory();
 
 
 /** Deleter that calls CFRelease rather than deleting the pointer. */

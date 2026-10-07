@@ -2,74 +2,65 @@
  * This file is part of OpenTTD.
  * OpenTTD is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, version 2.
  * OpenTTD is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with OpenTTD. If not, see <http://www.gnu.org/licenses/>.
+ * See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with OpenTTD. If not, see <https://www.gnu.org/licenses/old-licenses/gpl-2.0>.
  */
 
 /** @file dbg_helpers.cpp Helpers for outputting debug information. */
 
 #include "../stdafx.h"
 #include "../rail_map.h"
+#include "../core/enum_type.hpp"
 #include "dbg_helpers.h"
 
 #include "../safeguards.h"
 
 /** Trackdir & TrackdirBits short names. */
-static const char * const trackdir_names[] = {
+static const std::string_view trackdir_names[] = {
 	"NE", "SE", "UE", "LE", "LS", "RS", "rne", "rse",
 	"SW", "NW", "UW", "LW", "LN", "RN", "rsw", "rnw",
 };
 
 /** Return name of given Trackdir. */
-CStrA ValueStr(Trackdir td)
+std::string ValueStr(Trackdir td)
 {
-	CStrA out;
-	out.Format("%d (%s)", td, ItemAtT(td, trackdir_names, "UNK", INVALID_TRACKDIR, "INV"));
-	return out.Transfer();
+	return fmt::format("{} ({})", to_underlying(td), ItemAt(td, trackdir_names, "UNK", INVALID_TRACKDIR, "INV"));
 }
 
 /** Return composed name of given TrackdirBits. */
-CStrA ValueStr(TrackdirBits td_bits)
+std::string ValueStr(TrackdirBits td_bits)
 {
-	CStrA out;
-	out.Format("%d (%s)", td_bits, ComposeNameT(td_bits, trackdir_names, "UNK", INVALID_TRACKDIR_BIT, "INV").Data());
-	return out.Transfer();
+	return fmt::format("{} ({})", to_underlying(td_bits), ComposeName(td_bits, trackdir_names, "UNK", INVALID_TRACKDIR_BIT, "INV"));
 }
 
 
 /** DiagDirection short names. */
-static const char * const diagdir_names[] = {
+static const std::string_view diagdir_names[] = {
 	"NE", "SE", "SW", "NW",
 };
 
 /** Return name of given DiagDirection. */
-CStrA ValueStr(DiagDirection dd)
+std::string ValueStr(DiagDirection dd)
 {
-	CStrA out;
-	out.Format("%d (%s)", dd, ItemAtT(dd, diagdir_names, "UNK", INVALID_DIAGDIR, "INV"));
-	return out.Transfer();
+	return fmt::format("{} ({})", to_underlying(dd), ItemAt(dd, diagdir_names, "UNK", INVALID_DIAGDIR, "INV"));
 }
 
 
 /** SignalType short names. */
-static const char * const signal_type_names[] = {
+static const std::string_view signal_type_names[] = {
 	"NORMAL", "ENTRY", "EXIT", "COMBO", "PBS", "NOENTRY",
 };
 
 /** Return name of given SignalType. */
-CStrA ValueStr(SignalType t)
+std::string ValueStr(SignalType t)
 {
-	CStrA out;
-	out.Format("%d (%s)", t, ItemAtT(t, signal_type_names, "UNK"));
-	return out.Transfer();
+	return fmt::format("{} ({})", to_underlying(t), ItemAt(t, signal_type_names, "UNK"));
 }
 
 
 /** Translate TileIndex into string. */
-CStrA TileStr(TileIndex tile)
+std::string TileStr(TileIndex tile)
 {
-	CStrA out;
-	out.Format("0x%04X (%d, %d)", tile, TileX(tile), TileY(tile));
-	return out.Transfer();
+	return fmt::format("0x{:04X} ({}, {})", tile.base(), TileX(tile), TileY(tile));
 }
 
 /**
@@ -81,26 +72,26 @@ CStrA TileStr(TileIndex tile)
 }
 
 /** Return structured name of the current class/structure. */
-CStrA DumpTarget::GetCurrentStructName()
+std::string DumpTarget::GetCurrentStructName()
 {
-	CStrA out;
+	std::string out;
 	if (!m_cur_struct.empty()) {
 		/* we are inside some named struct, return its name */
 		out = m_cur_struct.top();
 	}
-	return out.Transfer();
+	return out;
 }
 
 /**
  * Find the given instance in our anti-recursion repository.
  * Return true and set name when object was found.
  */
-bool DumpTarget::FindKnownName(size_t type_id, const void *ptr, CStrA &name)
+bool DumpTarget::FindKnownName(size_t type_id, const void *ptr, std::string &name)
 {
 	KNOWN_NAMES::const_iterator it = m_known_names.find(KnownStructKey(type_id, ptr));
 	if (it != m_known_names.end()) {
 		/* we have found it */
-		name = (*it).second;
+		name = it->second;
 		return true;
 	}
 	return false;
@@ -111,47 +102,29 @@ void DumpTarget::WriteIndent()
 {
 	int num_spaces = 2 * m_indent;
 	if (num_spaces > 0) {
-		memset(m_out.GrowSizeNC(num_spaces), ' ', num_spaces);
+		m_out += std::string(num_spaces, ' ');
 	}
 }
 
-/** Write a line with indent at the beginning and \<LF\> at the end. */
-void DumpTarget::WriteLine(const char *format, ...)
-{
-	WriteIndent();
-	va_list args;
-	va_start(args, format);
-	m_out.AddFormatL(format, args);
-	va_end(args);
-	m_out.AppendStr("\n");
-}
-
-/** Write 'name = value' with indent and new-line. */
-void DumpTarget::WriteValue(const char *name, const char *value_str)
-{
-	WriteIndent();
-	m_out.AddFormat("%s = %s\n", name, value_str);
-}
-
 /** Write name & TileIndex to the output. */
-void DumpTarget::WriteTile(const char *name, TileIndex tile)
+void DumpTarget::WriteTile(std::string_view name, TileIndex tile)
 {
 	WriteIndent();
-	m_out.AddFormat("%s = %s\n", name, TileStr(tile).Data());
+	format_append(m_out, "{} = {}\n", name, TileStr(tile));
 }
 
 /**
  * Open new structure (one level deeper than the current one) 'name = {\<LF\>'.
  */
-void DumpTarget::BeginStruct(size_t type_id, const char *name, const void *ptr)
+void DumpTarget::BeginStruct(size_t type_id, std::string_view name, const void *ptr)
 {
 	/* make composite name */
-	CStrA cur_name = GetCurrentStructName().Transfer();
-	if (cur_name.Size() > 0) {
+	std::string cur_name = GetCurrentStructName();
+	if (!cur_name.empty()) {
 		/* add name delimiter (we use structured names) */
-		cur_name.AppendStr(".");
+		cur_name += ".";
 	}
-	cur_name.AppendStr(name);
+	cur_name += name;
 
 	/* put the name onto stack (as current struct name) */
 	m_cur_struct.push(cur_name);
@@ -160,7 +133,7 @@ void DumpTarget::BeginStruct(size_t type_id, const char *name, const void *ptr)
 	m_known_names.insert(KNOWN_NAMES::value_type(KnownStructKey(type_id, ptr), cur_name));
 
 	WriteIndent();
-	m_out.AddFormat("%s = {\n", name);
+	format_append(m_out, "{} = {{\n", name);
 	m_indent++;
 }
 
@@ -171,11 +144,8 @@ void DumpTarget::EndStruct()
 {
 	m_indent--;
 	WriteIndent();
-	m_out.AddFormat("}\n");
+	m_out += "}\n";
 
 	/* remove current struct name from the stack */
 	m_cur_struct.pop();
 }
-
-/** Just to silence an unsilencable GCC 4.4+ warning */
-/* static */ ByteBlob::BlobHeader ByteBlob::hdrEmpty[] = {{0, 0}, {0, 0}};
