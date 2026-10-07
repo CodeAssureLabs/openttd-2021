@@ -13,6 +13,7 @@
 #include "economy_type.h"
 #include "strings_type.h"
 #include "tile_type.h"
+#include <vector>
 
 struct GRFFile;
 
@@ -172,7 +173,7 @@ public:
  *
  * @see _command_proc_table
  */
-enum Commands {
+enum Commands : uint16 {
 	CMD_BUILD_RAILROAD_TRACK,         ///< build a rail track
 	CMD_REMOVE_RAILROAD_TRACK,        ///< remove a rail track
 	CMD_BUILD_SINGLE_RAIL,            ///< build a single rail track
@@ -324,7 +325,7 @@ enum Commands {
 	CMD_ADD_VEHICLE_GROUP,            ///< add a vehicle to a group
 	CMD_ADD_SHARED_VEHICLE_GROUP,     ///< add all other shared vehicles to a group which are missing
 	CMD_REMOVE_ALL_VEHICLES_GROUP,    ///< remove all vehicles from a group
-	CMD_SET_GROUP_REPLACE_PROTECTION, ///< set the autoreplace-protection for a group
+	CMD_SET_GROUP_FLAG,               ///< set/clear a flag for a group
 	CMD_SET_GROUP_LIVERY,             ///< set the livery for a group
 
 	CMD_MOVE_ORDER,                   ///< move an order
@@ -349,7 +350,7 @@ enum DoCommandFlag {
 	DC_AUTO                  = 0x002, ///< don't allow building on structures
 	DC_QUERY_COST            = 0x004, ///< query cost only,  don't build.
 	DC_NO_WATER              = 0x008, ///< don't allow building on water
-	DC_NO_RAIL_OVERLAP       = 0x010, ///< don't allow overlap of rails (used in buildrail)
+	// 0x010 is unused
 	DC_NO_TEST_TOWN_RATING   = 0x020, ///< town rating does not disallow you from building
 	DC_BANKRUPT              = 0x040, ///< company bankrupts, skip money check, skip vehicle on tile check in some cases
 	DC_AUTOREPLACE           = 0x080, ///< autoreplace/autorenew is in progress, this shall disable vehicle limits when building, and ignore certain restrictions when undoing things (like vehicle attach callback)
@@ -359,28 +360,6 @@ enum DoCommandFlag {
 	DC_FORCE_CLEAR_TILE      = 0x800, ///< do not only remove the object on the tile, but also clear any water left on it
 };
 DECLARE_ENUM_AS_BIT_SET(DoCommandFlag)
-
-/**
- * Used to combine a StringID with the command.
- *
- * This macro can be used to add a StringID (the error message to show) on a command-id
- * (CMD_xxx). Use the binary or-operator "|" to combine the command with the result from
- * this macro.
- *
- * @param x The StringID to combine with a command-id
- */
-#define CMD_MSG(x) ((x) << 16)
-
-/**
- * Defines some flags.
- *
- * This enumeration defines some flags which are binary-or'ed on a command.
- */
-enum FlaggedCommands {
-	CMD_NETWORK_COMMAND       = 0x0100, ///< execute the command without sending it on the network
-	CMD_FLAGS_MASK            = 0xFF00, ///< mask for all command flags
-	CMD_ID_MASK               = 0x00FF, ///< mask for the command ID
-};
 
 /**
  * Command flags for the command table _command_proc_table.
@@ -443,20 +422,31 @@ enum CommandPauseLevel {
  * @param text Additional text
  * @return The CommandCost of the command, which can be succeeded or failed.
  */
-typedef CommandCost CommandProc(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 p2, const char *text);
+typedef CommandCost CommandProc(DoCommandFlag flags, TileIndex tile, uint32 p1, uint32 p2, const std::string &text);
 
-/**
- * Define a command with the flags which belongs to it.
- *
- * This struct connect a command handler function with the flags created with
- * the #CMD_AUTO, #CMD_OFFLINE and #CMD_SERVER values.
- */
-struct Command {
-	CommandProc *proc;  ///< The procedure to actually executing
-	const char *name;   ///< A human readable name for the procedure
-	CommandFlags flags; ///< The (command) flags to that apply to this command
-	CommandType type;   ///< The type of command.
+
+template <typename T> struct CommandFunctionTraitHelper;
+template <typename... Targs>
+struct CommandFunctionTraitHelper<CommandCost(*)(DoCommandFlag, Targs...)> {
+	using Args = std::tuple<std::decay_t<Targs>...>;
 };
+
+/** Defines the traits of a command. */
+template <Commands Tcmd> struct CommandTraits;
+
+#define DEF_CMD_TRAIT(cmd_, proc_, flags_, type_) \
+	template<> struct CommandTraits<cmd_> { \
+		using ProcType = decltype(&proc_); \
+		using Args = typename CommandFunctionTraitHelper<ProcType>::Args; \
+		static constexpr Commands cmd = cmd_; \
+		static constexpr auto &proc = proc_; \
+		static constexpr CommandFlags flags = (CommandFlags)(flags_); \
+		static constexpr CommandType type = type_; \
+		static inline constexpr const char *name = #proc_; \
+	};
+
+/** Storage buffer for serialized command data. */
+typedef std::vector<byte> CommandDataBuffer;
 
 /**
  * Define a callback function for the client, after the command is finished.
@@ -465,24 +455,12 @@ struct Command {
  * are from the #CommandProc callback type. The boolean parameter indicates if the
  * command succeeded or failed.
  *
+ * @param cmd The command that was executed
  * @param result The result of the executed command
  * @param tile The tile of the command action
- * @param p1 Additional data of the command
- * @param p1 Additional data of the command
+ * @param data Additional data of the command
  * @see CommandProc
  */
-typedef void CommandCallback(const CommandCost &result, TileIndex tile, uint32 p1, uint32 p2, uint32 cmd);
-
-/**
- * Structure for buffering the build command when selecting a station to join.
- */
-struct CommandContainer {
-	TileIndex tile;                  ///< tile command being executed on.
-	uint32 p1;                       ///< parameter p1.
-	uint32 p2;                       ///< parameter p2.
-	uint32 cmd;                      ///< command being executed.
-	CommandCallback *callback;       ///< any callback function executed upon successful completion of the command.
-	char text[32 * MAX_CHAR_LENGTH]; ///< possible text sent for name changes etc, in bytes including '\0'.
-};
+typedef void CommandCallback(Commands cmd, const CommandCost &result, TileIndex tile, const CommandDataBuffer &data);
 
 #endif /* COMMAND_TYPE_H */

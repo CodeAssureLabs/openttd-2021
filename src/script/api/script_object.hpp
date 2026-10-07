@@ -13,6 +13,8 @@
 #include "../../misc/countedptr.hpp"
 #include "../../road_type.h"
 #include "../../rail_type.h"
+#include "../../string_func.h"
+#include "../../command_func.h"
 
 #include "script_types.hpp"
 #include "../script_suspend.hpp"
@@ -66,20 +68,42 @@ public:
 	static class ScriptInstance *GetActiveInstance();
 
 protected:
+	template<Commands TCmd, typename T> struct ScriptDoCommandHelper;
+
 	/**
-	 * Executes a raw DoCommand for the script.
+	 * Templated wrapper that exposes the command parameter arguments
+	 * on the various DoCommand calls.
+	 * @tparam Tcmd The command-id to execute.
+	 * @tparam Targs The command parameter types.
 	 */
-	static bool DoCommand(TileIndex tile, uint32 p1, uint32 p2, uint cmd, const char *text = nullptr, Script_SuspendCallbackProc *callback = nullptr);
+	template <Commands Tcmd, typename... Targs>
+	struct ScriptDoCommandHelper<Tcmd, CommandCost(*)(DoCommandFlag, Targs...)> {
+		static bool Do(Script_SuspendCallbackProc *callback, Targs... args)
+		{
+			return Execute(callback, std::forward_as_tuple(args...));
+		}
+
+		static bool Do(Targs... args)
+		{
+			return Execute(nullptr, std::forward_as_tuple(args...));
+		}
+
+	private:
+		static bool Execute(Script_SuspendCallbackProc *callback, std::tuple<Targs...> args);
+	};
+
+	template <Commands Tcmd>
+	using Command = ScriptDoCommandHelper<Tcmd, typename ::CommandTraits<Tcmd>::ProcType>;
 
 	/**
 	 * Store the latest command executed by the script.
 	 */
-	static void SetLastCommand(TileIndex tile, uint32 p1, uint32 p2, uint cmd);
+	static void SetLastCommand(TileIndex tile, const CommandDataBuffer &data, Commands cmd);
 
 	/**
 	 * Check if it's the latest command executed by the script.
 	 */
-	static bool CheckLastCommand(TileIndex tile, uint32 p1, uint32 p2, uint cmd);
+	static bool CheckLastCommand(TileIndex tile, const CommandDataBuffer &data, Commands cmd);
 
 	/**
 	 * Sets the DoCommand costs counter to a value.
@@ -298,6 +322,74 @@ private:
 	 * @param story_page_id The new StoryPageID.
 	 */
 	static void SetNewStoryPageElementID(StoryPageElementID story_page_element_id);
+
+	/* Helper functions for DoCommand. */
+	static std::tuple<bool, bool, bool> DoCommandPrep();
+	static bool DoCommandProcessResult(const CommandCost &res, Script_SuspendCallbackProc *callback, bool estimate_only);
+	static CommandCallback *GetDoCommandCallback();
 };
+
+namespace ScriptObjectInternal {
+	/** Validate a single string argument coming from network. */
+	template <class T>
+	static inline void SanitizeSingleStringHelper(T &data)
+	{
+		if constexpr (std::is_same_v<std::string, T>) {
+			/* The string must be valid, i.e. not contain special codes. Since some
+			 * can be made with GSText, make sure the control codes are removed. */
+			data = ::StrMakeValid(data, SVS_NONE);
+		}
+	}
+
+	/** Helper function to perform validation on command data strings. */
+	template<class Ttuple, size_t... Tindices>
+	static inline void SanitizeStringsHelper(Ttuple &values, std::index_sequence<Tindices...>)
+	{
+		((SanitizeSingleStringHelper(std::get<Tindices>(values))), ...);
+	}
+
+	/** Helper to process a single ClientID argument. */
+	template <class T>
+	static inline void SetClientIdHelper(T &data)
+	{
+		if constexpr (std::is_same_v<ClientID, T>) {
+			if (data == INVALID_CLIENT_ID) data = (ClientID)UINT32_MAX;
+		}
+	}
+
+	/** Set all invalid ClientID's to the proper value. */
+	template<class Ttuple, size_t... Tindices>
+	static inline void SetClientIds(Ttuple &values, std::index_sequence<Tindices...>)
+	{
+		((SetClientIdHelper(std::get<Tindices>(values))), ...);
+	}
+}
+
+template <Commands Tcmd, typename... Targs>
+bool ScriptObject::ScriptDoCommandHelper<Tcmd, CommandCost(*)(DoCommandFlag, Targs...)>::Execute(Script_SuspendCallbackProc *callback, std::tuple<Targs...> args)
+{
+	auto [err, estimate_only, networking] = ScriptObject::DoCommandPrep();
+	if (err) return false;
+
+	if ((::GetCommandFlags<Tcmd>() & CMD_STR_CTRL) == 0) {
+		ScriptObjectInternal::SanitizeStringsHelper(args, std::index_sequence_for<Targs...>{});
+	}
+
+	TileIndex tile{};
+	if constexpr (std::is_same_v<TileIndex, std::tuple_element_t<0, decltype(args)>>) {
+		tile = std::get<0>(args);
+	}
+
+	/* Only set ClientID parameters when the command does not come from the network. */
+	if constexpr ((::GetCommandFlags<Tcmd>() & CMD_CLIENT_ID) != 0) ScriptObjectInternal::SetClientIds(args, std::index_sequence_for<Targs...>{});
+
+	/* Store the command for command callback validation. */
+	if (!estimate_only && networking) ScriptObject::SetLastCommand(tile, EndianBufferWriter<CommandDataBuffer>::FromValue(args), Tcmd);
+
+	/* Try to perform the command. */
+	CommandCost res = ::Command<Tcmd>::Unsafe((StringID)0, networking ? ScriptObject::GetDoCommandCallback() : nullptr, false, estimate_only, tile, args);
+
+	return ScriptObject::DoCommandProcessResult(res, callback, estimate_only);
+}
 
 #endif /* SCRIPT_OBJECT_HPP */

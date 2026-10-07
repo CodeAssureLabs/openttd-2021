@@ -120,7 +120,7 @@ struct StatusBarWindow : Window {
 
 			case WID_S_RIGHT: {
 				int64 max_money = UINT32_MAX;
-				for (const Company *c : Company::Iterate()) max_money = max<int64>(c->money, max_money);
+				for (const Company *c : Company::Iterate()) max_money = std::max<int64>(c->money, max_money);
 				SetDParam(0, 100LL * max_money);
 				d = GetStringBoundingBox(STR_COMPANY_MONEY);
 				break;
@@ -137,7 +137,7 @@ struct StatusBarWindow : Window {
 
 	void DrawWidget(const Rect &r, int widget) const override
 	{
-		int text_offset = max(0, ((int)(r.bottom - r.top + 1) - FONT_HEIGHT_NORMAL) / 2); // Offset for rendering the text vertically centered
+		int text_offset = std::max(0, ((int)(r.bottom - r.top + 1) - FONT_HEIGHT_NORMAL) / 2); // Offset for rendering the text vertically centered
 		int text_top = r.top + text_offset;
 		switch (widget) {
 			case WID_S_LEFT:
@@ -147,11 +147,15 @@ struct StatusBarWindow : Window {
 				break;
 
 			case WID_S_RIGHT: {
-				/* Draw company money, if any */
-				const Company *c = Company::GetIfValid(_local_company);
-				if (c != nullptr) {
-					SetDParam(0, c->money);
-					DrawString(r.left + WD_FRAMERECT_LEFT, r.right - WD_FRAMERECT_RIGHT, text_top, STR_COMPANY_MONEY, TC_FROMSTRING, SA_HOR_CENTER);
+				if (_local_company == COMPANY_SPECTATOR) {
+					DrawString(r.left + WD_FRAMERECT_LEFT, r.right - WD_FRAMERECT_RIGHT, text_top, STR_STATUSBAR_SPECTATOR, TC_FROMSTRING, SA_HOR_CENTER);
+				} else {
+					/* Draw company money, if any */
+					const Company *c = Company::GetIfValid(_local_company);
+					if (c != nullptr) {
+						SetDParam(0, c->money);
+						DrawString(r.left + WD_FRAMERECT_LEFT, r.right - WD_FRAMERECT_RIGHT, text_top, STR_COMPANY_MONEY, TC_FROMSTRING, SA_HOR_CENTER);
+					}
 				}
 				break;
 			}
@@ -185,7 +189,7 @@ struct StatusBarWindow : Window {
 
 				if (!this->reminder_timeout.HasElapsed()) {
 					Dimension icon_size = GetSpriteSize(SPR_UNREAD_NEWS);
-					DrawSprite(SPR_UNREAD_NEWS, PAL_NONE, r.right - WD_FRAMERECT_RIGHT - icon_size.width, r.top + max(0, ((int)(r.bottom - r.top + 1) - (int)icon_size.height) / 2));
+					DrawSprite(SPR_UNREAD_NEWS, PAL_NONE, r.right - WD_FRAMERECT_RIGHT - icon_size.width, r.top + std::max(0, ((int)(r.bottom - r.top + 1) - (int)icon_size.height) / 2));
 				}
 				break;
 		}
