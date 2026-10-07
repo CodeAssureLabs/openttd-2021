@@ -10,5 +10,5 @@ add_files(
     getoptdata.cpp
     getoptdata.h
     hashtable.hpp
-    str.hpp
+    lrucache.hpp
 )

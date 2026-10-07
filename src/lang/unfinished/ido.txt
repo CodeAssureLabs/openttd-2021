@@ -216,8 +216,6 @@ STR_UNITS_HEIGHT_SI                                             :{COMMA} m
 # Common window strings
 
 STR_BUTTON_SORT_BY                                              :{BLACK}Ordinas per
-STR_BUTTON_LOCATION                                             :{BLACK}Loko
-STR_BUTTON_RENAME                                               :{BLACK}Rinomizar
 
 STR_TOOLTIP_CLOSE_WINDOW                                        :{BLACK}Klozas fenestro
 STR_TOOLTIP_TOGGLE_LARGE_SMALL_WINDOW                           :{BLACK}Baskulas granda/mikra fenestro grandeso
@@ -351,8 +349,8 @@ STR_GRAPH_MENU_DELIVERED_CARGO_GRAPH                            :Livrita kargajo
 ############ range for months ends
 
 # Graph window
-STR_GRAPH_X_LABEL_MONTH                                         :{TINY_FONT}{STRING}{} {STRING}
-STR_GRAPH_X_LABEL_MONTH_YEAR                                    :{TINY_FONT}{STRING}{} {STRING}{}{NUM}
+STR_GRAPH_X_LABEL_MONTH                                         :{TINY_FONT}{STRING}
+STR_GRAPH_X_LABEL_MONTH_YEAR                                    :{TINY_FONT}{STRING}{}{NUM}
 STR_GRAPH_Y_LABEL                                               :{TINY_FONT}{STRING}
 STR_GRAPH_Y_LABEL_NUMBER                                        :{TINY_FONT}{COMMA}
 
@@ -483,6 +481,9 @@ STR_GAME_OPTIONS_RESOLUTION_OTHER                               :altra
 
 
 
+
+
+
 # Custom currency window
 
 
@@ -570,6 +571,8 @@ STR_CONFIG_SETTING_SMALLMAP_LAND_COLOUR_VIOLET                  :Violkolora
 
 # Config errors
 
+# Video initalization errors
+
 # Intro window
 STR_INTRO_CAPTION                                               :{WHITE}OpenTTD {REV}
 
@@ -636,7 +639,6 @@ STR_NETWORK_SERVER_LIST_MAP_SIZE_SHORT                          :{BLACK}{COMMA}x
 # Network client list
 
 
-
 # Network set password
 
 # Network company info join/password
@@ -666,6 +668,7 @@ STR_NETWORK_SERVER_MESSAGE                                      :*** {1:STRING}
 # Content downloading error messages
 
 
+
 # Transparency settings window
 
 # Linkgraph legend window
@@ -677,6 +680,8 @@ STR_STATION_BUILD_ACCEPTS_CARGO                                 :{BLACK}Aceptas:
 
 # Join station window
 
+
+# Generic toolbar
 
 # Rail construction toolbar
 
@@ -1033,6 +1038,7 @@ STR_REPLACE_VEHICLE_AIRCRAFT                                    :Aeronavo
 
 # Vehicle view
 STR_VEHICLE_VIEW_CAPTION                                        :{WHITE}{VEHICLE}
+
 
 
 

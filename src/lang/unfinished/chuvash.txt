@@ -165,7 +165,6 @@ STR_UNITS_POWER_SI                                              :{COMMA}кВт
 
 # Common window strings
 
-STR_BUTTON_RENAME                                               :{BLACK}Ята улӑштар
 
 STR_TOOLTIP_CLOSE_WINDOW                                        :{BLACK}Чӳречене хуп
 
@@ -359,8 +358,8 @@ STR_MONTH_DEC                                                   :Раштав
 
 # Graph window
 STR_GRAPH_KEY_BUTTON                                            :{BLACK}Уҫӑ
-STR_GRAPH_X_LABEL_MONTH                                         :{TINY_FONT}{STRING}{} {STRING}
-STR_GRAPH_X_LABEL_MONTH_YEAR                                    :{TINY_FONT}{STRING}{} {STRING}{}{NUM}
+STR_GRAPH_X_LABEL_MONTH                                         :{TINY_FONT}{STRING}
+STR_GRAPH_X_LABEL_MONTH_YEAR                                    :{TINY_FONT}{STRING}{}{NUM}
 STR_GRAPH_Y_LABEL                                               :{TINY_FONT}{STRING}
 STR_GRAPH_Y_LABEL_NUMBER                                        :{TINY_FONT}{COMMA}
 
@@ -518,6 +517,9 @@ STR_GAME_OPTIONS_RESOLUTION_OTHER                               :расна
 
 
 
+
+
+
 # Custom currency window
 
 
@@ -636,6 +638,8 @@ STR_CONFIG_SETTING_PATHFINDER_NPF                               :NPF
 
 
 # Config errors
+
+# Video initalization errors
 
 # Intro window
 STR_INTRO_CAPTION                                               :{WHITE}OpenTTD {REV}
@@ -787,7 +791,6 @@ STR_NETWORK_START_SERVER_SET_PASSWORD                           :{BLACK}Вырн
 # Network client list
 
 
-
 # Network set password
 
 # Network company info join/password
@@ -816,6 +819,7 @@ STR_CONTENT_DETAIL_VERSION                                      :{SILVER}Вер�
 # Content downloading error messages
 
 
+
 # Transparency settings window
 
 # Linkgraph legend window
@@ -826,6 +830,8 @@ STR_CONTENT_DETAIL_VERSION                                      :{SILVER}Вер�
 
 # Join station window
 
+
+# Generic toolbar
 
 # Rail construction toolbar
 
@@ -1179,6 +1185,7 @@ STR_DEPOT_VEHICLE_TOOLTIP_CARGO                                 :{}{CARGO_LONG} 
 
 # Vehicle view
 STR_VEHICLE_VIEW_CAPTION                                        :{WHITE}{VEHICLE}
+
 
 
 

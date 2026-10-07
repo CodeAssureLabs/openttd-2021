@@ -29,6 +29,7 @@
 #include "../genworld.h"
 #include "../map_type.h"
 #include "../guitimer_func.h"
+#include "../zoom_func.h"
 
 #include "../widgets/network_widget.h"
 
@@ -123,7 +124,7 @@ public:
 		/* First initialise some variables... */
 		for (NWidgetBase *child_wid = this->head; child_wid != nullptr; child_wid = child_wid->next) {
 			child_wid->SetupSmallestSize(w, init_array);
-			this->smallest_y = max(this->smallest_y, child_wid->smallest_y + child_wid->padding_top + child_wid->padding_bottom);
+			this->smallest_y = std::max(this->smallest_y, child_wid->smallest_y + child_wid->padding_top + child_wid->padding_bottom);
 		}
 
 		/* ... then in a second pass make sure the 'current' sizes are set. Won't change for most widgets. */
@@ -330,10 +331,9 @@ protected:
 		if (r == 0) r = b->info.compatible - a->info.compatible;
 		/* Passworded servers should be below unpassworded servers */
 		if (r == 0) r = a->info.use_password - b->info.use_password;
-		/* Finally sort on the number of clients of the server */
-		if (r == 0) return NGameClientSorter(a, b);
 
-		return r < 0;
+		/* Finally sort on the number of clients of the server in reverse order. */
+		return (r != 0) ? r < 0 : NGameClientSorter(b, a);
 	}
 
 	/** Sort the server list */
@@ -381,6 +381,7 @@ protected:
 		/* offsets to vertically centre text and icons */
 		int text_y_offset = (this->resize.step_height - FONT_HEIGHT_NORMAL) / 2 + 1;
 		int icon_y_offset = (this->resize.step_height - GetSpriteSize(SPR_BLOT).height) / 2;
+		int lock_y_offset = (this->resize.step_height - GetSpriteSize(SPR_LOCK).height) / 2;
 
 		DrawString(nwi_name->pos_x + WD_FRAMERECT_LEFT, nwi_name->pos_x + nwi_name->current_x - WD_FRAMERECT_RIGHT, y + text_y_offset, cur_item->info.server_name, TC_BLACK);
 
@@ -425,13 +426,13 @@ protected:
 			}
 
 			/* draw a lock if the server is password protected */
-			if (cur_item->info.use_password) DrawSprite(SPR_LOCK, PAL_NONE, nwi_info->pos_x + this->lock_offset, y + icon_y_offset - 1);
+			if (cur_item->info.use_password) DrawSprite(SPR_LOCK, PAL_NONE, nwi_info->pos_x + this->lock_offset, y + lock_y_offset);
 
 			/* draw red or green icon, depending on compatibility with server */
-			DrawSprite(SPR_BLOT, (cur_item->info.compatible ? PALETTE_TO_GREEN : (cur_item->info.version_compatible ? PALETTE_TO_YELLOW : PALETTE_TO_RED)), nwi_info->pos_x + this->blot_offset, y + icon_y_offset);
+			DrawSprite(SPR_BLOT, (cur_item->info.compatible ? PALETTE_TO_GREEN : (cur_item->info.version_compatible ? PALETTE_TO_YELLOW : PALETTE_TO_RED)), nwi_info->pos_x + this->blot_offset, y + icon_y_offset + 1);
 
 			/* draw flag according to server language */
-			DrawSprite(SPR_FLAGS_BASE + cur_item->info.server_lang, PAL_NONE, nwi_info->pos_x + this->flag_offset, y + icon_y_offset);
+			DrawSprite(SPR_FLAGS_BASE + cur_item->info.server_lang, PAL_NONE, nwi_info->pos_x + this->flag_offset, y + (this->resize.step_height - GetSpriteSize(SPR_FLAGS_BASE + cur_item->info.server_lang).height) / 2);
 		}
 	}
 
@@ -498,12 +499,12 @@ public:
 	{
 		switch (widget) {
 			case WID_NG_MATRIX:
-				resize->height = WD_MATRIX_TOP + max(GetSpriteSize(SPR_BLOT).height, (uint)FONT_HEIGHT_NORMAL) + WD_MATRIX_BOTTOM;
+				resize->height = WD_MATRIX_TOP + std::max(GetSpriteSize(SPR_BLOT).height, (uint)FONT_HEIGHT_NORMAL) + WD_MATRIX_BOTTOM;
 				size->height = 12 * resize->height;
 				break;
 
 			case WID_NG_LASTJOINED:
-				size->height = WD_MATRIX_TOP + max(GetSpriteSize(SPR_BLOT).height, (uint)FONT_HEIGHT_NORMAL) + WD_MATRIX_BOTTOM;
+				size->height = WD_MATRIX_TOP + std::max(GetSpriteSize(SPR_BLOT).height, (uint)FONT_HEIGHT_NORMAL) + WD_MATRIX_BOTTOM;
 				break;
 
 			case WID_NG_LASTJOINED_SPACER:
@@ -545,7 +546,7 @@ public:
 			case WID_NG_MATRIX: {
 				uint16 y = r.top;
 
-				const int max = min(this->vscroll->GetPosition() + this->vscroll->GetCapacity(), (int)this->servers.size());
+				const int max = std::min(this->vscroll->GetPosition() + this->vscroll->GetCapacity(), (int)this->servers.size());
 
 				for (int i = this->vscroll->GetPosition(); i < max; ++i) {
 					const NetworkGameList *ngl = this->servers[i];
@@ -812,7 +813,7 @@ public:
 				case WKC_PAGEDOWN:
 					/* scroll down a page */
 					if (this->list_pos == SLP_INVALID) return ES_HANDLED;
-					this->list_pos = min(this->list_pos + this->vscroll->GetCapacity(), (int)this->servers.size() - 1);
+					this->list_pos = std::min(this->list_pos + this->vscroll->GetCapacity(), (int)this->servers.size() - 1);
 					break;
 				case WKC_HOME:
 					/* jump to beginning */
@@ -904,7 +905,7 @@ GUIGameServerList::FilterFunction * const NetworkGameWindow::filter_funcs[] = {
 
 static NWidgetBase *MakeResizableHeader(int *biggest_index)
 {
-	*biggest_index = max<int>(*biggest_index, WID_NG_INFO);
+	*biggest_index = std::max<int>(*biggest_index, WID_NG_INFO);
 	return new NWidgetServerListHeader();
 }
 
@@ -1360,7 +1361,7 @@ struct NetworkLobbyWindow : public Window {
 				break;
 
 			case WID_NL_MATRIX:
-				resize->height = WD_MATRIX_TOP + FONT_HEIGHT_NORMAL + WD_MATRIX_BOTTOM;
+				resize->height = WD_MATRIX_TOP + std::max<uint>(std::max(GetSpriteSize(SPR_LOCK).height, GetSpriteSize(SPR_PROFIT_LOT).height), FONT_HEIGHT_NORMAL) + WD_MATRIX_BOTTOM;
 				size->height = 10 * resize->height;
 				break;
 
@@ -1414,31 +1415,32 @@ struct NetworkLobbyWindow : public Window {
 		bool rtl = _current_text_dir == TD_RTL;
 		uint left = r.left + WD_FRAMERECT_LEFT;
 		uint right = r.right - WD_FRAMERECT_RIGHT;
+		uint text_offset = (this->resize.step_height - WD_MATRIX_TOP - WD_MATRIX_BOTTOM - FONT_HEIGHT_NORMAL) / 2 + WD_MATRIX_TOP;
 
 		Dimension lock_size = GetSpriteSize(SPR_LOCK);
 		int lock_width      = lock_size.width;
-		int lock_y_offset   = (this->resize.step_height - WD_MATRIX_TOP - WD_MATRIX_BOTTOM - lock_size.height) / 2;
+		int lock_y_offset   = (this->resize.step_height - WD_MATRIX_TOP - WD_MATRIX_BOTTOM - lock_size.height) / 2 + WD_MATRIX_TOP;
 
 		Dimension profit_size = GetSpriteSize(SPR_PROFIT_LOT);
 		int profit_width      = lock_size.width;
-		int profit_y_offset   = (this->resize.step_height - WD_MATRIX_TOP - WD_MATRIX_BOTTOM - profit_size.height) / 2;
+		int profit_y_offset   = (this->resize.step_height - WD_MATRIX_TOP - WD_MATRIX_BOTTOM - profit_size.height) / 2 + WD_MATRIX_TOP;
 
 		uint text_left   = left  + (rtl ? lock_width + profit_width + 4 : 0);
 		uint text_right  = right - (rtl ? 0 : lock_width + profit_width + 4);
 		uint profit_left = rtl ? left : right - profit_width;
 		uint lock_left   = rtl ? left + profit_width + 2 : right - profit_width - lock_width - 2;
 
-		int y = r.top + WD_MATRIX_TOP;
+		int y = r.top;
 		/* Draw company list */
 		int pos = this->vscroll->GetPosition();
 		while (pos < this->server->info.companies_on) {
 			byte company = NetworkLobbyFindCompanyIndex(pos);
 			bool income = false;
 			if (this->company == company) {
-				GfxFillRect(r.left + 1, y - 2, r.right - 1, y + FONT_HEIGHT_NORMAL, PC_GREY); // show highlighted item with a different colour
+				GfxFillRect(r.left + WD_BEVEL_LEFT, y + 1, r.right - WD_BEVEL_RIGHT, y + this->resize.step_height - 2, PC_GREY);  // show highlighted item with a different colour
 			}
 
-			DrawString(text_left, text_right, y, this->company_info[company].company_name, TC_BLACK);
+			DrawString(text_left, text_right, y + text_offset, this->company_info[company].company_name, TC_BLACK);
 			if (this->company_info[company].use_password != 0) DrawSprite(SPR_LOCK, PAL_NONE, lock_left, y + lock_y_offset);
 
 			/* If the company's income was positive puts a green dot else a red dot */
@@ -1632,8 +1634,7 @@ NetworkCompanyInfo *GetLobbyCompanyInfo(CompanyID company)
 }
 
 /* The window below gives information about the connected clients
- *  and also makes able to give money to them, kick them (if server)
- *  and stuff like that. */
+ * and also makes able to kick them (if server) and stuff like that. */
 
 extern void DrawCompanyIcon(CompanyID cid, int x, int y);
 
@@ -1663,11 +1664,6 @@ static void ClientList_Kick(const NetworkClientInfo *ci)
 static void ClientList_Ban(const NetworkClientInfo *ci)
 {
 	NetworkServerKickOrBanIP(ci->client_id, true, nullptr);
-}
-
-static void ClientList_GiveMoney(const NetworkClientInfo *ci)
-{
-	ShowNetworkGiveMoneyWindow(ci->client_playas);
 }
 
 static void ClientList_SpeakToClient(const NetworkClientInfo *ci)
@@ -1725,13 +1721,6 @@ struct NetworkClientListPopupWindow : Window {
 			this->AddAction(STR_NETWORK_CLIENTLIST_SPEAK_TO_COMPANY, &ClientList_SpeakToCompany);
 		}
 		this->AddAction(STR_NETWORK_CLIENTLIST_SPEAK_TO_ALL, &ClientList_SpeakToAll);
-
-		if (_network_own_client_id != ci->client_id) {
-			/* We are no spectator and the company we want to give money to is no spectator and money gifts are allowed. */
-			if (Company::IsValidID(_local_company) && Company::IsValidID(ci->client_playas) && _settings_game.economy.give_money) {
-				this->AddAction(STR_NETWORK_CLIENTLIST_GIVE_MONEY, &ClientList_GiveMoney);
-			}
-		}
 
 		/* A server can kick clients (but not himself). */
 		if (_network_server && _network_own_client_id != ci->client_id) {
@@ -1874,13 +1863,13 @@ struct NetworkClientListWindow : Window {
 	{
 		if (widget != WID_CL_PANEL) return;
 
-		this->server_client_width = max(GetStringBoundingBox(STR_NETWORK_SERVER).width, GetStringBoundingBox(STR_NETWORK_CLIENT).width) + WD_FRAMERECT_RIGHT;
+		this->server_client_width = std::max(GetStringBoundingBox(STR_NETWORK_SERVER).width, GetStringBoundingBox(STR_NETWORK_CLIENT).width) + WD_FRAMERECT_RIGHT;
 		this->icon_size = GetSpriteSize(SPR_COMPANY_ICON);
-		this->line_height = max(this->icon_size.height + 2U, (uint)FONT_HEIGHT_NORMAL);
+		this->line_height = std::max(this->icon_size.height + 2U, (uint)FONT_HEIGHT_NORMAL);
 
 		uint width = 100; // Default width
 		for (const NetworkClientInfo *ci : NetworkClientInfo::Iterate()) {
-			width = max(width, GetStringBoundingBox(ci->client_name).width);
+			width = std::max(width, GetStringBoundingBox(ci->client_name).width);
 		}
 
 		size->width = WD_FRAMERECT_LEFT + this->server_client_width + this->icon_size.width + WD_FRAMERECT_LEFT + width + WD_FRAMERECT_RIGHT;
@@ -2041,18 +2030,18 @@ struct NetworkJoinStatusWindow : Window {
 		/* Account for the statuses */
 		uint width = 0;
 		for (uint i = 0; i < NETWORK_JOIN_STATUS_END; i++) {
-			width = max(width, GetStringBoundingBox(STR_NETWORK_CONNECTING_1 + i).width);
+			width = std::max(width, GetStringBoundingBox(STR_NETWORK_CONNECTING_1 + i).width);
 		}
 
 		/* For the number of waiting (other) players */
 		SetDParamMaxValue(0, MAX_CLIENTS);
-		width = max(width, GetStringBoundingBox(STR_NETWORK_CONNECTING_WAITING).width);
+		width = std::max(width, GetStringBoundingBox(STR_NETWORK_CONNECTING_WAITING).width);
 
 		/* Account for downloading ~ 10 MiB */
 		SetDParamMaxDigits(0, 8);
 		SetDParamMaxDigits(1, 8);
-		width = max(width, GetStringBoundingBox(STR_NETWORK_CONNECTING_DOWNLOADING_1).width);
-		width = max(width, GetStringBoundingBox(STR_NETWORK_CONNECTING_DOWNLOADING_2).width);
+		width = std::max(width, GetStringBoundingBox(STR_NETWORK_CONNECTING_DOWNLOADING_1).width);
+		width = std::max(width, GetStringBoundingBox(STR_NETWORK_CONNECTING_DOWNLOADING_2).width);
 
 		/* Give a bit more clearing for the widest strings than strictly needed */
 		size->width = width + WD_FRAMERECT_LEFT + WD_FRAMERECT_BOTTOM + 10;
