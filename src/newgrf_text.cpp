@@ -17,7 +17,6 @@
 
 #include "stdafx.h"
 
-#include <algorithm>
 #include <array>
 
 #include "newgrf.h"
@@ -138,7 +137,7 @@ struct UnmappedChoiceList {
 		if (this->strings.find(0) == this->strings.end()) {
 			/* In case of a (broken) NewGRF without a default,
 			 * assume an empty string. */
-			grfmsg(1, "choice list misses default value");
+			GrfMsg(1, "choice list misses default value");
 			this->strings[0] = std::stringstream();
 		}
 
@@ -179,7 +178,7 @@ struct UnmappedChoiceList {
 				*d++ = i + 1;
 
 				/* "<LENn>": Limit the length of the string to 0xFFFE to leave space for the '\0'. */
-				size_t len = min<size_t>(0xFFFE, str.size());
+				size_t len = std::min<size_t>(0xFFFE, str.size());
 				*d++ = GB(len + 1, 8, 8);
 				*d++ = GB(len + 1, 0, 8);
 
@@ -212,7 +211,7 @@ struct UnmappedChoiceList {
 				int idx = (this->type == SCC_GENDER_LIST ? lm->GetReverseMapping(i, true) : i + 1);
 				const auto &str = this->strings[this->strings.find(idx) != this->strings.end() ? idx : 0].str();
 				size_t len = str.size() + 1;
-				if (len > 0xFF) grfmsg(1, "choice list string is too long");
+				if (len > 0xFF) GrfMsg(1, "choice list string is too long");
 				*d++ = GB(len, 0, 8);
 			}
 
@@ -222,7 +221,7 @@ struct UnmappedChoiceList {
 				const auto &str = this->strings[this->strings.find(idx) != this->strings.end() ? idx : 0].str();
 				/* Limit the length of the string we copy to 0xFE. The length is written above
 				 * as a byte and we need room for the final '\0'. */
-				size_t len = min<size_t>(0xFE, str.size());
+				size_t len = std::min<size_t>(0xFE, str.size());
 				dest.write(str.c_str(), len);
 				*d++ = '\0';
 			}
@@ -291,7 +290,7 @@ std::string TranslateTTDPatchCodes(uint32 grfid, uint8 language_id, bool allow_n
 				if (allow_newlines) {
 					*d++ = 0x0A;
 				} else {
-					grfmsg(1, "Detected newline in string that does not allow one");
+					GrfMsg(1, "Detected newline in string that does not allow one");
 				}
 				break;
 			case 0x0E: Utf8Encode(d, SCC_TINYFONT); break;
@@ -393,13 +392,12 @@ std::string TranslateTTDPatchCodes(uint32 grfid, uint8 language_id, bool allow_n
 						if (str[0] == '\0') goto string_end;
 						if (mapping == nullptr) {
 							if (code == 0x10) src++; // Skip the index
-							grfmsg(1, "choice list %s marker found when not expected", code == 0x10 ? "next" : "default");
+							GrfMsg(1, "choice list {} marker found when not expected", code == 0x10 ? "next" : "default");
 							break;
 						} else {
 							int index = (code == 0x10 ? *src++ : 0);
 							if (mapping->strings.find(index) != mapping->strings.end()) {
-								grfmsg(1, "duplicate choice list string, ignoring");
-								d++;
+								GrfMsg(1, "duplicate choice list string, ignoring");
 							} else {
 								d = std::ostreambuf_iterator<char>(mapping->strings[index]);
 							}
@@ -408,7 +406,7 @@ std::string TranslateTTDPatchCodes(uint32 grfid, uint8 language_id, bool allow_n
 
 					case 0x12:
 						if (mapping == nullptr) {
-							grfmsg(1, "choice list end marker found when not expected");
+							GrfMsg(1, "choice list end marker found when not expected");
 						} else {
 							/* Now we can start flushing everything and clean everything up. */
 							mapping->Flush(LanguageMap::GetLanguageMap(grfid, language_id), dest);
@@ -424,7 +422,7 @@ std::string TranslateTTDPatchCodes(uint32 grfid, uint8 language_id, bool allow_n
 					case 0x15:
 						if (src[0] == '\0') goto string_end;
 						if (mapping != nullptr) {
-							grfmsg(1, "choice lists can't be stacked, it's going to get messy now...");
+							GrfMsg(1, "choice lists can't be stacked, it's going to get messy now...");
 							if (code != 0x14) src++;
 						} else {
 							static const StringControlCode mp[] = { SCC_GENDER_LIST, SCC_SWITCH_CASE, SCC_PLURAL_LIST };
@@ -447,8 +445,10 @@ std::string TranslateTTDPatchCodes(uint32 grfid, uint8 language_id, bool allow_n
 					case 0x1F: Utf8Encode(d, SCC_PUSH_COLOUR); break;
 					case 0x20: Utf8Encode(d, SCC_POP_COLOUR);  break;
 
+					case 0x21: Utf8Encode(d, SCC_NEWGRF_PRINT_DWORD_FORCE); break;
+
 					default:
-						grfmsg(1, "missing handler for extended format code");
+						GrfMsg(1, "missing handler for extended format code");
 						break;
 				}
 				break;
@@ -479,7 +479,7 @@ std::string TranslateTTDPatchCodes(uint32 grfid, uint8 language_id, bool allow_n
 
 string_end:
 	if (mapping != nullptr) {
-		grfmsg(1, "choice list was incomplete, the whole list is ignored");
+		GrfMsg(1, "choice list was incomplete, the whole list is ignored");
 		delete mapping;
 	}
 
@@ -541,10 +541,10 @@ void AddGRFTextToList(GRFTextWrapper &list, byte langid, uint32 grfid, bool allo
  * @param list The list where the text should be added to.
  * @param text_to_add The text to add to the list.
  */
-void AddGRFTextToList(GRFTextWrapper &list, const char *text_to_add)
+void AddGRFTextToList(GRFTextWrapper &list, const std::string &text_to_add)
 {
 	if (!list) list.reset(new GRFTextList());
-	AddGRFTextToList(*list, GRFLX_UNSPECIFIED, std::string(text_to_add));
+	AddGRFTextToList(*list, GRFLX_UNSPECIFIED, text_to_add);
 }
 
 /**
@@ -592,7 +592,7 @@ StringID AddGRFString(uint32 grfid, uint16 stringid, byte langid_to_add, bool ne
 	}
 	AddGRFTextToList(_grf_text[id].textholder, langid_to_add, newtext);
 
-	grfmsg(3, "Added 0x%X: grfid %08X string 0x%X lang 0x%X string '%s' (%X)", id, grfid, stringid, langid_to_add, newtext.c_str(), MakeStringID(TEXT_TAB_NEWGRF_START, id));
+	GrfMsg(3, "Added 0x{:X} grfid {:08X} string 0x{:X} lang 0x{:X} string '{}' ({:X})", id, grfid, stringid, langid_to_add, newtext.c_str(), MakeStringID(TEXT_TAB_NEWGRF_START, id));
 
 	return MakeStringID(TEXT_TAB_NEWGRF_START, id);
 }
@@ -862,6 +862,7 @@ uint RemapNewGRFStringControlCode(uint scc, char *buf_start, char **buff, const 
 	switch (scc) {
 		default: break;
 
+		/* These control codes take one string parameter, check there are at least that many available. */
 		case SCC_NEWGRF_PRINT_DWORD_SIGNED:
 		case SCC_NEWGRF_PRINT_WORD_SIGNED:
 		case SCC_NEWGRF_PRINT_BYTE_SIGNED:
@@ -883,25 +884,29 @@ uint RemapNewGRFStringControlCode(uint scc, char *buf_start, char **buff, const 
 		case SCC_NEWGRF_PRINT_WORD_WEIGHT_LONG:
 		case SCC_NEWGRF_PRINT_WORD_WEIGHT_SHORT:
 		case SCC_NEWGRF_PRINT_WORD_POWER:
+		case SCC_NEWGRF_PRINT_DWORD_FORCE:
 		case SCC_NEWGRF_PRINT_WORD_STATION_NAME:
 		case SCC_NEWGRF_PRINT_WORD_CARGO_NAME:
 			if (argv_size < 1) {
-				DEBUG(misc, 0, "Too many NewGRF string parameters.");
+				Debug(misc, 0, "Too many NewGRF string parameters.");
 				return 0;
 			}
 			break;
 
+		/* These string code take two string parameters, check there are at least that many available. */
 		case SCC_NEWGRF_PRINT_WORD_CARGO_LONG:
 		case SCC_NEWGRF_PRINT_WORD_CARGO_SHORT:
 		case SCC_NEWGRF_PRINT_WORD_CARGO_TINY:
 			if (argv_size < 2) {
-				DEBUG(misc, 0, "Too many NewGRF string parameters.");
+				Debug(misc, 0, "Too many NewGRF string parameters.");
 				return 0;
 			}
 			break;
 	}
 
 	if (_newgrf_textrefstack.used && modify_argv) {
+		/* There is data on the NewGRF text stack, and we want to move them to OpenTTD's string stack.
+		 * After this call, a new call is made with `modify_argv` set to false when the string is finally formatted. */
 		switch (scc) {
 			default: NOT_REACHED();
 			case SCC_NEWGRF_PRINT_BYTE_SIGNED:      *argv = _newgrf_textrefstack.PopSignedByte();    break;
@@ -925,10 +930,12 @@ uint RemapNewGRFStringControlCode(uint scc, char *buf_start, char **buff, const 
 			case SCC_NEWGRF_PRINT_WORD_STATION_NAME:
 			case SCC_NEWGRF_PRINT_WORD_UNSIGNED:    *argv = _newgrf_textrefstack.PopUnsignedWord();  break;
 
+			case SCC_NEWGRF_PRINT_DWORD_FORCE:
 			case SCC_NEWGRF_PRINT_DWORD_DATE_LONG:
 			case SCC_NEWGRF_PRINT_DWORD_DATE_SHORT:
 			case SCC_NEWGRF_PRINT_DWORD_HEX:        *argv = _newgrf_textrefstack.PopUnsignedDWord(); break;
 
+			/* Dates from NewGRFs have 1920-01-01 as their zero point, convert it to OpenTTD's epoch. */
 			case SCC_NEWGRF_PRINT_WORD_DATE_LONG:
 			case SCC_NEWGRF_PRINT_WORD_DATE_SHORT:  *argv = _newgrf_textrefstack.PopUnsignedWord() + DAYS_TILL_ORIGINAL_BASE_YEAR; break;
 
@@ -936,7 +943,7 @@ uint RemapNewGRFStringControlCode(uint scc, char *buf_start, char **buff, const 
 
 			case SCC_NEWGRF_ROTATE_TOP_4_WORDS:     _newgrf_textrefstack.RotateTop4Words(); break;
 			case SCC_NEWGRF_PUSH_WORD:              _newgrf_textrefstack.PushWord(Utf8Consume(str)); break;
-			case SCC_NEWGRF_UNPRINT:                *buff = max(*buff - Utf8Consume(str), buf_start); break;
+			case SCC_NEWGRF_UNPRINT:                *buff = std::max(*buff - Utf8Consume(str), buf_start); break;
 
 			case SCC_NEWGRF_PRINT_WORD_CARGO_LONG:
 			case SCC_NEWGRF_PRINT_WORD_CARGO_SHORT:
@@ -951,12 +958,12 @@ uint RemapNewGRFStringControlCode(uint scc, char *buf_start, char **buff, const 
 
 			case SCC_NEWGRF_PRINT_WORD_CARGO_NAME: {
 				CargoID cargo = GetCargoTranslation(_newgrf_textrefstack.PopUnsignedWord(), _newgrf_textrefstack.grffile);
-				*argv = cargo < NUM_CARGO ? 1 << cargo : 0;
+				*argv = cargo < NUM_CARGO ? 1ULL << cargo : 0;
 				break;
 			}
 		}
 	} else {
-		/* Consume additional parameter characters */
+		/* Consume additional parameter characters that follow the NewGRF string code. */
 		switch (scc) {
 			default: break;
 
@@ -967,6 +974,7 @@ uint RemapNewGRFStringControlCode(uint scc, char *buf_start, char **buff, const 
 		}
 	}
 
+	/* Emit OpenTTD's internal string code for the different NewGRF variants. */
 	switch (scc) {
 		default: NOT_REACHED();
 		case SCC_NEWGRF_PRINT_DWORD_SIGNED:
@@ -1014,6 +1022,9 @@ uint RemapNewGRFStringControlCode(uint scc, char *buf_start, char **buff, const 
 		case SCC_NEWGRF_PRINT_WORD_POWER:
 			return SCC_POWER;
 
+		case SCC_NEWGRF_PRINT_DWORD_FORCE:
+			return SCC_FORCE;
+
 		case SCC_NEWGRF_PRINT_WORD_CARGO_LONG:
 			return SCC_CARGO_LONG;
 
@@ -1029,6 +1040,7 @@ uint RemapNewGRFStringControlCode(uint scc, char *buf_start, char **buff, const 
 		case SCC_NEWGRF_PRINT_WORD_STATION_NAME:
 			return SCC_STATION_NAME;
 
+		/* These NewGRF string codes modify the NewGRF stack or otherwise do not map to OpenTTD string codes. */
 		case SCC_NEWGRF_DISCARD_WORD:
 		case SCC_NEWGRF_ROTATE_TOP_4_WORDS:
 		case SCC_NEWGRF_PUSH_WORD:

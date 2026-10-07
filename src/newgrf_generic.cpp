@@ -63,8 +63,6 @@ struct GenericResolverObject : public ResolverObject {
 		}
 	}
 
-	const SpriteGroup *ResolveReal(const RealSpriteGroup *group) const override;
-
 	GrfSpecFeature GetFeature() const override
 	{
 		return (GrfSpecFeature)this->generic_scope.feature;
@@ -111,7 +109,7 @@ void ResetGenericCallbacks()
 void AddGenericCallback(uint8 feature, const GRFFile *file, const SpriteGroup *group)
 {
 	if (feature >= lengthof(_gcl)) {
-		grfmsg(5, "AddGenericCallback: Unsupported feature 0x%02X", feature);
+		GrfMsg(5, "AddGenericCallback: Unsupported feature 0x{:02X}", feature);
 		return;
 	}
 
@@ -141,18 +139,10 @@ void AddGenericCallback(uint8 feature, const GRFFile *file, const SpriteGroup *g
 		}
 	}
 
-	DEBUG(grf, 1, "Unhandled generic feature variable 0x%02X", variable);
+	Debug(grf, 1, "Unhandled generic feature variable 0x{:02X}", variable);
 
 	*available = false;
 	return UINT_MAX;
-}
-
-
-/* virtual */ const SpriteGroup *GenericResolverObject::ResolveReal(const RealSpriteGroup *group) const
-{
-	if (group->num_loaded == 0) return nullptr;
-
-	return group->loaded[0];
 }
 
 /**
@@ -180,16 +170,16 @@ static uint16 GetGenericCallbackResult(uint8 feature, ResolverObject &object, ui
 	assert(feature < lengthof(_gcl));
 
 	/* Test each feature callback sprite group. */
-	for (GenericCallbackList::const_iterator it = _gcl[feature].begin(); it != _gcl[feature].end(); ++it) {
-		object.grffile = it->file;
-		object.root_spritegroup = it->group;
+	for (const auto &it : _gcl[feature]) {
+		object.grffile = it.file;
+		object.root_spritegroup = it.group;
 		/* Set callback param based on GRF version. */
-		object.callback_param1 = it->file->grf_version >= 8 ? param1_grfv8 : param1_grfv7;
+		object.callback_param1 = it.file->grf_version >= 8 ? param1_grfv8 : param1_grfv7;
 		uint16 result = object.ResolveCallback();
 		if (result == CALLBACK_FAILED) continue;
 
 		/* Return NewGRF file if necessary */
-		if (file != nullptr) *file = it->file;
+		if (file != nullptr) *file = it.file;
 
 		return result;
 	}

@@ -43,7 +43,7 @@ static const StringID _endgame_perf_titles[] = {
 
 StringID EndGameGetPerformanceTitleFromValue(uint value)
 {
-	value = minu(value / 64, lengthof(_endgame_perf_titles) - 1);
+	value = std::min<uint>(value / 64, lengthof(_endgame_perf_titles) - 1);
 
 	return _endgame_perf_titles[value];
 }
@@ -132,13 +132,13 @@ void SaveToHighScore()
 		for (i = 0; i < SP_SAVED_HIGHSCORE_END; i++) {
 			for (hs = _highscore_table[i]; hs != endof(_highscore_table[i]); hs++) {
 				/* First character is a command character, so strlen will fail on that */
-				byte length = min(sizeof(hs->company), StrEmpty(hs->company) ? 0 : (int)strlen(&hs->company[1]) + 1);
+				byte length = ClampTo<byte>(std::min(sizeof(hs->company), StrEmpty(hs->company) ? 0 : strlen(&hs->company[1]) + 1));
 
 				if (fwrite(&length, sizeof(length), 1, fp)       != 1 || // write away string length
 						fwrite(hs->company, length, 1, fp)           >  1 || // Yes... could be 0 bytes too
 						fwrite(&hs->score, sizeof(hs->score), 1, fp) != 1 ||
 						fwrite("  ", 2, 1, fp)                       != 1) { // XXX - placeholder for hs->title, not saved anymore; compatibility
-					DEBUG(misc, 1, "Could not save highscore.");
+					Debug(misc, 1, "Could not save highscore.");
 					i = SP_SAVED_HIGHSCORE_END;
 					break;
 				}
@@ -163,14 +163,14 @@ void LoadFromHighScore()
 			for (hs = _highscore_table[i]; hs != endof(_highscore_table[i]); hs++) {
 				byte length;
 				if (fread(&length, sizeof(length), 1, fp)                              !=  1 ||
-						fread(hs->company, min<int>(lengthof(hs->company), length), 1, fp) >   1 || // Yes... could be 0 bytes too
+						fread(hs->company, std::min<int>(lengthof(hs->company), length), 1, fp) >   1 || // Yes... could be 0 bytes too
 						fread(&hs->score, sizeof(hs->score), 1, fp)                        !=  1 ||
 						fseek(fp, 2, SEEK_CUR)                                             == -1) { // XXX - placeholder for hs->title, not saved anymore; compatibility
-					DEBUG(misc, 1, "Highscore corrupted");
+					Debug(misc, 1, "Highscore corrupted");
 					i = SP_SAVED_HIGHSCORE_END;
 					break;
 				}
-				str_validate(hs->company, lastof(hs->company), SVS_NONE);
+				StrMakeValidInPlace(hs->company, lastof(hs->company), SVS_NONE);
 				hs->title = EndGameGetPerformanceTitleFromValue(hs->score);
 			}
 		}

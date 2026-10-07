@@ -17,6 +17,7 @@
 #include "cargo_type.h"
 #include "vehicle_type.h"
 #include "core/multimap.hpp"
+#include "saveload/saveload.h"
 #include <list>
 
 /** Unique identifier for a single cargo packet. */
@@ -32,7 +33,7 @@ struct GoodsEntry; // forward-declare for Stage() and RerouteStalePackets()
 
 template <class Tinst, class Tcont> class CargoList;
 class StationCargoList; // forward-declare, so we can use it in VehicleCargoList.
-extern const struct SaveLoad *GetCargoPacketDesc();
+extern SaveLoadTable GetCargoPacketDesc();
 
 typedef uint32 TileOrStationID;
 
@@ -43,7 +44,7 @@ struct CargoPacket : CargoPacketPool::PoolItem<&_cargopacket_pool> {
 private:
 	Money feeder_share;     ///< Value of feeder pickup to be paid for on delivery of cargo.
 	uint16 count;           ///< The amount of cargo in this packet.
-	byte days_in_transit;   ///< Amount of days this packet has been in transit.
+	uint16 days_in_transit; ///< Amount of days this packet has been in transit.
 	SourceType source_type; ///< Type of \c source_id.
 	SourceID source_id;     ///< Index of source, INVALID_SOURCE if unknown/invalid.
 	StationID source;       ///< The station where the cargo came from first.
@@ -58,14 +59,14 @@ private:
 	friend class VehicleCargoList;
 	friend class StationCargoList;
 	/** We want this to be saved, right? */
-	friend const struct SaveLoad *GetCargoPacketDesc();
+	friend SaveLoadTable GetCargoPacketDesc();
 public:
 	/** Maximum number of items in a single cargo packet. */
 	static const uint16 MAX_COUNT = UINT16_MAX;
 
 	CargoPacket();
 	CargoPacket(StationID source, TileIndex source_xy, uint16 count, SourceType source_type, SourceID source_id);
-	CargoPacket(uint16 count, byte days_in_transit, StationID source, TileIndex source_xy, TileIndex loaded_at_xy, Money feeder_share = 0, SourceType source_type = ST_INDUSTRY, SourceID source_id = INVALID_SOURCE);
+	CargoPacket(uint16 count, uint16 days_in_transit, StationID source, TileIndex source_xy, TileIndex loaded_at_xy, Money feeder_share = 0, SourceType source_type = SourceType::Industry, SourceID source_id = INVALID_SOURCE);
 
 	/** Destroy the packet. */
 	~CargoPacket() { }
@@ -125,10 +126,10 @@ public:
 	/**
 	 * Gets the number of days this cargo has been in transit.
 	 * This number isn't really in days, but in 2.5 days (CARGO_AGING_TICKS = 185 ticks) and
-	 * it is capped at 255.
+	 * it is capped at UINT16_MAX.
 	 * @return Length this cargo has been in transit.
 	 */
-	inline byte DaysInTransit() const
+	inline uint16 DaysInTransit() const
 	{
 		return this->days_in_transit;
 	}
@@ -220,8 +221,8 @@ public:
 	};
 
 protected:
-	uint count;                 ///< Cache for the number of cargo entities.
-	uint cargo_days_in_transit; ///< Cache for the sum of number of days in transit of each entity; comparable to man-hours.
+	uint count;                   ///< Cache for the number of cargo entities.
+	uint64 cargo_days_in_transit; ///< Cache for the sum of number of days in transit of each entity; comparable to man-hours.
 
 	Tcont packets;              ///< The cargo packets in this list.
 
@@ -304,8 +305,8 @@ public:
 	friend class StationCargoList;
 	/** The super class ought to know what it's doing. */
 	friend class CargoList<VehicleCargoList, CargoPacketList>;
-	/** The vehicles have a cargo list (and we want that saved). */
-	friend const struct SaveLoad *GetVehicleDescription(VehicleType vt);
+	/* So we can use private/protected variables in the saveload code */
+	friend class SlVehicleCommon;
 
 	friend class CargoShift;
 	friend class CargoTransfer;
@@ -455,8 +456,8 @@ protected:
 public:
 	/** The super class ought to know what it's doing. */
 	friend class CargoList<StationCargoList, StationCargoPacketMap>;
-	/** The stations, via GoodsEntry, have a CargoList. */
-	friend const struct SaveLoad *GetGoodsDesc();
+	/* So we can use private/protected variables in the saveload code */
+	friend class SlStationGoods;
 
 	friend class CargoLoad;
 	friend class CargoTransfer;

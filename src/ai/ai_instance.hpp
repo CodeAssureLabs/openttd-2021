@@ -24,12 +24,12 @@ public:
 	void Initialize(class AIInfo *info);
 
 	int GetSetting(const char *name) override;
-	ScriptInfo *FindLibrary(const char *library, int version) override;
+	ScriptInfo *FindLibrary(const std::string &library, int version) override;
 
 private:
 	void RegisterAPI() override;
 	void Died() override;
-	CommandCallback *GetDoCommandCallback() override;
+	CommandCallbackData *GetDoCommandCallback() override;
 	void LoadDummyScript() override;
 };
 

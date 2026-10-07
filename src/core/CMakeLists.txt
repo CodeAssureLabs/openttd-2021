@@ -23,8 +23,8 @@ add_files(
     random_func.cpp
     random_func.hpp
     smallmap_type.hpp
-    smallmatrix_type.hpp
     smallstack_type.hpp
     smallvec_type.hpp
-    string_compare_type.hpp
+    span_type.hpp
+    strong_typedef_type.hpp
 )

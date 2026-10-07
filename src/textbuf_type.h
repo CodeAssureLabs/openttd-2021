@@ -47,8 +47,7 @@ struct Textbuf {
 	~Textbuf();
 
 	void Assign(StringID string);
-	void Assign(const char *text);
-	void CDECL Print(const char *format, ...) WARN_FORMAT(2, 3);
+	void Assign(const std::string_view text);
 
 	void DeleteAll();
 	bool InsertClipboard();
@@ -67,7 +66,7 @@ struct Textbuf {
 	void DiscardMarkedText(bool update = true);
 
 private:
-	StringIterator *char_iter;
+	std::unique_ptr<StringIterator> char_iter;
 
 	bool CanDelChar(bool backspace);
 

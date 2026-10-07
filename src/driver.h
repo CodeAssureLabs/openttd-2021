@@ -11,7 +11,6 @@
 #define DRIVER_H
 
 #include "core/enum_type.hpp"
-#include "core/string_compare_type.hpp"
 #include "string_type.h"
 #include <map>
 
@@ -106,6 +105,15 @@ protected:
 	DriverFactoryBase(Driver::Type type, int priority, const char *name, const char *description);
 
 	virtual ~DriverFactoryBase();
+
+	/**
+	 * Does the driver use hardware acceleration (video-drivers only).
+	 * @return True if the driver uses hardware acceleration.
+	 */
+	virtual bool UsesHardwareAcceleration() const
+	{
+		return false;
+	}
 
 public:
 	/**

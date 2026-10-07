@@ -54,7 +54,7 @@ public:
 	 * @return The number of industries.
 	 * @note The maximum valid IndustryID can be higher than the value returned.
 	 */
-	static int32 GetIndustryCount();
+	static SQInteger GetIndustryCount();
 
 	/**
 	 * Checks whether the given industry index is valid.
@@ -82,6 +82,17 @@ public:
 	static char *GetName(IndustryID industry_id);
 
 	/**
+	 * Set the custom text of an industry, shown in the GUI.
+	 * @param industry_id The industry to set the custom text of.
+	 * @param text The text to set it to (can be either a raw string, or a ScriptText object). If null, or an empty string, is passed, the text will be removed.
+	 * @pre ScriptCompanyMode::IsDeity().
+	 * @pre IsValidIndustry(industry_id).
+	 * @return True if the action succeeded.
+	 * @api -ai
+	 */
+	static bool SetText(IndustryID industry_id, Text *text);
+
+	/**
 	 * See whether an industry currently accepts a certain cargo.
 	 * @param industry_id The index of the industry.
 	 * @param cargo_id The index of the cargo.
@@ -99,7 +110,7 @@ public:
 	 * @pre ScriptCargo::IsValidCargo(cargo_id).
 	 * @return The amount of cargo that is waiting for processing.
 	 */
-	static int32 GetStockpiledCargo(IndustryID industry_id, CargoID cargo_id);
+	static SQInteger GetStockpiledCargo(IndustryID industry_id, CargoID cargo_id);
 
 	/**
 	 * Get the total last month's production of the given cargo at an industry.
@@ -109,7 +120,7 @@ public:
 	 * @pre ScriptCargo::IsValidCargo(cargo_id).
 	 * @return The last month's production of the given cargo for this industry.
 	 */
-	static int32 GetLastMonthProduction(IndustryID industry_id, CargoID cargo_id);
+	static SQInteger GetLastMonthProduction(IndustryID industry_id, CargoID cargo_id);
 
 	/**
 	 * Get the total amount of cargo transported from an industry last month.
@@ -119,7 +130,7 @@ public:
 	 * @pre ScriptCargo::IsValidCargo(cargo_id).
 	 * @return The amount of given cargo transported from this industry last month.
 	 */
-	static int32 GetLastMonthTransported(IndustryID industry_id, CargoID cargo_id);
+	static SQInteger GetLastMonthTransported(IndustryID industry_id, CargoID cargo_id);
 
 	/**
 	 * Get the percentage of cargo transported from an industry last month.
@@ -129,7 +140,7 @@ public:
 	 * @pre ScriptCargo::IsValidCargo(cargo_id).
 	 * @return The percentage of given cargo transported from this industry last month.
 	 */
-	static int32 GetLastMonthTransportedPercentage(IndustryID industry_id, CargoID cargo_id);
+	static SQInteger GetLastMonthTransportedPercentage(IndustryID industry_id, CargoID cargo_id);
 
 	/**
 	 * Gets the location of the industry.
@@ -147,7 +158,7 @@ public:
 	 * @pre IsValidIndustry(industry_id).
 	 * @return The number of stations around an industry.
 	 */
-	static int32 GetAmountOfStationsAround(IndustryID industry_id);
+	static SQInteger GetAmountOfStationsAround(IndustryID industry_id);
 
 	/**
 	 * Get the manhattan distance from the tile to the ScriptIndustry::GetLocation()
@@ -158,7 +169,7 @@ public:
 	 * @pre ScriptMap::IsValidTile(tile).
 	 * @return The distance between industry and tile.
 	 */
-	static int32 GetDistanceManhattanToTile(IndustryID industry_id, TileIndex tile);
+	static SQInteger GetDistanceManhattanToTile(IndustryID industry_id, TileIndex tile);
 
 	/**
 	 * Get the square distance from the tile to the ScriptIndustry::GetLocation()
@@ -169,7 +180,7 @@ public:
 	 * @pre ScriptMap::IsValidTile(tile).
 	 * @return The distance between industry and tile.
 	 */
-	static int32 GetDistanceSquareToTile(IndustryID industry_id, TileIndex tile);
+	static SQInteger GetDistanceSquareToTile(IndustryID industry_id, TileIndex tile);
 
 	/**
 	 * Is this industry built on water.
@@ -228,7 +239,7 @@ public:
 	 * @return Year the industry last had production, 0 if error.
 	 * @api -ai
 	 */
-	static int32 GetLastProductionYear(IndustryID industry_id);
+	static SQInteger GetLastProductionYear(IndustryID industry_id);
 
 	/**
 	 * Get the last date this industry accepted any cargo delivery.
@@ -248,18 +259,18 @@ public:
 	 * @return Bit flags of the IndustryControlFlags enumeration.
 	 * @api -ai
 	 */
-	static uint32 GetControlFlags(IndustryID industry_id);
+	static SQInteger GetControlFlags(IndustryID industry_id);
 
 	/**
 	 * Change the control flags for an industry.
 	 * @param industry_id The index of the industry.
 	 * @param control_flags New flags as a combination of IndustryControlFlags values.
 	 * @pre IsValidIndustry(industry_id).
-	 * @pre No ScriptCompanyMode may be in scope.
+	 * @pre ScriptCompanyMode::IsDeity().
 	 * @return True if the action succeeded.
 	 * @api -ai
 	 */
-	static bool SetControlFlags(IndustryID industry_id, uint32 control_flags);
+	static bool SetControlFlags(IndustryID industry_id, SQInteger control_flags);
 
 	/**
 	 * Find out which company currently has the exclusive rights to deliver cargo to the industry.
@@ -276,6 +287,7 @@ public:
 	 * @param industry_id The index of the industry.
 	 * @param company_id The company to set (ScriptCompany::COMPANY_INVALID to reset).
 	 * @pre IsValidIndustry(industry_id).
+	 * @pre ScriptCompanyMode::IsDeity().
 	 * @return True if the action succeeded.
 	 * @api -ai
 	 */
@@ -296,6 +308,7 @@ public:
 	 * @param industry_id The index of the industry.
 	 * @param company_id The company to set (ScriptCompany::COMPANY_INVALID to reset).
 	 * @pre IsValidIndustry(industry_id).
+	 * @pre ScriptCompanyMode::IsDeity().
 	 * @return True if the action succeeded.
 	 * @api -ai
 	 */

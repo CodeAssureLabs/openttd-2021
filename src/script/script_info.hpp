@@ -122,7 +122,7 @@ public:
 	/**
 	 * Get the description of a certain Script config option.
 	 */
-	const ScriptConfigItem *GetConfigItem(const char *name) const;
+	const ScriptConfigItem *GetConfigItem(const std::string_view name) const;
 
 	/**
 	 * Set a setting.
@@ -137,7 +137,7 @@ public:
 	/**
 	 * Get the default value for a setting.
 	 */
-	int GetSettingDefaultValue(const char *name) const;
+	int GetSettingDefaultValue(const std::string &name) const;
 
 	/**
 	 * Can this script be selected by developers only?
@@ -163,5 +163,8 @@ private:
 
 	class ScriptScanner *scanner; ///< ScriptScanner object that was used to scan this script info.
 };
+
+void Script_CreateDummyInfo(HSQUIRRELVM vm, const char *type, const char *dir);
+void Script_CreateDummy(HSQUIRRELVM vm, StringID string, const char *type);
 
 #endif /* SCRIPT_INFO_HPP */

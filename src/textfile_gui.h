@@ -15,39 +15,48 @@
 #include "textfile_type.h"
 #include "window_gui.h"
 
-const char *GetTextfile(TextfileType type, Subdirectory dir, const char *filename);
+std::optional<std::string> GetTextfile(TextfileType type, Subdirectory dir, const std::string &filename);
 
 /** Window for displaying a textfile */
 struct TextfileWindow : public Window, MissingGlyphSearcher {
 	TextfileType file_type;          ///< Type of textfile to view.
 	Scrollbar *vscroll;              ///< Vertical scrollbar.
 	Scrollbar *hscroll;              ///< Horizontal scrollbar.
-	char *text;                      ///< Lines of text from the NewGRF's textfile.
-	std::vector<const char *> lines; ///< #text, split into lines in a table with lines.
 	uint search_iterator;            ///< Iterator for the font check search.
 
-	static const int TOP_SPACING    = WD_FRAMETEXT_TOP;    ///< Additional spacing at the top of the #WID_TF_BACKGROUND widget.
-	static const int BOTTOM_SPACING = WD_FRAMETEXT_BOTTOM; ///< Additional spacing at the bottom of the #WID_TF_BACKGROUND widget.
+	uint max_length;                 ///< Maximum length of unwrapped text line.
 
 	TextfileWindow(TextfileType file_type);
-	~TextfileWindow();
 
 	void UpdateWidgetSize(int widget, Dimension *size, const Dimension &padding, Dimension *fill, Dimension *resize) override;
 	void OnClick(Point pt, int widget, int click_count) override;
 	void DrawWidget(const Rect &r, int widget) const override;
 	void OnResize() override;
+	void OnInvalidateData(int data = 0, bool gui_scope = true) override;
 
 	void Reset() override;
 	FontSize DefaultSize() override;
-	const char *NextString() override;
+	std::optional<std::string_view> NextString() override;
 	bool Monospace() override;
-	void SetFontNames(FreeTypeSettings *settings, const char *font_name, const void *os_data) override;
+	void SetFontNames(FontCacheSettings *settings, const char *font_name, const void *os_data) override;
 
-	virtual void LoadTextfile(const char *textfile, Subdirectory dir);
+	virtual void LoadTextfile(const std::string &textfile, Subdirectory dir);
 
 private:
+	struct Line {
+		int top;               ///< Top scroll position.
+		int bottom;            ///< Bottom scroll position.
+		std::string_view text; ///< Pointer to text buffer.
+
+		Line(int top, std::string_view text) : top(top), bottom(top + 1), text(text) {}
+	};
+
+	std::string text;                ///< Lines of text from the NewGRF's textfile.
+	std::vector<Line> lines;         ///< #text, split into lines in a table with lines.
+
+	uint ReflowContent();
 	uint GetContentHeight();
-	void SetupScrollbars();
+	void SetupScrollbars(bool force_reflow);
 };
 
 #endif /* TEXTFILE_GUI_H */

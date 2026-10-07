@@ -80,7 +80,7 @@ void Blitter_8bppOptimized::Draw(Blitter::BlitterParams *bp, BlitterMode mode, Z
 			dst += trans;
 			width -= trans;
 			if (width <= 0 || pixels == 0) continue;
-			pixels = min<uint>(pixels, (uint)width);
+			pixels = std::min<uint>(pixels, width);
 			width -= pixels;
 
 			switch (mode) {
@@ -127,7 +127,7 @@ Sprite *Blitter_8bppOptimized::Encode(const SpriteLoader::Sprite *sprite, Alloca
 	ZoomLevel zoom_min;
 	ZoomLevel zoom_max;
 
-	if (sprite->type == ST_FONT) {
+	if (sprite->type == SpriteType::Font) {
 		zoom_min = ZOOM_LVL_NORMAL;
 		zoom_max = ZOOM_LVL_NORMAL;
 	} else {
