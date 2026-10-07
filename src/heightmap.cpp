@@ -368,7 +368,7 @@ static void GrayscaleToMapHeights(uint img_width, uint img_height, byte *map)
 					/* 0 is sea level.
 					 * Other grey scales are scaled evenly to the available height levels > 0.
 					 * (The coastline is independent from the number of height levels) */
-					heightmap_height = 1 + (heightmap_height - 1) * _settings_game.construction.max_heightlevel / 255;
+					heightmap_height = 1 + (heightmap_height - 1) * _settings_game.game_creation.heightmap_height / 255;
 				}
 
 				SetTileHeight(tile, heightmap_height);
@@ -480,7 +480,7 @@ bool GetHeightmapDimensions(DetailedFileType dft, const char *filename, uint *x,
 }
 
 /**
- * Load a heightmap from file and change the map in his current dimensions
+ * Load a heightmap from file and change the map in its current dimensions
  *  to a landscape representing the heightmap.
  * It converts pixels to height. The brighter, the higher.
  * @param dft Type of image file.

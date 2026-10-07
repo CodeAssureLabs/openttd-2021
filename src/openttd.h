@@ -25,6 +25,7 @@ enum SwitchMode {
 	SM_NONE,
 	SM_NEWGAME,           ///< New Game --> 'Random game'.
 	SM_RESTARTGAME,       ///< Restart --> 'Random game' with current settings.
+	SM_RELOADGAME,        ///< Reload the savegame / scenario / heightmap you started the game with.
 	SM_EDITOR,            ///< Switch to scenario editor.
 	SM_LOAD_GAME,         ///< Load game, Play Scenario.
 	SM_MENU,              ///< Switch to game intro menu.
@@ -35,6 +36,7 @@ enum SwitchMode {
 	SM_START_HEIGHTMAP,   ///< Load a heightmap and start a new game from it.
 	SM_LOAD_HEIGHTMAP,    ///< Load heightmap from scenario editor.
 	SM_RESTART_HEIGHTMAP, ///< Load a heightmap and start a new game from it with current settings.
+	SM_JOIN_GAME,         ///< Join a network game.
 };
 
 /** Display Options */
@@ -79,5 +81,7 @@ int openttd_main(int argc, char *argv[]);
 void HandleExitGameRequest();
 
 void SwitchToMode(SwitchMode new_mode);
+
+bool RequestNewGRFScan(struct NewGRFScanCallback *callback = nullptr);
 
 #endif /* OPENTTD_H */

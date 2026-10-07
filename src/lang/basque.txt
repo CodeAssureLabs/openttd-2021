@@ -232,8 +232,6 @@ STR_TOOLTIP_SORT_ORDER                                          :{BLACK}Hautatu 
 STR_TOOLTIP_SORT_CRITERIA                                       :{BLACK}Aukeratu ordenatze irizpideak
 STR_TOOLTIP_FILTER_CRITERIA                                     :{BLACK}Aukeratu iragazki irizpideak
 STR_BUTTON_SORT_BY                                              :{BLACK}Ordenatu
-STR_BUTTON_LOCATION                                             :{BLACK}Kokapena
-STR_BUTTON_RENAME                                               :{BLACK}Berrizendatu
 
 STR_TOOLTIP_CLOSE_WINDOW                                        :{BLACK}Lehioa itxi
 STR_TOOLTIP_WINDOW_TITLE_DRAG_THIS                              :{BLACK}Leiho izena - Arrastatu hau leihoa mugitzeko
@@ -557,8 +555,8 @@ STR_MONTH_DEC                                                   :Abendua
 # Graph window
 STR_GRAPH_KEY_BUTTON                                            :{BLACK}Giltza
 STR_GRAPH_KEY_TOOLTIP                                           :{BLACK}Erakutsi giltza grafikoetan
-STR_GRAPH_X_LABEL_MONTH                                         :{TINY_FONT}{STRING}{} {STRING}
-STR_GRAPH_X_LABEL_MONTH_YEAR                                    :{TINY_FONT}{STRING}{} {STRING}{}{NUM}
+STR_GRAPH_X_LABEL_MONTH                                         :{TINY_FONT}{STRING}
+STR_GRAPH_X_LABEL_MONTH_YEAR                                    :{TINY_FONT}{STRING}{}{NUM}
 STR_GRAPH_Y_LABEL                                               :{TINY_FONT}{STRING}
 STR_GRAPH_Y_LABEL_NUMBER                                        :{TINY_FONT}{COMMA}
 
@@ -911,8 +909,6 @@ STR_GAME_OPTIONS_CURRENCY_GEL                                   :Lari Georgiarra
 STR_GAME_OPTIONS_CURRENCY_IRR                                   :Rial Iraniarra (IRR)
 ############ end of currency region
 
-STR_GAME_OPTIONS_ROAD_VEHICLES_FRAME                            :{BLACK}Errepideko garraioak
-STR_GAME_OPTIONS_ROAD_VEHICLES_DROPDOWN_TOOLTIP                 :{BLACK}Aukeratu ibilgailuen gidatzeko norabidea
 STR_GAME_OPTIONS_ROAD_VEHICLES_DROPDOWN_LEFT                    :Ezkerretik gidatu
 STR_GAME_OPTIONS_ROAD_VEHICLES_DROPDOWN_RIGHT                   :Eskuinetik gidatu
 
@@ -964,11 +960,15 @@ STR_GAME_OPTIONS_RESOLUTION                                     :{BLACK}Pantaila
 STR_GAME_OPTIONS_RESOLUTION_TOOLTIP                             :{BLACK}Pantailaren resulozioa aukeratu
 STR_GAME_OPTIONS_RESOLUTION_OTHER                               :besteak
 
+
+
 STR_GAME_OPTIONS_GUI_ZOOM_FRAME                                 :{BLACK}Interfaze tamaina
 
 STR_GAME_OPTIONS_GUI_ZOOM_DROPDOWN_NORMAL                       :Normala
 STR_GAME_OPTIONS_GUI_ZOOM_DROPDOWN_2X_ZOOM                      :Tamaina doblea
 STR_GAME_OPTIONS_GUI_ZOOM_DROPDOWN_4X_ZOOM                      :Tamaina laukoitza
+
+
 
 
 
@@ -1629,6 +1629,8 @@ STR_CONFIG_ERROR_INVALID_BASE_SOUNDS_NOT_FOUND                  :{WHITE}... jara
 STR_CONFIG_ERROR_INVALID_BASE_MUSIC_NOT_FOUND                   :{WHITE}... jaramonik ez egiten musika paketeari'{STRING}': ez da aurkitu
 STR_CONFIG_ERROR_OUT_OF_MEMORY                                  :{WHITE}Memoriaz kanpo
 
+# Video initalization errors
+
 # Intro window
 STR_INTRO_CAPTION                                               :{WHITE}OpenTTD {REV}
 
@@ -1682,7 +1684,6 @@ STR_ABANDON_SCENARIO_QUERY                                      :{YELLOW}¿Segur
 # Cheat window
 STR_CHEATS                                                      :{WHITE}Trukoak
 STR_CHEATS_TOOLTIP                                              :{BLACK}Kontrol laukiek erakutsiko dute trukoak erabili badituzu
-STR_CHEATS_WARNING                                              :{BLACK}Abisua! Zure kideak traizionatzear zaude. Gogoratu traizioa ez dela inoiz ahaztuko
 STR_CHEAT_MONEY                                                 :{LTBLUE}Dirua {CURRENCY_LONG}-etan areagotu
 STR_CHEAT_CHANGE_COMPANY                                        :{LTBLUE} {ORANGE}{COMMA} konpainiarekin jolastu
 STR_CHEAT_EXTRA_DYNAMITE                                        :{LTBLUE}Bulldozer magikoa (edozer ezabatzen du): {ORANGE}{STRING}
@@ -1789,6 +1790,7 @@ STR_FACE_TIE                                                    :Korbata:
 STR_FACE_EARRING                                                :Belarritakoak:
 STR_FACE_TIE_EARRING_TOOLTIP                                    :{BLACK}Aldatu korbata eta belarritakoak
 
+
 # Network server list
 STR_NETWORK_SERVER_LIST_CAPTION                                 :{WHITE}Multijokalaria
 STR_NETWORK_SERVER_LIST_PLAYER_NAME                             :{BLACK}Jokalariaren izena:
@@ -1847,8 +1849,6 @@ STR_NETWORK_START_SERVER_NEW_GAME_NAME_TOOLTIP                  :{BLACK}Jokoaren
 STR_NETWORK_START_SERVER_SET_PASSWORD                           :{BLACK}Pasahitza ezarri
 STR_NETWORK_START_SERVER_PASSWORD_TOOLTIP                       :{BLACK}Babestu zure jokoa pasahitz batekin ez baduzu nahi publikoa izatea
 
-STR_NETWORK_START_SERVER_UNADVERTISED                           :Ez
-STR_NETWORK_START_SERVER_ADVERTISED                             :Bai
 STR_NETWORK_START_SERVER_CLIENTS_SELECT                         :{BLACK}{NUM} Bezero
 STR_NETWORK_START_SERVER_NUMBER_OF_CLIENTS                      :{BLACK}Gehienezko bezeroak:
 STR_NETWORK_START_SERVER_NUMBER_OF_CLIENTS_TOOLTIP              :{BLACK}Gehienezko bezero kopurua aukeratu. Ez da beharrezkoa guztia betetzea
@@ -1862,46 +1862,6 @@ STR_NETWORK_START_SERVER_LANGUAGE_SPOKEN                        :{BLACK}Hitzegit
 STR_NETWORK_START_SERVER_LANGUAGE_TOOLTIP                       :{BLACK}Beste jokalariek erabiltzen ari den hizkuntza ezagutu ahalko dute
 
 STR_NETWORK_START_SERVER_NEW_GAME_NAME_OSKTITLE                 :{BLACK}Sare joko batentzako izena sartu
-
-# Network game languages
-############ Leave those lines in this order!!
-STR_NETWORK_LANG_ANY                                            :Edozein
-STR_NETWORK_LANG_ENGLISH                                        :Ingelera
-STR_NETWORK_LANG_GERMAN                                         :Alemaniera
-STR_NETWORK_LANG_FRENCH                                         :Frantsesa
-STR_NETWORK_LANG_BRAZILIAN                                      :Brasilera
-STR_NETWORK_LANG_BULGARIAN                                      :Bulgariera
-STR_NETWORK_LANG_CHINESE                                        :Txinera
-STR_NETWORK_LANG_CZECH                                          :Txekiera
-STR_NETWORK_LANG_DANISH                                         :Danimarkiera
-STR_NETWORK_LANG_DUTCH                                          :Holandera
-STR_NETWORK_LANG_ESPERANTO                                      :Esperantoa
-STR_NETWORK_LANG_FINNISH                                        :Finlandera
-STR_NETWORK_LANG_HUNGARIAN                                      :Hungariera
-STR_NETWORK_LANG_ICELANDIC                                      :Islandiera
-STR_NETWORK_LANG_ITALIAN                                        :Italiera
-STR_NETWORK_LANG_JAPANESE                                       :Japoniera
-STR_NETWORK_LANG_KOREAN                                         :Koreera
-STR_NETWORK_LANG_LITHUANIAN                                     :Lituaniera
-STR_NETWORK_LANG_NORWEGIAN                                      :Norbegiera
-STR_NETWORK_LANG_POLISH                                         :Poloniera
-STR_NETWORK_LANG_PORTUGUESE                                     :Portugesa
-STR_NETWORK_LANG_ROMANIAN                                       :Errumaniera
-STR_NETWORK_LANG_RUSSIAN                                        :Errusiera
-STR_NETWORK_LANG_SLOVAK                                         :Eslabiera
-STR_NETWORK_LANG_SLOVENIAN                                      :Eslobeniera
-STR_NETWORK_LANG_SPANISH                                        :Gaztelera
-STR_NETWORK_LANG_SWEDISH                                        :Suediera
-STR_NETWORK_LANG_TURKISH                                        :Turkiera
-STR_NETWORK_LANG_UKRAINIAN                                      :Ukrainera
-STR_NETWORK_LANG_AFRIKAANS                                      :Afrikaanera
-STR_NETWORK_LANG_CROATIAN                                       :Kroatiera
-STR_NETWORK_LANG_CATALAN                                        :Katalana
-STR_NETWORK_LANG_ESTONIAN                                       :Estoniera
-STR_NETWORK_LANG_GALICIAN                                       :Galiziera
-STR_NETWORK_LANG_GREEK                                          :Greziera
-STR_NETWORK_LANG_LATVIAN                                        :Letoniera
-############ End of leave-in-this-order
 
 # Network game lobby
 STR_NETWORK_GAME_LOBBY_CAPTION                                  :{WHITE}Multijokalari joko itxia
@@ -1953,22 +1913,14 @@ STR_NETWORK_NEED_COMPANY_PASSWORD_CAPTION                       :{WHITE}Konpaini
 
 # Network company list added strings
 STR_NETWORK_COMPANY_LIST_CLIENT_LIST                            :Bezero zerrenda
-STR_NETWORK_COMPANY_LIST_SPECTATE                               :Ikusle
-STR_NETWORK_COMPANY_LIST_NEW_COMPANY                            :Konpainia berria
 
 # Network client list
-STR_NETWORK_CLIENTLIST_KICK                                     :Kanporatu
-STR_NETWORK_CLIENTLIST_BAN                                      :Debekatu
-STR_NETWORK_CLIENTLIST_GIVE_MONEY                               :Dirua eman
-STR_NETWORK_CLIENTLIST_SPEAK_TO_ALL                             :Guztiei hitz egin
-STR_NETWORK_CLIENTLIST_SPEAK_TO_COMPANY                         :Konpainiari hitz egin
-STR_NETWORK_CLIENTLIST_SPEAK_TO_CLIENT                          :Mezu pribatua
+
+
 
 STR_NETWORK_SERVER                                              :Zerbitzaria
 STR_NETWORK_CLIENT                                              :Bezeroa
 STR_NETWORK_SPECTATORS                                          :Ikusleak
-
-STR_NETWORK_GIVE_MONEY_CAPTION                                  :{WHITE}Eman nahi duzun diru kantitatea ezarri
 
 # Network set password
 STR_COMPANY_PASSWORD_CANCEL                                     :{BLACK}Ez gorde sartutako pasahitza
@@ -2069,8 +2021,6 @@ STR_NETWORK_MESSAGE_CLIENT_COMPANY_SPECTATE                     :*** {STRING} ik
 STR_NETWORK_MESSAGE_CLIENT_COMPANY_NEW                          :*** {STRING} konpainia berria sortu du (#{2:NUM})
 STR_NETWORK_MESSAGE_CLIENT_LEFT                                 :*** {STRING} jokoa utzi du ({2:STRING})
 STR_NETWORK_MESSAGE_NAME_CHANGE                                 :*** {STRING}-k bere izena {STRING}-ra aldatu du
-STR_NETWORK_MESSAGE_GIVE_MONEY                                  :*** {STRING} zure empresa eman {2:CURRENCY_LONG}
-STR_NETWORK_MESSAGE_GAVE_MONEY_AWAY                             :*** Zuk eman diozu {1:STRING} {2:CURRENCY_LONG}
 STR_NETWORK_MESSAGE_SERVER_SHUTDOWN                             :{WHITE}Zebitzariak saioa itxi du
 STR_NETWORK_MESSAGE_SERVER_REBOOT                               :{WHITE}Zerbitzaria berriro hasten ari da...{}Mesedez itxaron...
 
@@ -2145,6 +2095,7 @@ STR_MISSING_GRAPHICS_SET_MESSAGE                                :{BLACK}OpenTTD-
 STR_MISSING_GRAPHICS_YES_DOWNLOAD                               :{BLACK}Bai, grafikoak jaitsi
 STR_MISSING_GRAPHICS_NO_QUIT                                    :{BLACK}Ez, OpenTTD itxi
 
+
 # Transparency settings window
 STR_TRANSPARENCY_CAPTION                                        :{WHITE}Gardentasun aukerak
 STR_TRANSPARENT_SIGNS_TOOLTIP                                   :{BLACK}Seinaleen gardentasuna aldatu. Ktrl+Klik blokeatzeko
@@ -2181,6 +2132,8 @@ STR_JOIN_STATION_CREATE_SPLITTED_STATION                        :{YELLOW}Geltoki
 
 STR_JOIN_WAYPOINT_CAPTION                                       :{WHITE}Bidepuntua lotu
 STR_JOIN_WAYPOINT_CREATE_SPLITTED_WAYPOINT                      :{YELLOW}Ibilbide puntu bereizitua eraiki
+
+# Generic toolbar
 
 # Rail construction toolbar
 STR_RAIL_TOOLBAR_RAILROAD_CONSTRUCTION_CAPTION                  :Trenbidea eraiki
@@ -2614,11 +2567,7 @@ STR_MAPGEN_BY                                                   :{BLACK}*
 STR_MAPGEN_NUMBER_OF_TOWNS                                      :{BLACK}Herri kopurua:
 STR_MAPGEN_DATE                                                 :{BLACK}Data:
 STR_MAPGEN_NUMBER_OF_INDUSTRIES                                 :{BLACK}Industria kopurua:
-STR_MAPGEN_SNOW_LINE_HEIGHT                                     :{BLACK}Elur garaiera:
-STR_MAPGEN_SNOW_LINE_UP                                         :{BLACK}Igo puntu batean elur garaiera
-STR_MAPGEN_SNOW_LINE_DOWN                                       :{BLACK}Jeitsi puntu batean elur garaiera
 STR_MAPGEN_LAND_GENERATOR                                       :{BLACK}Paisaia sortzailea:
-STR_MAPGEN_TREE_PLACER                                          :{BLACK}Zuhaitz algoritmoa:
 STR_MAPGEN_TERRAIN_TYPE                                         :{BLACK}Lur mota:
 STR_MAPGEN_QUANTITY_OF_SEA_LAKES                                :{BLACK}Itsaso kopurua:
 STR_MAPGEN_QUANTITY_OF_RIVERS                                   :{BLACK}Errekak:
@@ -2643,8 +2592,6 @@ STR_MAPGEN_HEIGHTMAP_NAME                                       :{BLACK}Garaiera
 STR_MAPGEN_HEIGHTMAP_SIZE_LABEL                                 :{BLACK}Tamaina:
 STR_MAPGEN_HEIGHTMAP_SIZE                                       :{ORANGE}{NUM} x {NUM}
 
-STR_MAPGEN_MAX_HEIGHTLEVEL_QUERY_CAPT                           :{WHITE}Aldatu maparen garaiera maximoa
-STR_MAPGEN_SNOW_LINE_QUERY_CAPT                                 :{WHITE}Elur garaiera aldatu
 STR_MAPGEN_START_DATE_QUERY_CAPT                                :{WHITE}Hasierako urtea aldatu
 
 # SE Map generation
@@ -2912,13 +2859,10 @@ STR_LOCAL_AUTHORITY_ACTION_TOOLTIP_BRIBE                        :{YELLOW}Udaletx
 # Goal window
 STR_GOALS_CAPTION                                               :{WHITE}{COMPANY} Helburuak
 STR_GOALS_SPECTATOR_CAPTION                                     :{WHITE}Helburu orokorrak
-STR_GOALS_GLOBAL_TITLE                                          :{BLACK}Helburu orokorrak:
 STR_GOALS_TEXT                                                  :{ORANGE}{STRING}
 STR_GOALS_NONE                                                  :{ORANGE}- Ezer ez -
-STR_GOALS_SPECTATOR_NONE                                        :{ORANGE}- Ez aplikagarria -
 STR_GOALS_PROGRESS                                              :{ORANGE}{STRING}
 STR_GOALS_PROGRESS_COMPLETE                                     :{GREEN}{STRING}
-STR_GOALS_COMPANY_TITLE                                         :{BLACK}Konpainiaren helburuak:
 STR_GOALS_TOOLTIP_CLICK_ON_SERVICE_TO_CENTER                    :{BLACK}Klikatu helburuan ikupegi nagusia industrian/herrian/laukian zentratzeko. Ktrl+Klik ikuspegi lehio berria irekiko du industri/herri/laukiaren kokapenean
 
 # Goal question window
@@ -3428,16 +3372,11 @@ STR_REPLACE_MAGLEV_VEHICLES                                     :Tren magnetikoa
 
 STR_REPLACE_TRAM_VEHICLES                                       :Tranbia ibilgailuak
 
-STR_REPLACE_REMOVE_WAGON                                        :{BLACK}Bagoiak ezabatu: {ORANGE}{STRING}
 STR_REPLACE_REMOVE_WAGON_HELP                                   :{BLACK}Ordezkatze automatikoari agindu trenaren luzera errespetatzea, bagoiak ezabatuz luzera handitzen badute (trenaren hasierako bagoietik hasita)
 
 # Vehicle view
 STR_VEHICLE_VIEW_CAPTION                                        :{WHITE}{VEHICLE}
 
-STR_VEHICLE_VIEW_TRAIN_LOCATION_TOOLTIP                         :{BLACK}Ikuspegi nagusia trenean kokatu. Ktrl+klik trena ikuspegi nagusiarekin jarraitzeko
-STR_VEHICLE_VIEW_ROAD_VEHICLE_LOCATION_TOOLTIP                  :{BLACK}Ikuspegi nagusia errepide ibilgailuan kokatu. Ktrl+klik errepide ibilgailua ikuspegi nagusiarekin jarraitzeko
-STR_VEHICLE_VIEW_SHIP_LOCATION_TOOLTIP                          :{BLACK}Ikuspegi nagusia itsasontzian kokatu. Ktrl+klik itsasontzia ikuspegi nagusiarekin jarraitzeko
-STR_VEHICLE_VIEW_AIRCRAFT_LOCATION_TOOLTIP                      :{BLACK}Ikuspegi nagusia hegazkinean kokatu. Ktrl+klik hegazkina ikuspegi nagusiarekin jarraitzeko
 
 STR_VEHICLE_VIEW_TRAIN_SEND_TO_DEPOT_TOOLTIP                    :{BLACK}Trena gordailura bidali. Ktrl+klik bakarrik mantenimendua egiteko
 STR_VEHICLE_VIEW_ROAD_VEHICLE_SEND_TO_DEPOT_TOOLTIP             :{BLACK}Errepide ibilgailua gordailura bidali. Ktrl+klik bakarrik mantenimendua egiteko
@@ -3469,10 +3408,7 @@ STR_VEHICLE_VIEW_ROAD_VEHICLE_SHOW_DETAILS_TOOLTIP              :{BLACK}Errepide
 STR_VEHICLE_VIEW_SHIP_SHOW_DETAILS_TOOLTIP                      :{BLACK}Itsasontziaren xehetasunak ikusi
 STR_VEHICLE_VIEW_AIRCRAFT_SHOW_DETAILS_TOOLTIP                  :{BLACK}Hegazkinaren xehetasunak ikusi
 
-STR_VEHICLE_VIEW_TRAIN_STATE_START_STOP_TOOLTIP                 :{BLACK}Trena orain egiten ari den ekitza - Klik trena gelditzeko/abiarazteko. Krtl+klik helmugara bideratzeko
-STR_VEHICLE_VIEW_ROAD_VEHICLE_STATE_START_STOP_TOOLTIP          :{BLACK}Ibilgailua orain egiten ari duen ekitza - Klik ibilgailua gelditzeko/abiarazteko. Krtl+klik helmugara bideratzeko
-STR_VEHICLE_VIEW_SHIP_STATE_START_STOP_TOOLTIP                  :{BLACK}Itsasontzia orain egiten ari duen ekitza - Klik itsasontzia gelditzeko/abiarazteko. Krtl+klik helmugara bideratzeko
-STR_VEHICLE_VIEW_AIRCRAFT_STATE_START_STOP_TOOLTIP              :{BLACK}Hegazkina orain egiten ari duen ekitza - Klik hegazkina gelditzeko/abiarazteko. Krtl+klik helmugara bideratzeko
+
 
 # Messages in the start stop button in the vehicle view
 STR_VEHICLE_STATUS_LOADING_UNLOADING                            :{LTBLUE}Kargatzen/Deskargatzen

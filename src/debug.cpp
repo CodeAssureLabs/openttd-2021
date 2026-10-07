@@ -19,7 +19,7 @@
 #include "os/windows/win32.h"
 #endif
 
-#include <time.h>
+#include "walltime_func.h"
 
 #include "network/network_admin.h"
 SOCKET _debug_socket = INVALID_SOCKET;
@@ -44,8 +44,6 @@ int _debug_console_level;
 #ifdef RANDOM_DEBUG
 int _debug_random_level;
 #endif
-
-uint32 _realtime_tick = 0;
 
 struct DebugLevel {
 	const char *name;
@@ -134,9 +132,9 @@ static void debug_print(const char *dbg, const char *buf)
 		char buffer[512];
 		seprintf(buffer, lastof(buffer), "%sdbg: [%s] %s\n", GetLogPrefix(), dbg, buf);
 #if defined(_WIN32)
-		TCHAR system_buf[512];
-		convert_to_fs(buffer, system_buf, lengthof(system_buf), true);
-		_fputts(system_buf, stderr);
+		wchar_t system_buf[512];
+		convert_to_fs(buffer, system_buf, lengthof(system_buf));
+		fputws(system_buf, stderr);
 #else
 		fputs(buffer, stderr);
 #endif
@@ -250,8 +248,7 @@ const char *GetLogPrefix()
 {
 	static char _log_prefix[24];
 	if (_settings_client.gui.show_date_in_logs) {
-		time_t cur_time = time(nullptr);
-		strftime(_log_prefix, sizeof(_log_prefix), "[%Y-%m-%d %H:%M:%S] ", localtime(&cur_time));
+		LocalTime::Format(_log_prefix, lastof(_log_prefix), "[%Y-%m-%d %H:%M:%S] ");
 	} else {
 		*_log_prefix = '\0';
 	}

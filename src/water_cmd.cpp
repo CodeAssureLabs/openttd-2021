@@ -437,7 +437,9 @@ bool RiverModifyDesertZone(TileIndex tile, void *)
  * @param tile end tile of stretch-dragging
  * @param flags type of operation
  * @param p1 start tile of stretch-dragging
- * @param p2 waterclass to build. sea and river can only be built in scenario editor
+ * @param p2 various bitstuffed data
+ *  bits  0-1: waterclass to build. sea and river can only be built in scenario editor
+ *  bit     2: Whether to use the Orthogonal (0) or Diagonal (1) iterator.
  * @param text unused
  * @return the cost of this operation or an error
  */
@@ -449,25 +451,35 @@ CommandCost CmdBuildCanal(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32
 	/* Outside of the editor you can only build canals, not oceans */
 	if (wc != WATER_CLASS_CANAL && _game_mode != GM_EDITOR) return CMD_ERROR;
 
-	TileArea ta(tile, p1);
-
 	/* Outside the editor you can only drag canals, and not areas */
-	if (_game_mode != GM_EDITOR && ta.w != 1 && ta.h != 1) return CMD_ERROR;
+	if (_game_mode != GM_EDITOR) {
+		TileArea ta(tile, p1);
+		if (ta.w != 1 && ta.h != 1) return CMD_ERROR;
+	}
 
 	CommandCost cost(EXPENSES_CONSTRUCTION);
-	TILE_AREA_LOOP(tile, ta) {
+
+	std::unique_ptr<TileIterator> iter;
+	if (HasBit(p2, 2)) {
+		iter = std::make_unique<DiagonalTileIterator>(tile, p1);
+	} else {
+		iter = std::make_unique<OrthogonalTileIterator>(tile, p1);
+	}
+
+	for (; *iter != INVALID_TILE; ++(*iter)) {
+		TileIndex current_tile = *iter;
 		CommandCost ret;
 
-		Slope slope = GetTileSlope(tile);
+		Slope slope = GetTileSlope(current_tile);
 		if (slope != SLOPE_FLAT && (wc != WATER_CLASS_RIVER || !IsInclinedSlope(slope))) {
 			return_cmd_error(STR_ERROR_FLAT_LAND_REQUIRED);
 		}
 
 		/* can't make water of water! */
-		if (IsTileType(tile, MP_WATER) && (!IsTileOwner(tile, OWNER_WATER) || wc == WATER_CLASS_SEA)) continue;
+		if (IsTileType(current_tile, MP_WATER) && (!IsTileOwner(current_tile, OWNER_WATER) || wc == WATER_CLASS_SEA)) continue;
 
-		bool water = IsWaterTile(tile);
-		ret = DoCommand(tile, 0, 0, flags | DC_FORCE_CLEAR_TILE, CMD_LANDSCAPE_CLEAR);
+		bool water = IsWaterTile(current_tile);
+		ret = DoCommand(current_tile, 0, 0, flags | DC_FORCE_CLEAR_TILE, CMD_LANDSCAPE_CLEAR);
 		if (ret.Failed()) return ret;
 
 		if (!water) cost.AddCost(ret);
@@ -475,31 +487,31 @@ CommandCost CmdBuildCanal(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32
 		if (flags & DC_EXEC) {
 			switch (wc) {
 				case WATER_CLASS_RIVER:
-					MakeRiver(tile, Random());
+					MakeRiver(current_tile, Random());
 					if (_game_mode == GM_EDITOR) {
-						TileIndex tile2 = tile;
+						TileIndex tile2 = current_tile;
 						CircularTileSearch(&tile2, RIVER_OFFSET_DESERT_DISTANCE, RiverModifyDesertZone, nullptr);
 					}
 					break;
 
 				case WATER_CLASS_SEA:
-					if (TileHeight(tile) == 0) {
-						MakeSea(tile);
+					if (TileHeight(current_tile) == 0) {
+						MakeSea(current_tile);
 						break;
 					}
 					FALLTHROUGH;
 
 				default:
-					MakeCanal(tile, _current_company, Random());
+					MakeCanal(current_tile, _current_company, Random());
 					if (Company::IsValidID(_current_company)) {
 						Company::Get(_current_company)->infrastructure.water++;
 						DirtyCompanyInfrastructureWindows(_current_company);
 					}
 					break;
 			}
-			MarkTileDirtyByTile(tile);
-			MarkCanalsAndRiversAroundDirty(tile);
-			CheckForDockingTile(tile);
+			MarkTileDirtyByTile(current_tile);
+			MarkCanalsAndRiversAroundDirty(current_tile);
+			CheckForDockingTile(current_tile);
 		}
 
 		cost.AddCost(_price[PR_BUILD_CANAL]);
@@ -977,7 +989,7 @@ static void FloodVehicle(Vehicle *v)
 	AI::NewEvent(v->owner, new ScriptEventVehicleCrashed(v->index, v->tile, ScriptEventVehicleCrashed::CRASH_FLOODED));
 	Game::NewEvent(new ScriptEventVehicleCrashed(v->index, v->tile, ScriptEventVehicleCrashed::CRASH_FLOODED));
 	SetDParam(0, pass);
-	AddVehicleNewsItem(STR_NEWS_DISASTER_FLOOD_VEHICLE, NT_ACCIDENT, v->index);
+	AddTileNewsItem(STR_NEWS_DISASTER_FLOOD_VEHICLE, NT_ACCIDENT, v->tile);
 	CreateEffectVehicleRel(v, 4, 4, 8, EV_EXPLOSION_LARGE);
 	if (_settings_client.sound.disaster) SndPlayVehicleFx(SND_12_EXPLOSION, v);
 }
@@ -1032,8 +1044,8 @@ static void FloodVehicles(TileIndex tile)
 
 	if (IsAirportTile(tile)) {
 		const Station *st = Station::GetByTile(tile);
-		TILE_AREA_LOOP(tile, st->airport) {
-			if (st->TileBelongsToAirport(tile)) FindVehicleOnPos(tile, &z, &FloodVehicleProc);
+		for (TileIndex airport_tile : st->airport) {
+			if (st->TileBelongsToAirport(airport_tile)) FindVehicleOnPos(airport_tile, &z, &FloodVehicleProc);
 		}
 
 		/* No vehicle could be flooded on this airport anymore */
