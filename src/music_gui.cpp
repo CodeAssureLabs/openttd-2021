@@ -26,6 +26,8 @@
 #include "settings_gui.h"
 #include "widgets/dropdown_func.h"
 #include "widgets/dropdown_type.h"
+#include "widgets/slider_func.h"
+#include "mixer.h"
 
 #include "widgets/music_widget.h"
 
@@ -126,11 +128,11 @@ void MusicSystem::BuildPlaylists()
 	/* Load custom playlists
 	 * Song index offsets are 1-based, zero indicates invalid/end-of-list value */
 	for (uint i = 0; i < NUM_SONGS_PLAYLIST; i++) {
-		if (_settings_client.music.custom_1[i] > 0) {
+		if (_settings_client.music.custom_1[i] > 0 && _settings_client.music.custom_1[i] <= NUM_SONGS_AVAILABLE) {
 			PlaylistEntry entry(set, _settings_client.music.custom_1[i] - 1);
 			if (entry.IsValid()) this->standard_playlists[PLCH_CUSTOM1].push_back(entry);
 		}
-		if (_settings_client.music.custom_2[i] > 0) {
+		if (_settings_client.music.custom_2[i] > 0 && _settings_client.music.custom_2[i] <= NUM_SONGS_AVAILABLE) {
 			PlaylistEntry entry(set, _settings_client.music.custom_2[i] - 1);
 			if (entry.IsValid()) this->standard_playlists[PLCH_CUSTOM2].push_back(entry);
 		}
@@ -461,7 +463,7 @@ struct MusicTrackSelectionWindow : public Window {
 				SetDParam(0, STR_MUSIC_PLAYLIST_ALL + _settings_client.music.playlist);
 				break;
 			case WID_MTS_CAPTION:
-				SetDParamStr(0, BaseMusic::GetUsedSet()->name.c_str());
+				SetDParamStr(0, BaseMusic::GetUsedSet()->name);
 				break;
 		}
 	}
@@ -505,7 +507,7 @@ struct MusicTrackSelectionWindow : public Window {
 					SetDParam(1, 2);
 					SetDParamStr(2, song->songname);
 					Dimension d2 = GetStringBoundingBox(STR_PLAYLIST_TRACK_NAME);
-					d.width = max(d.width, d2.width);
+					d.width = std::max(d.width, d2.width);
 					d.height += d2.height;
 				}
 				d.width += padding.width;
@@ -520,29 +522,29 @@ struct MusicTrackSelectionWindow : public Window {
 	{
 		switch (widget) {
 			case WID_MTS_LIST_LEFT: {
-				GfxFillRect(r.left + 1, r.top + 1, r.right - 1, r.bottom - 1, PC_BLACK);
+				GfxFillRect(r.Shrink(WidgetDimensions::scaled.bevel), PC_BLACK);
 
-				int y = r.top + WD_FRAMERECT_TOP;
+				Rect tr = r.Shrink(WidgetDimensions::scaled.framerect);
 				for (MusicSystem::Playlist::const_iterator song = _music.music_set.begin(); song != _music.music_set.end(); ++song) {
 					SetDParam(0, song->tracknr);
 					SetDParam(1, 2);
 					SetDParamStr(2, song->songname);
-					DrawString(r.left + WD_FRAMERECT_LEFT, r.right - WD_FRAMERECT_RIGHT, y, STR_PLAYLIST_TRACK_NAME);
-					y += FONT_HEIGHT_SMALL;
+					DrawString(tr, STR_PLAYLIST_TRACK_NAME);
+					tr.top += FONT_HEIGHT_SMALL;
 				}
 				break;
 			}
 
 			case WID_MTS_LIST_RIGHT: {
-				GfxFillRect(r.left + 1, r.top + 1, r.right - 1, r.bottom - 1, PC_BLACK);
+				GfxFillRect(r.Shrink(WidgetDimensions::scaled.bevel), PC_BLACK);
 
-				int y = r.top + WD_FRAMERECT_TOP;
+				Rect tr = r.Shrink(WidgetDimensions::scaled.framerect);
 				for (MusicSystem::Playlist::const_iterator song = _music.active_playlist.begin(); song != _music.active_playlist.end(); ++song) {
 					SetDParam(0, song->tracknr);
 					SetDParam(1, 2);
 					SetDParamStr(2, song->songname);
-					DrawString(r.left + WD_FRAMERECT_LEFT, r.right - WD_FRAMERECT_RIGHT, y, STR_PLAYLIST_TRACK_NAME);
-					y += FONT_HEIGHT_SMALL;
+					DrawString(tr, STR_PLAYLIST_TRACK_NAME);
+					tr.top += FONT_HEIGHT_SMALL;
 				}
 				break;
 			}
@@ -643,8 +645,6 @@ static void ShowMusicTrackSelection()
 }
 
 struct MusicWindow : public Window {
-	static const int slider_width = 3;
-
 	MusicWindow(WindowDesc *desc, WindowNumber number) : Window(desc)
 	{
 		this->InitNested(number);
@@ -682,8 +682,8 @@ struct MusicWindow : public Window {
 
 			case WID_M_TRACK_NR: {
 				Dimension d = GetStringBoundingBox(STR_MUSIC_TRACK_NONE);
-				d.width += WD_FRAMERECT_LEFT + WD_FRAMERECT_RIGHT;
-				d.height += WD_FRAMERECT_TOP + WD_FRAMERECT_BOTTOM;
+				d.width += padding.width;
+				d.height += padding.height;
 				*size = maxdim(*size, d);
 				break;
 			}
@@ -694,8 +694,8 @@ struct MusicWindow : public Window {
 					SetDParamStr(0, song->songname);
 					d = maxdim(d, GetStringBoundingBox(STR_MUSIC_TITLE_NAME));
 				}
-				d.width += WD_FRAMERECT_LEFT + WD_FRAMERECT_RIGHT;
-				d.height += WD_FRAMERECT_TOP + WD_FRAMERECT_BOTTOM;
+				d.width += padding.width;
+				d.height += padding.height;
 				*size = maxdim(*size, d);
 				break;
 			}
@@ -712,7 +712,7 @@ struct MusicWindow : public Window {
 	{
 		switch (widget) {
 			case WID_M_TRACK_NR: {
-				GfxFillRect(r.left + 1, r.top + 1, r.right, r.bottom, PC_BLACK);
+				GfxFillRect(r.Shrink(WidgetDimensions::scaled.bevel.left, WidgetDimensions::scaled.bevel.top, 0, WidgetDimensions::scaled.bevel.bottom), PC_BLACK);
 				if (BaseMusic::GetUsedSet()->num_available == 0) {
 					break;
 				}
@@ -722,12 +722,12 @@ struct MusicWindow : public Window {
 					SetDParam(1, 2);
 					str = STR_MUSIC_TRACK_DIGIT;
 				}
-				DrawString(r.left + WD_FRAMERECT_LEFT, r.right - WD_FRAMERECT_RIGHT, r.top + WD_FRAMERECT_TOP, str);
+				DrawString(r.Shrink(WidgetDimensions::scaled.framerect), str);
 				break;
 			}
 
 			case WID_M_TRACK_NAME: {
-				GfxFillRect(r.left, r.top + 1, r.right - 1, r.bottom, PC_BLACK);
+				GfxFillRect(r.Shrink(0, WidgetDimensions::scaled.bevel.top, WidgetDimensions::scaled.bevel.right, WidgetDimensions::scaled.bevel.bottom), PC_BLACK);
 				StringID str = STR_MUSIC_TITLE_NONE;
 				MusicSystem::PlaylistEntry entry(_music.GetCurrentSong());
 				if (BaseMusic::GetUsedSet()->num_available == 0) {
@@ -736,31 +736,17 @@ struct MusicWindow : public Window {
 					str = STR_MUSIC_TITLE_NAME;
 					SetDParamStr(0, entry.songname);
 				}
-				DrawString(r.left + WD_FRAMERECT_LEFT, r.right - WD_FRAMERECT_RIGHT, r.top + WD_FRAMERECT_TOP, str, TC_FROMSTRING, SA_HOR_CENTER);
+				DrawString(r.Shrink(WidgetDimensions::scaled.framerect), str, TC_FROMSTRING, SA_HOR_CENTER);
 				break;
 			}
 
-			case WID_M_MUSIC_VOL: case WID_M_EFFECT_VOL: {
-				/* Draw a wedge indicating low to high volume level. */
-				const int ha = (r.bottom - r.top) / 5;
-				int wx1 = r.left, wx2 = r.right;
-				if (_current_text_dir == TD_RTL) std::swap(wx1, wx2);
-				const uint shadow = _colour_gradient[COLOUR_GREY][3];
-				const uint fill   = _colour_gradient[COLOUR_GREY][6];
-				const uint light  = _colour_gradient[COLOUR_GREY][7];
-				const std::vector<Point> wedge{ Point{wx1, r.bottom - ha}, Point{wx2, r.top + ha}, Point{wx2, r.bottom - ha} };
-				GfxFillPolygon(wedge, fill);
-				GfxDrawLine(wedge[0].x, wedge[0].y, wedge[2].x, wedge[2].y, light);
-				GfxDrawLine(wedge[1].x, wedge[1].y, wedge[2].x, wedge[2].y, _current_text_dir == TD_RTL ? shadow : light);
-				GfxDrawLine(wedge[0].x, wedge[0].y, wedge[1].x, wedge[1].y, shadow);
-				/* Draw a slider handle indicating current volume level. */
-				const int sw = ScaleGUITrad(slider_width);
-				byte volume = (widget == WID_M_MUSIC_VOL) ? _settings_client.music.music_vol : _settings_client.music.effect_vol;
-				if (_current_text_dir == TD_RTL) volume = 127 - volume;
-				const int x = r.left + (volume * (r.right - r.left - sw) / 127);
-				DrawFrameRect(x, r.top, x + sw, r.bottom, COLOUR_GREY, FR_NONE);
+			case WID_M_MUSIC_VOL:
+				DrawSliderWidget(r, 0, INT8_MAX, _settings_client.music.music_vol, {});
 				break;
-			}
+
+			case WID_M_EFFECT_VOL:
+				DrawSliderWidget(r, 0, INT8_MAX, _settings_client.music.effect_vol, {});
+				break;
 		}
 	}
 
@@ -801,19 +787,15 @@ struct MusicWindow : public Window {
 				break;
 
 			case WID_M_MUSIC_VOL: case WID_M_EFFECT_VOL: { // volume sliders
-				int x = pt.x - this->GetWidget<NWidgetBase>(widget)->pos_x;
-
-				byte *vol = (widget == WID_M_MUSIC_VOL) ? &_settings_client.music.music_vol : &_settings_client.music.effect_vol;
-
-				byte new_vol = Clamp(x * 127 / (int)this->GetWidget<NWidgetBase>(widget)->current_x, 0, 127);
-				if (_current_text_dir == TD_RTL) new_vol = 127 - new_vol;
-				/* Clamp to make sure min and max are properly settable */
-				if (new_vol > 124) new_vol = 127;
-				if (new_vol < 3) new_vol = 0;
-				if (new_vol != *vol) {
-					*vol = new_vol;
-					if (widget == WID_M_MUSIC_VOL) MusicDriver::GetInstance()->SetVolume(new_vol);
-					this->SetDirty();
+				byte &vol = (widget == WID_M_MUSIC_VOL) ? _settings_client.music.music_vol : _settings_client.music.effect_vol;
+				if (ClickSliderWidget(this->GetWidget<NWidgetBase>(widget)->GetCurrentRect(), pt, 0, INT8_MAX, vol)) {
+					if (widget == WID_M_MUSIC_VOL) {
+						MusicDriver::GetInstance()->SetVolume(vol);
+					} else {
+						SetEffectVolume(vol);
+					}
+					this->SetWidgetDirty(widget);
+					SetWindowClassesDirty(WC_GAME_OPTIONS);
 				}
 
 				if (click_count > 0) this->mouse_capture_widget = widget;

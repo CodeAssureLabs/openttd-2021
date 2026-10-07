@@ -85,6 +85,8 @@ protected:
 	char *LogGamelog(char *buffer, const char *last) const;
 	char *LogRecentNews(char *buffer, const char *list) const;
 
+	int CreateFileName(char *filename, const char *filename_last, const char *ext, bool with_dir = true) const;
+
 public:
 	/** Stub destructor to silence some compilers. */
 	virtual ~CrashLog() {}
@@ -113,6 +115,12 @@ public:
 	 * @note must be implemented by all implementers of CrashLog.
 	 */
 	static void InitialiseCrashLog();
+
+	/**
+	 * Prepare crash log handler for a newly started thread.
+	 * @note must be implemented by all implementers of CrashLog.
+	 */
+	static void InitThread();
 
 	static void SetErrorMessage(const char *message);
 	static void AfterCrashLogCleanup();

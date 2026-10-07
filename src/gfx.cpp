@@ -17,9 +17,12 @@
 #include "settings_type.h"
 #include "network/network.h"
 #include "network/network_func.h"
+#include "window_gui.h"
 #include "window_func.h"
 #include "newgrf_debug.h"
 #include "thread.h"
+#include "core/backup_type.hpp"
+#include "viewport_func.h"
 
 #include "table/palettes.h"
 #include "table/string_colours.h"
@@ -34,14 +37,14 @@ byte _support8bpp;
 CursorVars _cursor;
 bool _ctrl_pressed;   ///< Is Ctrl pressed?
 bool _shift_pressed;  ///< Is Shift pressed?
-byte _fast_forward;
+uint16 _game_speed = 100; ///< Current game-speed; 100 is 1x, 0 is infinite.
 bool _left_button_down;     ///< Is left mouse button pressed?
 bool _left_button_clicked;  ///< Is left mouse button clicked?
 bool _right_button_down;    ///< Is right mouse button pressed?
 bool _right_button_clicked; ///< Is right mouse button clicked?
 DrawPixelInfo _screen;
 bool _screen_disable_anim = false;   ///< Disable palette animation (important for 32bpp-anim blitter during giant screenshot)
-bool _exit_game;
+std::atomic<bool> _exit_game;
 GameMode _game_mode;
 SwitchMode _switch_mode;  ///< The next mainloop command.
 PauseMode _pause_mode;
@@ -51,13 +54,16 @@ static byte _stringwidth_table[FS_END][224]; ///< Cache containing width of ofte
 DrawPixelInfo *_cur_dpi;
 byte _colour_gradient[COLOUR_END][8];
 
+static std::recursive_mutex _palette_mutex; ///< To coordinate access to _cur_palette.
+
 static void GfxMainBlitterViewport(const Sprite *sprite, int x, int y, BlitterMode mode, const SubSprite *sub = nullptr, SpriteID sprite_id = SPR_CURSOR_MOUSE);
 static void GfxMainBlitter(const Sprite *sprite, int x, int y, BlitterMode mode, const SubSprite *sub = nullptr, SpriteID sprite_id = SPR_CURSOR_MOUSE, ZoomLevel zoom = ZOOM_LVL_NORMAL);
 
 static ReusableBuffer<uint8> _cursor_backup;
 
-ZoomLevel _gui_zoom; ///< GUI Zoom level
-ZoomLevel _font_zoom; ///< Font Zoom level
+ZoomLevel _gui_zoom = ZOOM_LVL_OUT_4X;     ///< GUI Zoom level
+int _gui_scale      = MIN_INTERFACE_SCALE; ///< GUI scale, 100 is 100%.
+int _gui_scale_cfg;                        ///< GUI scale in config.
 
 /**
  * The rect for repaint.
@@ -263,8 +269,8 @@ void GfxFillPolygon(const std::vector<Point> &shape, int colour, FillRectMode mo
 		std::sort(intersections.begin(), intersections.end());
 		for (size_t i = 1; i < intersections.size(); i += 2) {
 			/* Check clipping. */
-			const int x1 = max(0, intersections[i - 1]);
-			const int x2 = min(intersections[i], dpi->width);
+			const int x1 = std::max(0, intersections[i - 1]);
+			const int x2 = std::min(intersections[i], dpi->width);
 			if (x2 < 0) continue;
 			if (x1 >= dpi->width) continue;
 
@@ -327,7 +333,7 @@ static inline void GfxDoDrawLine(void *video, int x, int y, int x2, int y2, int 
 
 	/* prevent integer overflows. */
 	int margin = 1;
-	while (INT_MAX / abs(grade_y) < max(abs(clip.left - x), abs(clip.right - x))) {
+	while (INT_MAX / abs(grade_y) < std::max(abs(clip.left - x), abs(clip.right - x))) {
 		grade_y /= 2;
 		grade_x /= 2;
 		margin  *= 2; // account for rounding errors
@@ -555,6 +561,8 @@ static int DrawLayoutLine(const ParagraphLayouter::Line &line, int y, int left, 
 			NOT_REACHED();
 	}
 
+	const uint shadow_offset = ScaleGUITrad(1);
+
 	TextColour colour = TC_BLACK;
 	bool draw_shadow = false;
 	for (int run_index = 0; run_index < line.CountRuns(); run_index++) {
@@ -590,7 +598,7 @@ static int DrawLayoutLine(const ParagraphLayouter::Line &line, int y, int left, 
 
 			if (draw_shadow && (glyph & SPRITE_GLYPH) == 0) {
 				SetColourRemap(TC_BLACK);
-				GfxMainBlitter(sprite, begin_x + 1, top + 1, BM_COLOUR_REMAP);
+				GfxMainBlitter(sprite, begin_x + shadow_offset, top + shadow_offset, BM_COLOUR_REMAP);
 				SetColourRemap(colour);
 			}
 			GfxMainBlitter(sprite, begin_x, top, BM_COLOUR_REMAP);
@@ -602,7 +610,7 @@ static int DrawLayoutLine(const ParagraphLayouter::Line &line, int y, int left, 
 		for (int i = 0; i < 3; i++, x += dot_width) {
 			if (draw_shadow) {
 				SetColourRemap(TC_BLACK);
-				GfxMainBlitter(dot_sprite, x + 1, y + 1, BM_COLOUR_REMAP);
+				GfxMainBlitter(dot_sprite, x + shadow_offset, y + shadow_offset, BM_COLOUR_REMAP);
 				SetColourRemap(colour);
 			}
 			GfxMainBlitter(dot_sprite, x, y, BM_COLOUR_REMAP);
@@ -636,7 +644,7 @@ static int DrawLayoutLine(const ParagraphLayouter::Line &line, int y, int left, 
 int DrawString(int left, int right, int top, const char *str, TextColour colour, StringAlignment align, bool underline, FontSize fontsize)
 {
 	/* The string may contain control chars to change the font, just use the biggest font for clipping. */
-	int max_height = max(max(FONT_HEIGHT_SMALL, FONT_HEIGHT_NORMAL), max(FONT_HEIGHT_LARGE, FONT_HEIGHT_MONO));
+	int max_height = std::max({FONT_HEIGHT_SMALL, FONT_HEIGHT_NORMAL, FONT_HEIGHT_LARGE, FONT_HEIGHT_MONO});
 
 	/* Funny glyphs may extent outside the usual bounds, so relax the clipping somewhat. */
 	int extra = max_height / 2;
@@ -650,6 +658,28 @@ int DrawString(int left, int right, int top, const char *str, TextColour colour,
 	if (layout.size() == 0) return 0;
 
 	return DrawLayoutLine(*layout.front(), top, left, right, align, underline, true);
+}
+
+/**
+ * Draw string, possibly truncated to make it fit in its allocated space
+ *
+ * @param left   The left most position to draw on.
+ * @param right  The right most position to draw on.
+ * @param top    The top most position to draw on.
+ * @param str    String to draw.
+ * @param colour Colour used for drawing the string, for details see _string_colourmap in
+ *               table/palettes.h or docs/ottd-colourtext-palette.png or the enum TextColour in gfx_type.h
+ * @param align  The alignment of the string when drawing left-to-right. In the
+ *               case a right-to-left language is chosen this is inverted so it
+ *               will be drawn in the right direction.
+ * @param underline Whether to underline what has been drawn or not.
+ * @param fontsize The size of the initial characters.
+ * @return In case of left or center alignment the right most pixel we have drawn to.
+ *         In case of right alignment the left most pixel we have drawn to.
+ */
+int DrawString(int left, int right, int top, const std::string &str, TextColour colour, StringAlignment align, bool underline, FontSize fontsize)
+{
+	return DrawString(left, right, top, str.c_str(), colour, align, underline, fontsize);
 }
 
 /**
@@ -790,7 +820,7 @@ int DrawStringMultiLine(int left, int right, int top, int bottom, const char *st
 	for (const auto &line : layout) {
 
 		int line_height = line->GetLeading();
-		if (y >= top && y < bottom) {
+		if (y >= top && y + line_height - 1 <= bottom) {
 			last_line = y + line_height;
 			if (first_line > y) first_line = y;
 
@@ -800,6 +830,28 @@ int DrawStringMultiLine(int left, int right, int top, int bottom, const char *st
 	}
 
 	return ((align & SA_VERT_MASK) == SA_BOTTOM) ? first_line : last_line;
+}
+
+
+/**
+ * Draw string, possibly over multiple lines.
+ *
+ * @param left   The left most position to draw on.
+ * @param right  The right most position to draw on.
+ * @param top    The top most position to draw on.
+ * @param bottom The bottom most position to draw on.
+ * @param str    String to draw.
+ * @param colour Colour used for drawing the string, for details see _string_colourmap in
+ *               table/palettes.h or docs/ottd-colourtext-palette.png or the enum TextColour in gfx_type.h
+ * @param align  The horizontal and vertical alignment of the string.
+ * @param underline Whether to underline all strings
+ * @param fontsize The size of the initial characters.
+ *
+ * @return If \a align is #SA_BOTTOM, the top to where we have written, else the bottom to where we have written.
+ */
+int DrawStringMultiLine(int left, int right, int top, int bottom, const std::string &str, TextColour colour, StringAlignment align, bool underline, FontSize fontsize)
+{
+	return DrawStringMultiLine(left, right, top, bottom, str.c_str(), colour, align, underline, fontsize);
 }
 
 /**
@@ -842,17 +894,47 @@ Dimension GetStringBoundingBox(const char *str, FontSize start_fontsize)
 }
 
 /**
+ * Return the string dimension in pixels. The height and width are returned
+ * in a single Dimension value. TINYFONT, BIGFONT modifiers are only
+ * supported as the first character of the string. The returned dimensions
+ * are therefore a rough estimation correct for all the current strings
+ * but not every possible combination
+ * @param str string to calculate pixel-width
+ * @param start_fontsize Fontsize to start the text with
+ * @return string width and height in pixels
+ */
+Dimension GetStringBoundingBox(const std::string &str, FontSize start_fontsize)
+{
+	return GetStringBoundingBox(str.c_str(), start_fontsize);
+}
+
+/**
  * Get bounding box of a string. Uses parameters set by #SetDParam if needed.
  * Has the same restrictions as #GetStringBoundingBox(const char *str, FontSize start_fontsize).
  * @param strid String to examine.
  * @return Width and height of the bounding box for the string in pixels.
  */
-Dimension GetStringBoundingBox(StringID strid)
+Dimension GetStringBoundingBox(StringID strid, FontSize start_fontsize)
 {
 	char buffer[DRAW_STRING_BUFFER];
 
 	GetString(buffer, strid, lastof(buffer));
-	return GetStringBoundingBox(buffer);
+	return GetStringBoundingBox(buffer, start_fontsize);
+}
+
+/**
+ * Get maximum width of a list of strings.
+ * @param list List of strings, terminated with INVALID_STRING_ID.
+ * @param fontsize Font size to use.
+ * @return Width of longest string within the list.
+ */
+uint GetStringListWidth(const StringID *list, FontSize fontsize)
+{
+	uint width = 0;
+	for (const StringID *str = list; *str != INVALID_STRING_ID; str++) {
+		width = std::max(width, GetStringBoundingBox(*str, fontsize).width);
+	}
+	return width;
 }
 
 /**
@@ -887,15 +969,17 @@ const char *GetCharAtPosition(const char *str, int x, FontSize start_fontsize)
 /**
  * Draw single character horizontally centered around (x,y)
  * @param c           Character (glyph) to draw
- * @param x           X position to draw character
- * @param y           Y position to draw character
+ * @param r           Rectangle to draw character within
  * @param colour      Colour to use, for details see _string_colourmap in
  *                    table/palettes.h or docs/ottd-colourtext-palette.png or the enum TextColour in gfx_type.h
  */
-void DrawCharCentered(WChar c, int x, int y, TextColour colour)
+void DrawCharCentered(WChar c, const Rect &r, TextColour colour)
 {
 	SetColourRemap(colour);
-	GfxMainBlitter(GetGlyph(FS_NORMAL, c), x - GetCharacterWidth(FS_NORMAL, c) / 2, y, BM_COLOUR_REMAP);
+	GfxMainBlitter(GetGlyph(FS_NORMAL, c),
+		CenterBounds(r.left, r.right, GetCharacterWidth(FS_NORMAL, c)),
+		CenterBounds(r.top, r.bottom, FONT_HEIGHT_NORMAL),
+		BM_COLOUR_REMAP);
 }
 
 /**
@@ -916,8 +1000,8 @@ Dimension GetSpriteSize(SpriteID sprid, Point *offset, ZoomLevel zoom)
 	}
 
 	Dimension d;
-	d.width  = max<int>(0, UnScaleByZoom(sprite->x_offs + sprite->width, zoom));
-	d.height = max<int>(0, UnScaleByZoom(sprite->y_offs + sprite->height, zoom));
+	d.width  = std::max<int>(0, UnScaleByZoom(sprite->x_offs + sprite->width, zoom));
+	d.height = std::max<int>(0, UnScaleByZoom(sprite->y_offs + sprite->height, zoom));
 	return d;
 }
 
@@ -992,18 +1076,19 @@ void DrawSprite(SpriteID img, PaletteID pal, int x, int y, const SubSprite *sub,
 /**
  * The code for setting up the blitter mode and sprite information before finally drawing the sprite.
  * @param sprite The sprite to draw.
- * @param x      The X location to draw.
- * @param y      The Y location to draw.
- * @param mode   The settings for the blitter to pass.
- * @param sub    Whether to only draw a sub set of the sprite.
- * @param zoom   The zoom level at which to draw the sprites.
+ * @param x The X location to draw.
+ * @param y The Y location to draw.
+ * @param mode The settings for the blitter to pass.
+ * @param sub Whether to only draw a sub set of the sprite.
+ * @param zoom The zoom level at which to draw the sprites.
+ * @param dst Optional parameter for a different blitting destination.
  * @tparam ZOOM_BASE The factor required to get the sub sprite information into the right size.
  * @tparam SCALED_XY Whether the X and Y are scaled or unscaled.
  */
 template <int ZOOM_BASE, bool SCALED_XY>
-static void GfxBlitter(const Sprite * const sprite, int x, int y, BlitterMode mode, const SubSprite * const sub, SpriteID sprite_id, ZoomLevel zoom)
+static void GfxBlitter(const Sprite * const sprite, int x, int y, BlitterMode mode, const SubSprite * const sub, SpriteID sprite_id, ZoomLevel zoom, const DrawPixelInfo *dst = nullptr)
 {
-	const DrawPixelInfo *dpi = _cur_dpi;
+	const DrawPixelInfo *dpi = (dst != nullptr) ? dst : _cur_dpi;
 	Blitter::BlitterParams bp;
 
 	if (SCALED_XY) {
@@ -1024,10 +1109,10 @@ static void GfxBlitter(const Sprite * const sprite, int x, int y, BlitterMode mo
 		bp.height = UnScaleByZoom(sprite->height, zoom);
 	} else {
 		/* Amount of pixels to clip from the source sprite */
-		int clip_left   = max(0,                   -sprite->x_offs +  sub->left        * ZOOM_BASE );
-		int clip_top    = max(0,                   -sprite->y_offs +  sub->top         * ZOOM_BASE );
-		int clip_right  = max(0, sprite->width  - (-sprite->x_offs + (sub->right + 1)  * ZOOM_BASE));
-		int clip_bottom = max(0, sprite->height - (-sprite->y_offs + (sub->bottom + 1) * ZOOM_BASE));
+		int clip_left   = std::max(0,                   -sprite->x_offs +  sub->left        * ZOOM_BASE );
+		int clip_top    = std::max(0,                   -sprite->y_offs +  sub->top         * ZOOM_BASE );
+		int clip_right  = std::max(0, sprite->width  - (-sprite->x_offs + (sub->right + 1)  * ZOOM_BASE));
+		int clip_bottom = std::max(0, sprite->height - (-sprite->y_offs + (sub->bottom + 1) * ZOOM_BASE));
 
 		if (clip_left + clip_right >= sprite->width) return;
 		if (clip_top + clip_bottom >= sprite->height) return;
@@ -1118,6 +1203,66 @@ static void GfxBlitter(const Sprite * const sprite, int x, int y, BlitterMode mo
 	BlitterFactory::GetCurrentBlitter()->Draw(&bp, mode, zoom);
 }
 
+/**
+ * Draws a sprite to a new RGBA buffer (see Colour union) instead of drawing to the screen.
+ *
+ * @param spriteId The sprite to draw.
+ * @param zoom The zoom level at which to draw the sprites.
+ * @return Pixel buffer, or nullptr if an 8bpp blitter is being used.
+ */
+std::unique_ptr<uint32[]> DrawSpriteToRgbaBuffer(SpriteID spriteId, ZoomLevel zoom)
+{
+	/* Invalid zoom level requested? */
+	if (zoom < _settings_client.gui.zoom_min || zoom > _settings_client.gui.zoom_max) return nullptr;
+
+	Blitter *blitter = BlitterFactory::GetCurrentBlitter();
+	if (blitter->GetScreenDepth() != 8 && blitter->GetScreenDepth() != 32) return nullptr;
+
+	/* Gather information about the sprite to write, reserve memory */
+	const SpriteID real_sprite = GB(spriteId, 0, SPRITE_WIDTH);
+	const Sprite *sprite = GetSprite(real_sprite, ST_NORMAL);
+	Dimension dim = GetSpriteSize(real_sprite, nullptr, zoom);
+	std::unique_ptr<uint32[]> result(new uint32[dim.width * dim.height]);
+	/* Set buffer to fully transparent. */
+	MemSetT(result.get(), 0, dim.width * dim.height);
+
+	/* Prepare new DrawPixelInfo - Normally this would be the screen but we want to draw to another buffer here.
+	 * Normally, pitch would be scaled screen width, but in our case our "screen" is only the sprite width wide. */
+	DrawPixelInfo dpi;
+	dpi.dst_ptr = result.get();
+	dpi.pitch = dim.width;
+	dpi.left = 0;
+	dpi.top = 0;
+	dpi.width = dim.width;
+	dpi.height = dim.height;
+	dpi.zoom = zoom;
+
+	/* If the current blitter is a paletted blitter, we have to render to an extra buffer and resolve the palette later. */
+	std::unique_ptr<byte[]> pal_buffer{};
+	if (blitter->GetScreenDepth() == 8) {
+		pal_buffer.reset(new byte[dim.width * dim.height]);
+		MemSetT(pal_buffer.get(), 0, dim.width * dim.height);
+
+		dpi.dst_ptr = pal_buffer.get();
+	}
+
+	/* Temporarily disable screen animations while blitting - This prevents 40bpp_anim from writing to the animation buffer. */
+	Backup<bool> disable_anim(_screen_disable_anim, true, FILE_LINE);
+	GfxBlitter<1, true>(sprite, 0, 0, BM_NORMAL, nullptr, real_sprite, zoom, &dpi);
+	disable_anim.Restore();
+
+	if (blitter->GetScreenDepth() == 8) {
+		/* Resolve palette. */
+		uint32 *dst = result.get();
+		const byte *src = pal_buffer.get();
+		for (size_t i = 0; i < dim.height * dim.width; ++i) {
+			*dst++ = _cur_palette.palette[*src++].data;
+		}
+	}
+
+	return result;
+}
+
 static void GfxMainBlitterViewport(const Sprite *sprite, int x, int y, BlitterMode mode, const SubSprite *sub, SpriteID sprite_id)
 {
 	GfxBlitter<ZOOM_LVL_BASE, false>(sprite, x, y, mode, sub, sprite_id, _cur_dpi->zoom);
@@ -1132,8 +1277,35 @@ void DoPaletteAnimations();
 
 void GfxInitPalettes()
 {
+	std::lock_guard<std::recursive_mutex> lock(_palette_mutex);
 	memcpy(&_cur_palette, &_palette, sizeof(_cur_palette));
 	DoPaletteAnimations();
+}
+
+/**
+ * Copy the current palette if the palette was updated.
+ * Used by video-driver to get a current up-to-date version of the palette,
+ * to avoid two threads accessing the same piece of memory (with a good chance
+ * one is already updating the palette while the other is drawing based on it).
+ * @param local_palette The location to copy the palette to.
+ * @param force_copy Whether to ignore if there is an update for the palette.
+ * @return True iff a copy was done.
+ */
+bool CopyPalette(Palette &local_palette, bool force_copy)
+{
+	std::lock_guard<std::recursive_mutex> lock(_palette_mutex);
+
+	if (!force_copy && _cur_palette.count_dirty == 0) return false;
+
+	local_palette = _cur_palette;
+	_cur_palette.count_dirty = 0;
+
+	if (force_copy) {
+		local_palette.first_dirty = 0;
+		local_palette.count_dirty = 256;
+	}
+
+	return true;
 }
 
 #define EXTR(p, q) (((uint16)(palette_animation_counter * (p)) * (q)) >> 16)
@@ -1141,6 +1313,8 @@ void GfxInitPalettes()
 
 void DoPaletteAnimations()
 {
+	std::lock_guard<std::recursive_mutex> lock(_palette_mutex);
+
 	/* Animation counter for the palette animation. */
 	static int palette_animation_counter = 0;
 	palette_animation_counter += 8;
@@ -1279,7 +1453,7 @@ void LoadStringWidthTable(bool monospace)
 		}
 	}
 
-	ReInitAllWindows();
+	ReInitAllWindows(false);
 }
 
 /**
@@ -1305,7 +1479,7 @@ byte GetDigitWidth(FontSize size)
 {
 	byte width = 0;
 	for (char c = '0'; c <= '9'; c++) {
-		width = max(GetCharacterWidth(size, c), width);
+		width = std::max(GetCharacterWidth(size, c), width);
 	}
 	return width;
 }
@@ -1344,6 +1518,9 @@ void ScreenSizeChanged()
 
 void UndrawMouseCursor()
 {
+	/* Don't undraw mouse cursor if it is handled by the video driver. */
+	if (VideoDriver::GetInstance()->UseSystemCursor()) return;
+
 	/* Don't undraw the mouse cursor if the screen is not ready */
 	if (_screen.dst_ptr == nullptr) return;
 
@@ -1357,6 +1534,9 @@ void UndrawMouseCursor()
 
 void DrawMouseCursor()
 {
+	/* Don't draw mouse cursor if it is handled by the video driver. */
+	if (VideoDriver::GetInstance()->UseSystemCursor()) return;
+
 	/* Don't draw the mouse cursor if the screen is not ready */
 	if (_screen.dst_ptr == nullptr) return;
 
@@ -1459,29 +1639,6 @@ void DrawDirtyBlocks()
 	const int h = Align(_screen.height, DIRTY_BLOCK_HEIGHT);
 	int x;
 	int y;
-
-	if (HasModalProgress()) {
-		/* We are generating the world, so release our rights to the map and
-		 * painting while we are waiting a bit. */
-		_modal_progress_paint_mutex.unlock();
-		_modal_progress_work_mutex.unlock();
-
-		/* Wait a while and update _realtime_tick so we are given the rights */
-		if (!IsFirstModalProgressLoop()) CSleep(MODAL_PROGRESS_REDRAW_TIMEOUT);
-		_realtime_tick += MODAL_PROGRESS_REDRAW_TIMEOUT;
-
-		/* Modal progress thread may need blitter access while we are waiting for it. */
-		VideoDriver::GetInstance()->ReleaseBlitterLock();
-		_modal_progress_paint_mutex.lock();
-		VideoDriver::GetInstance()->AcquireBlitterLock();
-		_modal_progress_work_mutex.lock();
-
-		/* When we ended with the modal progress, do not draw the blocks.
-		 * Simply let the next run do so, otherwise we would be loading
-		 * the new state (and possibly change the blitter) when we hold
-		 * the drawing lock, which we must not do. */
-		if (_switch_mode != SM_NONE && !HasModalProgress()) return;
-	}
 
 	y = 0;
 	do {
@@ -1695,8 +1852,8 @@ void UpdateCursorSize()
 			_cursor.total_offs = offs;
 			_cursor.total_size = size;
 		} else {
-			int right  = max(_cursor.total_offs.x + _cursor.total_size.x, offs.x + size.x);
-			int bottom = max(_cursor.total_offs.y + _cursor.total_size.y, offs.y + size.y);
+			int right  = std::max(_cursor.total_offs.x + _cursor.total_size.x, offs.x + size.x);
+			int bottom = std::max(_cursor.total_offs.y + _cursor.total_size.y, offs.y + size.y);
 			if (offs.x < _cursor.total_offs.x) _cursor.total_offs.x = offs.x;
 			if (offs.y < _cursor.total_offs.y) _cursor.total_offs.y = offs.y;
 			_cursor.total_size.x = right  - _cursor.total_offs.x;
@@ -1867,7 +2024,7 @@ bool ToggleFullScreen(bool fs)
 {
 	bool result = VideoDriver::GetInstance()->ToggleFullscreen(fs);
 	if (_fullscreen != fs && _resolutions.empty()) {
-		DEBUG(driver, 0, "Could not find a suitable fullscreen resolution");
+		Debug(driver, 0, "Could not find a suitable fullscreen resolution");
 	}
 	return result;
 }
@@ -1875,4 +2032,73 @@ bool ToggleFullScreen(bool fs)
 void SortResolutions()
 {
 	std::sort(_resolutions.begin(), _resolutions.end());
+}
+
+/**
+ * Resolve GUI zoom level, if auto-suggestion is requested.
+ */
+void UpdateGUIZoom()
+{
+	/* Determine real GUI zoom to use. */
+	if (_gui_scale_cfg == -1) {
+		_gui_scale = VideoDriver::GetInstance()->GetSuggestedUIScale();
+	} else {
+		_gui_scale = Clamp(_gui_scale_cfg, MIN_INTERFACE_SCALE, MAX_INTERFACE_SCALE);
+	}
+
+	int8 new_zoom = ScaleGUITrad(1) <= 1 ? ZOOM_LVL_OUT_4X : ScaleGUITrad(1) >= 4 ? ZOOM_LVL_MIN : ZOOM_LVL_OUT_2X;
+	/* Ensure the gui_zoom is clamped between min/max. */
+	new_zoom = Clamp(new_zoom, _settings_client.gui.zoom_min, _settings_client.gui.zoom_max);
+	_gui_zoom = static_cast<ZoomLevel>(new_zoom);
+}
+
+/**
+ * Resolve GUI zoom level and adjust GUI to new zoom, if auto-suggestion is requested.
+ * @param automatic Set if the change is occuring due to OS DPI scaling being changed.
+ * @returns true when the zoom level has changed, caller must call ReInitAllWindows(true)
+ * after resizing the application's window/buffer.
+ */
+bool AdjustGUIZoom(bool automatic)
+{
+	ZoomLevel old_zoom = _gui_zoom;
+	int old_scale = _gui_scale;
+	UpdateGUIZoom();
+	if (old_scale == _gui_scale) return false;
+
+	/* Reload sprites if sprite zoom level has changed. */
+	if (old_zoom != _gui_zoom) {
+		GfxClearSpriteCache();
+		VideoDriver::GetInstance()->ClearSystemSprites();
+		UpdateCursorSize();
+	}
+
+	ClearFontCache();
+	LoadStringWidthTable();
+	UpdateAllVirtCoords();
+
+	/* Adjust all window sizes to match the new zoom level, so that they don't appear
+	   to move around when the application is moved to a screen with different DPI. */
+	auto zoom_shift = old_zoom - _gui_zoom;
+	for (Window *w : Window::Iterate()) {
+		if (automatic) {
+			w->left   = (w->left   * _gui_scale) / old_scale;
+			w->top    = (w->top    * _gui_scale) / old_scale;
+			w->width  = (w->width  * _gui_scale) / old_scale;
+			w->height = (w->height * _gui_scale) / old_scale;
+		}
+		if (w->viewport != nullptr) {
+			w->viewport->zoom = Clamp(ZoomLevel(w->viewport->zoom - zoom_shift), _settings_client.gui.zoom_min, _settings_client.gui.zoom_max);
+		}
+	}
+
+	return true;
+}
+
+void ChangeGameSpeed(bool enable_fast_forward)
+{
+	if (enable_fast_forward) {
+		_game_speed = _settings_client.gui.fast_forward_speed_limit;
+	} else {
+		_game_speed = 100;
+	}
 }

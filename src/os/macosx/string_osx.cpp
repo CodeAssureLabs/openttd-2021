@@ -13,6 +13,7 @@
 #include "../../strings_func.h"
 #include "../../table/control_codes.h"
 #include "../../fontcache.h"
+#include "../../zoom_func.h"
 #include "macos.h"
 
 #include <CoreFoundation/CoreFoundation.h>
@@ -174,12 +175,16 @@ static CTRunDelegateCallbacks _sprite_font_callback = {
 	for (const auto &i : fontMapping) {
 		if (i.first - last == 0) continue;
 
-		if (!_font_cache[i.second->fc->GetSize()]) {
-			/* Cache font information. */
-			CFAutoRelease<CFStringRef> font_name(CFStringCreateWithCString(kCFAllocatorDefault, i.second->fc->GetFontName(), kCFStringEncodingUTF8));
-			_font_cache[i.second->fc->GetSize()].reset(CTFontCreateWithName(font_name.get(), i.second->fc->GetFontSize(), nullptr));
+		CTFontRef font = (CTFontRef)i.second->fc->GetOSHandle();
+		if (font == nullptr) {
+			if (!_font_cache[i.second->fc->GetSize()]) {
+				/* Cache font information. */
+				CFAutoRelease<CFStringRef> font_name(CFStringCreateWithCString(kCFAllocatorDefault, i.second->fc->GetFontName(), kCFStringEncodingUTF8));
+				_font_cache[i.second->fc->GetSize()].reset(CTFontCreateWithName(font_name.get(), i.second->fc->GetFontSize(), nullptr));
+			}
+			font = _font_cache[i.second->fc->GetSize()].get();
 		}
-		CFAttributedStringSetAttribute(str.get(), CFRangeMake(last, i.first - last), kCTFontAttributeName, _font_cache[i.second->fc->GetSize()].get());
+		CFAttributedStringSetAttribute(str.get(), CFRangeMake(last, i.first - last), kCTFontAttributeName, font);
 
 		CGColorRef color = CGColorCreateGenericGray((uint8)i.second->colour / 255.0f, 1.0f); // We don't care about the real colours, just that they are different.
 		CFAttributedStringSetAttribute(str.get(), CFRangeMake(last, i.first - last), kCTForegroundColorAttributeName, color);
@@ -241,7 +246,7 @@ CoreTextParagraphLayout::CoreTextVisualRun::CoreTextVisualRun(CTRunRef run, Font
 		if (buff[this->glyph_to_char[i]] >= SCC_SPRITE_START && buff[this->glyph_to_char[i]] <= SCC_SPRITE_END) {
 			this->glyphs[i] = font->fc->MapCharToGlyph(buff[this->glyph_to_char[i]]);
 			this->positions[i * 2 + 0] = pts[i].x;
-			this->positions[i * 2 + 1] = font->fc->GetAscender() - font->fc->GetGlyph(this->glyphs[i])->height - 1; // Align sprite glyphs to font baseline.
+			this->positions[i * 2 + 1] = (font->fc->GetHeight() - ScaleSpriteTrad(FontCache::GetDefaultFontHeight(font->fc->GetSize()))) / 2; // Align sprite font to centre
 		} else {
 			this->glyphs[i] = gl[i];
 			this->positions[i * 2 + 0] = pts[i].x;
@@ -260,7 +265,7 @@ int CoreTextParagraphLayout::CoreTextLine::GetLeading() const
 {
 	int leading = 0;
 	for (const auto &run : *this) {
-		leading = max(leading, run.GetLeading());
+		leading = std::max(leading, run.GetLeading());
 	}
 
 	return leading;
@@ -289,7 +294,18 @@ void MacOSResetScriptCache(FontSize size)
 	_font_cache[size].reset();
 }
 
-/** Store current language locale as a CoreFounation locale. */
+/** Register an external font file with the CoreText system. */
+void MacOSRegisterExternalFont(const char *file_path)
+{
+	if (!MacOSVersionIsAtLeast(10, 6, 0)) return;
+
+	CFAutoRelease<CFStringRef> path(CFStringCreateWithCString(kCFAllocatorDefault, file_path, kCFStringEncodingUTF8));
+	CFAutoRelease<CFURLRef> url(CFURLCreateWithFileSystemPath(kCFAllocatorDefault, path.get(), kCFURLPOSIXPathStyle, false));
+
+	CTFontManagerRegisterFontsForURL(url.get(), kCTFontManagerScopeProcess, nullptr);
+}
+
+/** Store current language locale as a CoreFoundation locale. */
 void MacOSSetCurrentLocaleName(const char *iso_code)
 {
 	if (!MacOSVersionIsAtLeast(10, 5, 0)) return;

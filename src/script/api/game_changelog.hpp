@@ -13,11 +13,38 @@
  * functions may still be available if you return an older API version
  * in GetAPIVersion() in info.nut.
  *
- * \b 1.11.0
+ * \b 14.0
  *
  * This version is not yet released. The following changes are not set in stone yet.
  *
+ * \b 13.0
+ *
  * API additions:
+ * \li GSCargo::GetWeight
+ * \li GSIndustryType::ResolveNewGRFID
+ * \li GSObjectType::ResolveNewGRFID
+ * \li GSLeagueTable
+ *
+ * Other changes:
+ * \li GSRoad::HasRoadType now correctly checks RoadType against RoadType
+ *
+ * \b 12.0
+ *
+ * API additions:
+ * \li GSNewGRF
+ * \li GSNewGRFList
+ * \li GSMarine::BT_LOCK
+ * \li GSMarine::BT_CANAL
+ * \li GSTile::IsSeaTile
+ * \li GSTile::IsRiverTile
+ * \li GSTile::BT_CLEAR_WATER
+ * \li GSObjectTypeList
+ * \li GSObjectType
+ *
+ * \b 1.11.0
+ *
+ * API additions:
+ * \li GSCargo::GetName
  * \li GSEventStoryPageButtonClick
  * \li GSEventStoryPageTileSelect
  * \li GSEventStoryPageVehicleSelect
@@ -29,10 +56,15 @@
  * \li GSIndustry::SetControlFlags
  * \li GSIndustry::SetExclusiveConsumer
  * \li GSIndustry::SetExclusiveSupplier
+ * \li GSIndustry::SetText
  * \li GSStoryPage::MakePushButtonReference
  * \li GSStoryPage::MakeTileButtonReference
  * \li GSStoryPage::MakeVehicleButtonReference
  * \li GSPriorityQueue
+ *
+ * Other changes:
+ * \li GSCompany::ChangeBankBalance takes one extra parameter to refer to a location to show text effect on
+ * \li GSGoal::Question and GSGoal::QuestionClient no longer require to have any buttons except for the window type GSGoal.QT_QUESTION
  *
  * \b 1.10.0
  *
