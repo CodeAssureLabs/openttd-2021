@@ -10,13 +10,13 @@
 #ifndef NEWGRF_DEBUG_H
 #define NEWGRF_DEBUG_H
 
+#include "core/flatset_type.hpp"
 #include "newgrf.h"
-#include "core/smallvec_type.hpp"
 #include "tile_type.h"
 #include "vehicle_type.h"
 
 /** Current state of spritepicker */
-enum NewGrfDebugSpritePickerMode {
+enum NewGrfDebugSpritePickerMode : uint8_t {
 	SPM_NONE,
 	SPM_WAIT_CLICK,
 	SPM_REDRAW,
@@ -26,16 +26,17 @@ enum NewGrfDebugSpritePickerMode {
 struct NewGrfDebugSpritePicker {
 	NewGrfDebugSpritePickerMode mode;   ///< Current state
 	void *clicked_pixel;                ///< Clicked pixel (pointer to blitter buffer)
-	uint32 click_time;                  ///< Realtime tick when clicked to detect next frame
-	std::vector<SpriteID> sprites;       ///< Sprites found
+	FlatSet<SpriteID> sprites; ///< Sprites found
 };
 
 extern NewGrfDebugSpritePicker _newgrf_debug_sprite_picker;
 
 bool IsNewGRFInspectable(GrfSpecFeature feature, uint index);
-void ShowNewGRFInspectWindow(GrfSpecFeature feature, uint index, const uint32 grfid = 0);
+void ShowNewGRFInspectWindow(GrfSpecFeature feature, uint index, const uint32_t grfid = 0);
 void InvalidateNewGRFInspectWindow(GrfSpecFeature feature, uint index);
+void InvalidateNewGRFInspectWindow(GrfSpecFeature feature, ConvertibleThroughBase auto index) { InvalidateNewGRFInspectWindow(feature, index.base()); }
 void DeleteNewGRFInspectWindow(GrfSpecFeature feature, uint index);
+void DeleteNewGRFInspectWindow(GrfSpecFeature feature, ConvertibleThroughBase auto index) { DeleteNewGRFInspectWindow(feature, index.base()); }
 
 GrfSpecFeature GetGrfSpecFeature(TileIndex tile);
 GrfSpecFeature GetGrfSpecFeature(VehicleType type);

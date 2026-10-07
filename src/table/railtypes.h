@@ -13,17 +13,19 @@
 #ifndef RAILTYPES_H
 #define RAILTYPES_H
 
+#include "table/strings.h"
+
 /**
  * Global Railtype definition
  */
-static const RailtypeInfo _original_railtypes[] = {
+static const RailTypeInfo _original_railtypes[] = {
 	/** Railway */
 	{ // Main Sprites
 		{ SPR_RAIL_TRACK_Y, SPR_RAIL_TRACK_N_S, SPR_RAIL_TRACK_BASE, SPR_RAIL_SINGLE_X, SPR_RAIL_SINGLE_Y,
 			SPR_RAIL_SINGLE_NORTH, SPR_RAIL_SINGLE_SOUTH, SPR_RAIL_SINGLE_EAST, SPR_RAIL_SINGLE_WEST,
 			SPR_TRACKS_FOR_SLOPES_RAIL_BASE,
 			SPR_CROSSING_OFF_X_RAIL,
-			SPR_TUNNEL_ENTRY_REAR_RAIL
+			SPR_TUNNEL_ENTRY_REAR_RAIL, SPR_BRIDGE_DECKS_RAIL,
 		},
 
 		/* GUI sprites */
@@ -60,10 +62,10 @@ static const RailtypeInfo _original_railtypes[] = {
 		SPR_RAIL_SNOW_OFFSET,
 
 		/* Powered railtypes */
-		RAILTYPES_RAIL | RAILTYPES_ELECTRIC,
+		{RAILTYPE_RAIL, RAILTYPE_ELECTRIC},
 
 		/* Compatible railtypes */
-		RAILTYPES_RAIL | RAILTYPES_ELECTRIC,
+		{RAILTYPE_RAIL, RAILTYPE_ELECTRIC},
 
 		/* bridge offset */
 		0,
@@ -75,7 +77,7 @@ static const RailtypeInfo _original_railtypes[] = {
 		0,
 
 		/* flags */
-		RTFB_NONE,
+		{},
 
 		/* cost multiplier */
 		8,
@@ -84,34 +86,35 @@ static const RailtypeInfo _original_railtypes[] = {
 		8,
 
 		/* acceleration type */
-		0,
+		VehicleAccelerationModel::Normal,
 
 		/* max speed */
 		0,
 
 		/* rail type label */
-		'RAIL',
+		RAILTYPE_LABEL_RAIL,
 
 		/* alternate labels */
-		RailTypeLabelList(),
+		{},
 
 		/* map colour */
-		0x0A,
+		PC_GREY,
 
 		/* introduction date */
-		INVALID_DATE,
+		CalendarTime::INVALID_DATE,
 
 		/* railtypes required for this to be introduced */
-		RAILTYPES_NONE,
+		{},
 
 		/* introduction rail types */
-		RAILTYPES_RAIL,
+		{RAILTYPE_RAIL},
 
 		/* sort order */
 		0 << 4 | 7,
 
 		{ nullptr },
 		{ nullptr },
+		{},
 	},
 
 	/** Electrified railway */
@@ -120,7 +123,7 @@ static const RailtypeInfo _original_railtypes[] = {
 			SPR_RAIL_SINGLE_NORTH, SPR_RAIL_SINGLE_SOUTH, SPR_RAIL_SINGLE_EAST, SPR_RAIL_SINGLE_WEST,
 			SPR_TRACKS_FOR_SLOPES_RAIL_BASE,
 			SPR_CROSSING_OFF_X_RAIL,
-			SPR_TUNNEL_ENTRY_REAR_RAIL
+			SPR_TUNNEL_ENTRY_REAR_RAIL, SPR_BRIDGE_DECKS_RAIL,
 		},
 
 		/* GUI sprites */
@@ -161,10 +164,10 @@ static const RailtypeInfo _original_railtypes[] = {
 		SPR_RAIL_SNOW_OFFSET,
 
 		/* Powered railtypes */
-		RAILTYPES_ELECTRIC,
+		{RAILTYPE_ELECTRIC},
 
 		/* Compatible railtypes */
-		RAILTYPES_ELECTRIC | RAILTYPES_RAIL,
+		{RAILTYPE_RAIL, RAILTYPE_ELECTRIC},
 
 		/* bridge offset */
 		0,
@@ -176,7 +179,7 @@ static const RailtypeInfo _original_railtypes[] = {
 		0,
 
 		/* flags */
-		RTFB_CATENARY,
+		{RailTypeFlag::Catenary},
 
 		/* cost multiplier */
 		12,
@@ -185,34 +188,35 @@ static const RailtypeInfo _original_railtypes[] = {
 		12,
 
 		/* acceleration type */
-		0,
+		VehicleAccelerationModel::Normal,
 
 		/* max speed */
 		0,
 
 		/* rail type label */
-		'ELRL',
+		RAILTYPE_LABEL_ELECTRIC,
 
 		/* alternate labels */
-		RailTypeLabelList(),
+		{},
 
 		/* map colour */
-		0x0A,
+		PC_GREY,
 
 		/* introduction date */
-		INVALID_DATE,
+		CalendarTime::INVALID_DATE,
 
 		/* railtypes required for this to be introduced */
-		RAILTYPES_NONE,
+		{},
 
 		/* introduction rail types */
-		RAILTYPES_ELECTRIC,
+		{RAILTYPE_ELECTRIC},
 
 		/* sort order */
 		1 << 4 | 7,
 
 		{ nullptr },
 		{ nullptr },
+		{},
 	},
 
 	/** Monorail */
@@ -221,7 +225,7 @@ static const RailtypeInfo _original_railtypes[] = {
 			SPR_MONO_SINGLE_NORTH, SPR_MONO_SINGLE_SOUTH, SPR_MONO_SINGLE_EAST, SPR_MONO_SINGLE_WEST,
 			SPR_TRACKS_FOR_SLOPES_MONO_BASE,
 			SPR_CROSSING_OFF_X_MONO,
-			SPR_TUNNEL_ENTRY_REAR_MONO
+			SPR_TUNNEL_ENTRY_REAR_MONO, SPR_BRIDGE_DECKS_MONO,
 		},
 
 		/* GUI sprites */
@@ -258,10 +262,10 @@ static const RailtypeInfo _original_railtypes[] = {
 		SPR_MONO_SNOW_OFFSET,
 
 		/* Powered railtypes */
-		RAILTYPES_MONO,
+		{RAILTYPE_MONO},
 
 		/* Compatible Railtypes */
-		RAILTYPES_MONO,
+		{RAILTYPE_MONO},
 
 		/* bridge offset */
 		16,
@@ -273,7 +277,7 @@ static const RailtypeInfo _original_railtypes[] = {
 		1,
 
 		/* flags */
-		RTFB_NONE,
+		{},
 
 		/* cost multiplier */
 		16,
@@ -282,34 +286,35 @@ static const RailtypeInfo _original_railtypes[] = {
 		16,
 
 		/* acceleration type */
-		1,
+		VehicleAccelerationModel::Monorail,
 
 		/* max speed */
 		0,
 
 		/* rail type label */
-		'MONO',
+		RAILTYPE_LABEL_MONO,
 
 		/* alternate labels */
-		RailTypeLabelList(),
+		{},
 
 		/* map colour */
-		0x0A,
+		PC_GREY,
 
 		/* introduction date */
-		INVALID_DATE,
+		CalendarTime::INVALID_DATE,
 
 		/* railtypes required for this to be introduced */
-		RAILTYPES_NONE,
+		{},
 
 		/* introduction rail types */
-		RAILTYPES_MONO,
+		{RAILTYPE_MONO},
 
 		/* sort order */
 		2 << 4 | 7,
 
 		{ nullptr },
 		{ nullptr },
+		{},
 	},
 
 	/** Maglev */
@@ -318,7 +323,7 @@ static const RailtypeInfo _original_railtypes[] = {
 			SPR_MGLV_SINGLE_NORTH, SPR_MGLV_SINGLE_SOUTH, SPR_MGLV_SINGLE_EAST, SPR_MGLV_SINGLE_WEST,
 			SPR_TRACKS_FOR_SLOPES_MAGLEV_BASE,
 			SPR_CROSSING_OFF_X_MAGLEV,
-			SPR_TUNNEL_ENTRY_REAR_MAGLEV
+			SPR_TUNNEL_ENTRY_REAR_MAGLEV, SPR_BRIDGE_DECKS_MGLV,
 		},
 
 		/* GUI sprites */
@@ -355,10 +360,10 @@ static const RailtypeInfo _original_railtypes[] = {
 		SPR_MGLV_SNOW_OFFSET,
 
 		/* Powered railtypes */
-		RAILTYPES_MAGLEV,
+		{RAILTYPE_MAGLEV},
 
 		/* Compatible Railtypes */
-		RAILTYPES_MAGLEV,
+		{RAILTYPE_MAGLEV},
 
 		/* bridge offset */
 		24,
@@ -370,7 +375,7 @@ static const RailtypeInfo _original_railtypes[] = {
 		2,
 
 		/* flags */
-		RTFB_NONE,
+		{},
 
 		/* cost multiplier */
 		24,
@@ -379,34 +384,35 @@ static const RailtypeInfo _original_railtypes[] = {
 		24,
 
 		/* acceleration type */
-		2,
+		VehicleAccelerationModel::Maglev,
 
 		/* max speed */
 		0,
 
 		/* rail type label */
-		'MGLV',
+		RAILTYPE_LABEL_MAGLEV,
 
 		/* alternate labels */
-		RailTypeLabelList(),
+		{},
 
 		/* map colour */
-		0x0A,
+		PC_GREY,
 
 		/* introduction date */
-		INVALID_DATE,
+		CalendarTime::INVALID_DATE,
 
 		/* railtypes required for this to be introduced */
-		RAILTYPES_NONE,
+		{},
 
 		/* introduction rail types */
-		RAILTYPES_MAGLEV,
+		{RAILTYPE_MAGLEV},
 
 		/* sort order */
 		3 << 4 | 7,
 
 		{ nullptr },
 		{ nullptr },
+		{},
 	},
 };
 
