@@ -11,6 +11,7 @@
 #define SCRIPT_COMPANYMODE_HPP
 
 #include "script_object.hpp"
+#include "script_company.hpp"
 
 /**
  * Class to switch the current company.
@@ -30,23 +31,39 @@
  */
 class ScriptCompanyMode : public ScriptObject {
 private:
-	CompanyID last_company; ///< The previous company we were in.
+	::CompanyID last_company; ///< The previous company we were in.
 
 public:
 	/**
 	 * Creating instance of this class switches the company used for queries
 	 *  and commands.
 	 * @param company The new company to switch to.
-	 * @note When the instance is destroyed, he restores the company that was
+	 * @note When the instance is destroyed, it restores the company that was
 	 *   current when the instance was created!
 	 */
-	ScriptCompanyMode(int company);
+	ScriptCompanyMode(ScriptCompany::CompanyID company);
 
 	/**
 	 * Destroying this instance reset the company to that what it was
 	 *   in when the instance was created.
 	 */
 	~ScriptCompanyMode();
+
+	/**
+	 * Check whether a company mode is valid. In other words, are commands
+	 * being executed under some company and does the company still exist?
+	 * @return true When a company mode is valid.
+	 * @post If IsValid() is true, then IsDeity() is false.
+	 */
+	static bool IsValid();
+
+	/**
+	 * Check whether the company mode is not active, i.e. whether we are a deity.
+	 * In other words, are commands are not being executed under some company.
+	 * @return true When we are a deity, i.e. company mode is not active.
+	 * @post if IsDeity() is true, then IsValid() is false.
+	 */
+	static bool IsDeity();
 };
 
 #endif /* SCRIPT_COMPANYMODE_HPP */

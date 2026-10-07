@@ -12,11 +12,13 @@
 
 #include "map_func.h"
 
+class OrthogonalTileIterator;
+
 /** Represents the covered area of e.g. a rail station */
 struct OrthogonalTileArea {
 	TileIndex tile; ///< The base tile of the area
-	uint16 w;       ///< The width of the area
-	uint16 h;       ///< The height of the area
+	uint16_t w;       ///< The width of the area
+	uint16_t h;       ///< The height of the area
 
 	/**
 	 * Construct this tile area with some set values
@@ -24,7 +26,7 @@ struct OrthogonalTileArea {
 	 * @param w the width
 	 * @param h the height
 	 */
-	OrthogonalTileArea(TileIndex tile = INVALID_TILE, uint8 w = 0, uint8 h = 0) : tile(tile), w(w), h(h)
+	OrthogonalTileArea(TileIndex tile = INVALID_TILE, uint16_t w = 0, uint16_t h = 0) : tile(tile), w(w), h(h)
 	{
 	}
 
@@ -56,16 +58,20 @@ struct OrthogonalTileArea {
 	 */
 	TileIndex GetCenterTile() const
 	{
-		return TILE_ADDXY(this->tile, this->w / 2, this->h / 2);
+		return TileAddXY(this->tile, this->w / 2, this->h / 2);
 	}
+
+	OrthogonalTileIterator begin() const;
+
+	OrthogonalTileIterator end() const;
 };
 
 /** Represents a diagonal tile area. */
 struct DiagonalTileArea {
 
 	TileIndex tile; ///< Base tile of the area
-	int16 a;        ///< Extent in diagonal "x" direction (may be negative to signify the area stretches to the left)
-	int16 b;        ///< Extent in diagonal "y" direction (may be negative to signify the area stretches upwards)
+	int16_t a;        ///< Extent in diagonal "x" direction (may be negative to signify the area stretches to the left)
+	int16_t b;        ///< Extent in diagonal "y" direction (may be negative to signify the area stretches upwards)
 
 	/**
 	 * Construct this tile area with some set values.
@@ -73,7 +79,7 @@ struct DiagonalTileArea {
 	 * @param a The "x" extent.
 	 * @param b The "y" estent.
 	 */
-	DiagonalTileArea(TileIndex tile = INVALID_TILE, int8 a = 0, int8 b = 0) : tile(tile), a(a), b(b)
+	DiagonalTileArea(TileIndex tile = INVALID_TILE, int16_t a = 0, int16_t b = 0) : tile(tile), a(a), b(b)
 	{
 	}
 
@@ -109,16 +115,22 @@ protected:
 	}
 
 public:
-	/** Some compilers really like this. */
-	virtual ~TileIterator()
-	{
-	}
+	virtual ~TileIterator() = default;
 
 	/**
 	 * Get the tile we are currently at.
 	 * @return The tile we are at, or INVALID_TILE when we're done.
 	 */
 	inline operator TileIndex () const
+	{
+		return this->tile;
+	}
+
+	/**
+	 * Get the tile we are currently at.
+	 * @return The tile we are at, or INVALID_TILE when we're done.
+	 */
+	inline TileIndex operator *() const
 	{
 		return this->tile;
 	}
@@ -131,7 +143,25 @@ public:
 	/**
 	 * Allocate a new iterator that is a copy of this one.
 	 */
-	virtual TileIterator *Clone() const = 0;
+	virtual std::unique_ptr<TileIterator> Clone() const = 0;
+
+	/**
+	 * Equality comparison.
+	 */
+	bool operator ==(const TileIterator &rhs) const
+	{
+		return this->tile == rhs.tile;
+	}
+
+	/**
+	 * Equality comparison.
+	 */
+	bool operator ==(const TileIndex &rhs) const
+	{
+		return this->tile == rhs;
+	}
+
+	static std::unique_ptr<TileIterator> Create(TileIndex corner1, TileIndex corner2, bool diagonal);
 };
 
 /** Iterator to iterate over a tile area (rectangle) of the map. */
@@ -163,7 +193,7 @@ public:
 	/**
 	 * Move ourselves to the next tile in the rectangle on the map.
 	 */
-	inline TileIterator& operator ++()
+	inline TileIterator& operator ++() override
 	{
 		assert(this->tile != INVALID_TILE);
 
@@ -171,16 +201,16 @@ public:
 			this->tile++;
 		} else if (--this->y > 0) {
 			this->x = this->w;
-			this->tile += TileDiffXY(1, 1) - this->w;
+			this->tile += TileDiffXY(1 - this->w, 1);
 		} else {
 			this->tile = INVALID_TILE;
 		}
 		return *this;
 	}
 
-	virtual TileIterator *Clone() const
+	std::unique_ptr<TileIterator> Clone() const override
 	{
-		return new OrthogonalTileIterator(*this);
+		return std::make_unique<OrthogonalTileIterator>(*this);
 	}
 };
 
@@ -215,20 +245,130 @@ public:
 		*this = DiagonalTileIterator(DiagonalTileArea(corner1, corner2));
 	}
 
-	TileIterator& operator ++();
+	TileIterator& operator ++() override;
 
-	virtual TileIterator *Clone() const
+	std::unique_ptr<TileIterator> Clone() const override
 	{
-		return new DiagonalTileIterator(*this);
+		return std::make_unique<DiagonalTileIterator>(*this);
 	}
 };
 
 /**
- * A loop which iterates over the tiles of a TileArea.
- * @param var The name of the variable which contains the current tile.
- *            This variable will be allocated in this \c for of this loop.
- * @param ta  The tile area to search over.
+ * Helper class for SpiralTileSequence.
  */
-#define TILE_AREA_LOOP(var, ta) for (OrthogonalTileIterator var(ta); var != INVALID_TILE; ++var)
+class SpiralTileIterator {
+public:
+	using value_type = TileIndex;
+	using difference_type = std::ptrdiff_t;
+	using iterator_category = std::forward_iterator_tag;
+	using pointer = void;
+	using reference = void;
+
+	SpiralTileIterator(TileIndex center, uint diameter);
+	SpiralTileIterator(TileIndex start_north, uint radius, uint w, uint h);
+
+	bool operator==(const SpiralTileIterator &rhs) const { return this->x == rhs.x && this->y == rhs.y; }
+	bool operator==(const std::default_sentinel_t &) const { return this->IsEnd(); }
+
+	TileIndex operator*() const { return TileXY(this->x, this->y); }
+
+	SpiralTileIterator &operator++()
+	{
+		this->Increment();
+		this->SkipOutsideMap();
+		return *this;
+	}
+
+	SpiralTileIterator operator++(int)
+	{
+		SpiralTileIterator result = *this;
+		++*this;
+		return result;
+	}
+
+private:
+	/* set by constructor, const afterwards */
+	uint max_radius;
+	std::array<uint, DIAGDIR_END> extent;
+
+	/* mutable iterator state */
+	uint cur_radius;
+	DiagDirection dir;
+	uint position;
+	uint x, y;
+
+	void SkipOutsideMap();
+	void InitPosition();
+	void Increment();
+
+	/**
+	 * Test whether the iterator reached the end.
+	 */
+	bool IsEnd() const
+	{
+		return this->cur_radius == this->max_radius && this->dir != INVALID_DIAGDIR;
+	}
+};
+
+/**
+ * Generate TileIndices around a center tile or tile area, with increasing distance.
+ */
+class SpiralTileSequence {
+public:
+	/**
+	 * Generate TileIndices for a square area around a center tile.
+	 *
+	 * The size of the square is given by the length of the edge.
+	 * If the size is even, the south extent will be larger than the north extent.
+	 *
+	 * Example for diameter=4, [ ] is the "center":
+	 *        1
+	 *      1   1
+	 *    1  [0]  1
+	 *  1   0   0   1
+	 *    1   0   1
+	 *      1   1
+	 *        1
+	 * The sequence starts with the "0" tiles, and continues with the shells around it.
+	 *
+	 * @param center Center of the square area.
+	 * @param diameter Edge length of the square.
+	 * @pre diameter > 0
+	 * @note This constructor uses a "diameter", unlike the other constructor using a "radius".
+	 */
+	SpiralTileSequence(TileIndex center, uint diameter) : start(center, diameter) {}
+
+	/**
+	 * Generate TileIndices for a rectangular area with an optional rectangular hole in the center.
+	 * The TileIndices will be sorted by increasing distance from the center (hole).
+	 *
+	 * Example for radius=2, w=2, h=1, [ ] is "start_north":
+	 *            1
+	 *          1   1
+	 *        1  [0]  1
+	 *      1   0   0   1
+	 *    1   0   H   0   1
+	 *  1   0   H   0   1
+	 *    1   0   0   1
+	 *      1   0   1
+	 *        1   1
+	 *          1
+	 * The sequence starts with the "0" tiles, and continues with the shells around it.
+	 *
+	 * @param start_north Tile directly north from the center hole.
+	 * @param radius Radial distance between outer rectangle and center hole.
+	 * @param w Width of the inner rectangular hole.
+	 * @param h Height of the inner rectangular hole.
+	 * @pre radius > 0
+	 * @note This constructor uses a "radius", unlike the other constructor using a "diameter".
+	 */
+	SpiralTileSequence(TileIndex start_north, uint radius, uint w, uint h) : start(start_north, radius, w, h) {}
+
+	SpiralTileIterator begin() const { return start; }
+	std::default_sentinel_t end() const { return std::default_sentinel_t(); }
+
+private:
+	SpiralTileIterator start;
+};
 
 #endif /* TILEAREA_TYPE_H */
