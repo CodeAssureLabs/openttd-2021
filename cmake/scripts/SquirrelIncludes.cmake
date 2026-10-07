@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.16)
 
 if(NOT INCLUDES_SOURCE_FILE)
     message(FATAL_ERROR "Script needs INCLUDES_SOURCE_FILE defined")
@@ -12,25 +12,11 @@ endif()
 if(NOT APIUC)
     message(FATAL_ERROR "Script needs APIUC defined")
 endif()
+if(NOT API_FILES)
+    message(FATAL_ERROR "Script needs API_FILES defined")
+endif()
 
-set(ARGC 1)
-set(ARG_READ NO)
-
-# Read all the arguments given to CMake; we are looking for -- and everything
-# that follows. Those are our api files.
-while(ARGC LESS CMAKE_ARGC)
-    set(ARG ${CMAKE_ARGV${ARGC}})
-
-    if(ARG_READ)
-        list(APPEND SCRIPT_API_BINARY_FILES "${ARG}")
-    endif()
-
-    if(ARG STREQUAL "--")
-        set(ARG_READ YES)
-    endif()
-
-    math(EXPR ARGC "${ARGC} + 1")
-endwhile()
+file(READ "${API_FILES}" SCRIPT_API_BINARY_FILES)
 
 foreach(FILE IN LISTS SCRIPT_API_BINARY_FILES)
     file(STRINGS "${FILE}" LINES REGEX "^void SQ${APIUC}.*_Register\\(Squirrel \\*engine\\)$")
