@@ -18,6 +18,7 @@ enum AbstractFileType {
 	FT_SAVEGAME,  ///< old or new savegame
 	FT_SCENARIO,  ///< old or new scenario
 	FT_HEIGHTMAP, ///< heightmap file
+	FT_TOWN_DATA, ///< town data file
 
 	FT_INVALID = 7, ///< Invalid or unknown file type.
 	FT_NUMBITS = 3, ///< Number of bits required for storing a #AbstractFileType value.
@@ -34,11 +35,16 @@ enum DetailedFileType {
 	DFT_HEIGHTMAP_BMP, ///< BMP file.
 	DFT_HEIGHTMAP_PNG, ///< PNG file.
 
+	/* Town data files. */
+	DFT_TOWN_DATA_JSON,  ///< JSON file.
+
 	/* fios 'files' */
 	DFT_FIOS_DRIVE,  ///< A drive (letter) entry.
 	DFT_FIOS_PARENT, ///< A parent directory entry.
 	DFT_FIOS_DIR,    ///< A directory entry.
 	DFT_FIOS_DIRECT, ///< Direct filename.
+
+	DFT_END,         ///< End of this enum. Supports a compile time size check against _fios_colours in fios_gui.cpp
 
 	DFT_INVALID = 255, ///< Unknown or invalid file.
 };
@@ -76,6 +82,7 @@ enum FiosType {
 	FIOS_TYPE_OLD_SCENARIO = MAKE_FIOS_TYPE(FT_SCENARIO, DFT_OLD_GAME_FILE),
 	FIOS_TYPE_PNG          = MAKE_FIOS_TYPE(FT_HEIGHTMAP, DFT_HEIGHTMAP_PNG),
 	FIOS_TYPE_BMP          = MAKE_FIOS_TYPE(FT_HEIGHTMAP, DFT_HEIGHTMAP_BMP),
+	FIOS_TYPE_JSON         = MAKE_FIOS_TYPE(FT_TOWN_DATA, DFT_TOWN_DATA_JSON),
 
 	FIOS_TYPE_INVALID = MAKE_FIOS_TYPE(FT_INVALID, DFT_INVALID),
 };
@@ -89,7 +96,7 @@ enum FiosType {
  */
 inline AbstractFileType GetAbstractFileType(FiosType fios_type)
 {
-	return static_cast<AbstractFileType>(fios_type & FT_MASK);
+	return static_cast<AbstractFileType>(static_cast<uint>(fios_type) & FT_MASK);
 }
 
 /**
@@ -121,6 +128,7 @@ enum Subdirectory {
 	GAME_DIR,      ///< Subdirectory for all game scripts
 	GAME_LIBRARY_DIR, ///< Subdirectory for all GS libraries
 	SCREENSHOT_DIR,   ///< Subdirectory for all screenshots
+	SOCIAL_INTEGRATION_DIR, ///< Subdirectory for all social integration plugins
 	NUM_SUBDIRS,   ///< Number of subdirectories
 	NO_DIRECTORY,  ///< A path without any base directory
 };
@@ -131,7 +139,7 @@ enum Subdirectory {
 enum Searchpath : unsigned {
 	SP_FIRST_DIR,
 	SP_WORKING_DIR = SP_FIRST_DIR, ///< Search in the working directory
-#if defined(WITH_XDG_BASEDIR) && defined(WITH_PERSONAL_DIR)
+#ifdef USE_XDG
 	SP_PERSONAL_DIR_XDG,           ///< Search in the personal directory from the XDG specification
 #endif
 	SP_PERSONAL_DIR,               ///< Search in the personal directory
@@ -140,9 +148,40 @@ enum Searchpath : unsigned {
 	SP_INSTALLATION_DIR,           ///< Search in the installation directory
 	SP_APPLICATION_BUNDLE_DIR,     ///< Search within the application bundle
 	SP_AUTODOWNLOAD_DIR,           ///< Search within the autodownload directory
+	SP_AUTODOWNLOAD_PERSONAL_DIR,  ///< Search within the autodownload directory located in the personal directory
+	SP_AUTODOWNLOAD_PERSONAL_DIR_XDG, ///< Search within the autodownload directory located in the personal directory (XDG variant)
 	NUM_SEARCHPATHS
 };
 
 DECLARE_POSTFIX_INCREMENT(Searchpath)
+
+class FileHandle {
+public:
+	static std::optional<FileHandle> Open(const std::string &filename, const std::string &mode);
+
+	inline void Close() { this->f.reset(); }
+
+	inline operator FILE *()
+	{
+		assert(this->f != nullptr);
+		return this->f.get();
+	}
+
+private:
+	/** Helper to close a FILE * with a \c std::unique_ptr. */
+	struct FileDeleter {
+		void operator ()(FILE *f)
+		{
+			if (f != nullptr) fclose(f);
+		}
+	};
+
+	std::unique_ptr<FILE, FileDeleter> f;
+
+	FileHandle(FILE *f) : f(f) { assert(this->f != nullptr); }
+};
+
+/* Ensure has_value() is used consistently. */
+template <> constexpr std::optional<FileHandle>::operator bool() const noexcept = delete;
 
 #endif /* FILEIO_TYPE_H */

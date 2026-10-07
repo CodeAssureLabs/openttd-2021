@@ -11,7 +11,6 @@
 #define NEWGRF_DEBUG_H
 
 #include "newgrf.h"
-#include "core/smallvec_type.hpp"
 #include "tile_type.h"
 #include "vehicle_type.h"
 
@@ -26,14 +25,13 @@ enum NewGrfDebugSpritePickerMode {
 struct NewGrfDebugSpritePicker {
 	NewGrfDebugSpritePickerMode mode;   ///< Current state
 	void *clicked_pixel;                ///< Clicked pixel (pointer to blitter buffer)
-	uint32 click_time;                  ///< Realtime tick when clicked to detect next frame
 	std::vector<SpriteID> sprites;       ///< Sprites found
 };
 
 extern NewGrfDebugSpritePicker _newgrf_debug_sprite_picker;
 
 bool IsNewGRFInspectable(GrfSpecFeature feature, uint index);
-void ShowNewGRFInspectWindow(GrfSpecFeature feature, uint index, const uint32 grfid = 0);
+void ShowNewGRFInspectWindow(GrfSpecFeature feature, uint index, const uint32_t grfid = 0);
 void InvalidateNewGRFInspectWindow(GrfSpecFeature feature, uint index);
 void DeleteNewGRFInspectWindow(GrfSpecFeature feature, uint index);
 
