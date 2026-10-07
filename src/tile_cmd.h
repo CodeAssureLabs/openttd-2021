@@ -40,8 +40,8 @@ DECLARE_ENUM_AS_BIT_SET(VehicleEnterTileStatus)
 
 /** Tile information, used while rendering the tile */
 struct TileInfo {
-	uint x;         ///< X position of the tile in unit coordinates
-	uint y;         ///< Y position of the tile in unit coordinates
+	int x;          ///< X position of the tile in unit coordinates
+	int y;          ///< Y position of the tile in unit coordinates
 	Slope tileh;    ///< Slope of the tile
 	TileIndex tile; ///< Tile index
 	int z;          ///< Height
@@ -73,7 +73,19 @@ struct TileDesc {
  * @param ti Information about the tile to draw
  */
 typedef void DrawTileProc(TileInfo *ti);
-typedef int GetSlopeZProc(TileIndex tile, uint x, uint y);
+
+/**
+ * Tile callback function signature for obtaining the world \c Z coordinate of a given
+ * point of a tile.
+ *
+ * @param tile The queries tile for the Z coordinate.
+ * @param x World X coordinate in tile "units".
+ * @param y World Y coordinate in tile "units".
+ * @param ground_vehicle Whether to get the Z coordinate of the ground vehicle, or the ground.
+ * @return World Z coordinate at tile ground (vehicle) level, including slopes and foundations.
+ * @see GetSlopePixelZ
+ */
+typedef int GetSlopeZProc(TileIndex tile, uint x, uint y, bool ground_vehicle);
 typedef CommandCost ClearTileProc(TileIndex tile, DoCommandFlag flags);
 
 /**

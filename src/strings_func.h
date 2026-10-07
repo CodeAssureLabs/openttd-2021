@@ -14,6 +14,7 @@
 #include "string_type.h"
 #include "gfx_type.h"
 #include "core/bitmath_func.hpp"
+#include "vehicle_type.h"
 
 /**
  * Extract the StringTab from a StringID.
@@ -122,8 +123,6 @@ public:
 		return (int32)this->GetInt64(type);
 	}
 
-	void ShiftParameters(uint amount);
-
 	/** Get a pointer to the current element in the data array. */
 	uint64 *GetDataPointer() const
 	{
@@ -172,13 +171,25 @@ public:
 extern StringParameters _global_string_params;
 
 char *GetString(char *buffr, StringID string, const char *last);
+std::string GetString(StringID string);
 char *GetStringWithArgs(char *buffr, StringID string, StringParameters *args, const char *last, uint case_index = 0, bool game_script = false);
 const char *GetStringPtr(StringID string);
 
-uint ConvertKmhishSpeedToDisplaySpeed(uint speed);
-uint ConvertDisplaySpeedToKmhishSpeed(uint speed);
+uint ConvertKmhishSpeedToDisplaySpeed(uint speed, VehicleType type);
+uint ConvertDisplaySpeedToKmhishSpeed(uint speed, VehicleType type);
 
-void InjectDParam(uint amount);
+/**
+ * Pack velocity and vehicle type for use with SCC_VELOCITY string parameter.
+ * @param speed Display speed for parameter.
+ * @param type Type of vehicle for parameter.
+ * @return Bit-packed velocity and vehicle type, for use with SetDParam().
+ */
+static inline int64 PackVelocity(uint speed, VehicleType type)
+{
+	/* Vehicle type is a byte, so packed into the top 8 bits of the 64-bit
+	 * parameter, although only values from 0-3 are relevant. */
+	return speed | (static_cast<uint64>(type) << 56);
+}
 
 /**
  * Set a string parameter \a v at index \a n in a given array \a s.
@@ -205,6 +216,8 @@ void SetDParamMaxValue(uint n, uint64 max_value, uint min_count = 0, FontSize si
 void SetDParamMaxDigits(uint n, uint count, FontSize size = FS_NORMAL);
 
 void SetDParamStr(uint n, const char *str);
+void SetDParamStr(uint n, const std::string &str);
+void SetDParamStr(uint n, std::string &&str) = delete; // block passing temporaries to SetDParamStr
 
 void CopyInDParam(int offs, const uint64 *src, int num);
 void CopyOutDParam(uint64 *dst, int offs, int num);
@@ -275,9 +288,9 @@ public:
 	 * @param font_name The new font name.
 	 * @param os_data Opaque pointer to OS-specific data.
 	 */
-	virtual void SetFontNames(struct FreeTypeSettings *settings, const char *font_name, const void *os_data = nullptr) = 0;
+	virtual void SetFontNames(struct FontCacheSettings *settings, const char *font_name, const void *os_data = nullptr) = 0;
 
-	bool FindMissingGlyphs(const char **str);
+	bool FindMissingGlyphs();
 };
 
 void CheckForMissingGlyphs(bool base_font = true, MissingGlyphSearcher *search = nullptr);

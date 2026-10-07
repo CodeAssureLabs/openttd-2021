@@ -80,7 +80,7 @@ class CrashLogOSX : public CrashLog {
 				" Message: %s\n\n",
 				strsignal(this->signum),
 				this->signum,
-				message == nullptr ? "<none>" : message
+				message
 		);
 	}
 
@@ -186,7 +186,7 @@ public:
 			ret = false;
 		}
 
-		printf("Writing crash savegame...\n");
+		printf("Writing crash screenshot...\n");
 		if (!this->WriteScreenshot(filename_screenshot, lastof(filename_screenshot))) {
 			filename_screenshot[0] = '\0';
 			ret = false;
@@ -256,4 +256,8 @@ void CDECL HandleCrash(int signum)
 	for (const int *i = _signals_to_handle; i != endof(_signals_to_handle); i++) {
 		signal(*i, HandleCrash);
 	}
+}
+
+/* static */ void CrashLog::InitThread()
+{
 }

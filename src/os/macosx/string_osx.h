@@ -33,7 +33,7 @@ public:
 	size_t Next(IterType what) override;
 	size_t Prev(IterType what) override;
 
-	static StringIterator *Create();
+	static std::unique_ptr<StringIterator> Create();
 };
 
 /**
@@ -84,5 +84,7 @@ public:
 void MacOSResetScriptCache(FontSize size);
 void MacOSSetCurrentLocaleName(const char *iso_code);
 int MacOSStringCompare(const char *s1, const char *s2);
+
+void MacOSRegisterExternalFont(const char *file_path);
 
 #endif /* STRING_OSX_H */

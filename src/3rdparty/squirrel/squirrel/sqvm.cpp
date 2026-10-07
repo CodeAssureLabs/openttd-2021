@@ -33,7 +33,7 @@ void SQVM::ClearStack(SQInteger last_top)
 		tOldType = o._type;
 		unOldVal = o._unVal;
 		o._type = OT_NULL;
-		o._unVal.pUserPointer = NULL;
+		o._unVal.pUserPointer = nullptr;
 		__Release(tOldType,unOldVal);
 	}
 }
@@ -107,7 +107,7 @@ SQVM::SQVM(SQSharedState *ss)
 	_suspended_target=-1;
 	_suspended_root = SQFalse;
 	_suspended_traps=0;
-	_foreignptr=NULL;
+	_foreignptr=nullptr;
 	_nnativecalls=0;
 	_lasterror = _null_;
 	_errorhandler = _null_;
@@ -115,12 +115,12 @@ SQVM::SQVM(SQSharedState *ss)
 	_can_suspend = false;
 	_in_stackoverflow = false;
 	_ops_till_suspend = 0;
-	_callsstack = NULL;
+	_callsstack = nullptr;
 	_callsstacksize = 0;
 	_alloccallsstacksize = 0;
 	_top = 0;
 	_stackbase = 0;
-	ci = NULL;
+	ci = nullptr;
 	INIT_CHAIN();ADD_TO_CHAIN(&_ss(this)->_gc_chain,this);
 }
 
@@ -140,7 +140,6 @@ void SQVM::Finalize()
 SQVM::~SQVM()
 {
 	Finalize();
-	//sq_free(_callsstack,_alloccallsstacksize*sizeof(CallInfo));
 	REMOVE_FROM_CHAIN(&_ss(this)->_gc_chain,this);
 }
 
@@ -379,7 +378,7 @@ bool SQVM::StartCall(SQClosure *closure,SQInteger target,SQInteger args,SQIntege
 
 	if (!tailcall) {
 		CallInfo lc = {};
-		lc._generator = NULL;
+		lc._generator = nullptr;
 		lc._etraps = 0;
 		lc._prevstkbase = (SQInt32) ( stackbase - _stackbase );
 		lc._target = (SQInt32) target;
@@ -437,7 +436,7 @@ bool SQVM::Return(SQInteger _arg0, SQInteger _arg1, SQObjectPtr &retval)
 
 	while (last_top > oldstackbase) _stack._vals[last_top--].Null();
 	assert(oldstackbase >= _stackbase);
-	return broot?true:false;
+	return broot != 0;
 }
 
 #define _RET_ON_FAIL(exp) { if(!exp) return false; }
@@ -557,7 +556,7 @@ bool SQVM::DELEGATE_OP(SQObjectPtr &trg,SQObjectPtr &o1,SQObjectPtr &o2)
 		}
 		break;
 	case OT_NULL:
-		_table(o1)->SetDelegate(NULL);
+		_table(o1)->SetDelegate(nullptr);
 		break;
 	default:
 		Raise_Error("using '%s' as delegate", GetTypeName(o2));
@@ -627,7 +626,7 @@ bool SQVM::GETVARGV_OP(SQObjectPtr &target,SQObjectPtr &index,CallInfo *ci)
 
 bool SQVM::CLASS_OP(SQObjectPtr &target,SQInteger baseclass,SQInteger attributes)
 {
-	SQClass *base = NULL;
+	SQClass *base = nullptr;
 	SQObjectPtr attrs;
 	if(baseclass != -1) {
 		if(type(_stack._vals[_stackbase+baseclass]) != OT_CLASS) { Raise_Error("trying to inherit from a %s",GetTypeName(_stack._vals[_stackbase+baseclass])); return false; }
@@ -653,7 +652,7 @@ bool SQVM::CLASS_OP(SQObjectPtr &target,SQInteger baseclass,SQInteger attributes
 bool SQVM::IsEqual(SQObjectPtr &o1,SQObjectPtr &o2,bool &res)
 {
 	if(type(o1) == type(o2)) {
-		res = ((_rawval(o1) == _rawval(o2)?true:false));
+		res = ((_rawval(o1) == _rawval(o2)));
 	}
 	else {
 		if(sq_isnumeric(o1) && sq_isnumeric(o2)) {
@@ -708,11 +707,10 @@ bool SQVM::Execute(SQObjectPtr &closure, SQInteger target, SQInteger nargs, SQIn
 			temp_reg = closure;
 			if(!StartCall(_closure(temp_reg), _top - nargs, nargs, stackbase, false)) {
 				//call the handler if there are no calls in the stack, if not relies on the previous node
-				if(ci == NULL) CallErrorHandler(_lasterror);
+				if(ci == nullptr) CallErrorHandler(_lasterror);
 				return false;
 			}
 			if (_funcproto(_closure(temp_reg)->_function)->_bgenerator) {
-				//SQFunctionProto *f = _funcproto(_closure(temp_reg)->_function);
 				SQGenerator *gen = SQGenerator::Create(_ss(this), _closure(temp_reg));
 				_GUARD(gen->Yield(this));
 				Return(1, ci->_target, temp_reg);
@@ -747,8 +745,10 @@ exception_restore:
 			if (ShouldSuspend()) { _suspended = SQTrue; _suspended_traps = traps; return true; }
 
 			const SQInstruction &_i_ = *ci->_ip++;
-			//dumpstack(_stackbase);
-			//printf("%s %d %d %d %d\n",g_InstrDesc[_i_.op].name,arg0,arg1,arg2,arg3);
+#ifdef _DEBUG_DUMP
+			dumpstack(_stackbase);
+			printf("%s %d %d %d %d\n",g_InstrDesc[_i_.op].name,arg0,arg1,arg2,arg3);
+#endif
 			switch(_i_.op)
 			{
 			case _OP_LINE:
@@ -1028,7 +1028,7 @@ common_call:
 			case _OP_THROW:	Raise_Error(TARGET); SQ_THROW();
 			case _OP_CLASS: _GUARD(CLASS_OP(TARGET,arg1,arg2)); continue;
 			case _OP_NEWSLOTA:
-				bool bstatic = (arg0&NEW_SLOT_STATIC_FLAG)?true:false;
+				bool bstatic = (arg0&NEW_SLOT_STATIC_FLAG) != 0;
 				if(type(STK(arg1)) == OT_CLASS) {
 					if(type(_class(STK(arg1))->_metamethods[MT_NEWMEMBER]) != OT_NULL ) {
 						Push(STK(arg1)); Push(STK(arg2)); Push(STK(arg3));
@@ -1053,7 +1053,9 @@ common_call:
 exception_trap:
 	{
 		SQObjectPtr currerror = _lasterror;
-//		dumpstack(_stackbase);
+#ifdef _DEBUG_DUMP
+		dumpstack(_stackbase);
+#endif
 		SQInteger n = 0;
 		SQInteger last_top = _top;
 		if(ci) {
@@ -1062,11 +1064,11 @@ exception_trap:
 			if(traps) {
 				do {
 					if(ci->_etraps > 0) {
-						SQExceptionTrap &et = _etraps.top();
-						ci->_ip = et._ip;
-						_top = et._stacksize;
-						_stackbase = et._stackbase;
-						_stack._vals[_stackbase+et._extarget] = currerror;
+						SQExceptionTrap &trap = _etraps.top();
+						ci->_ip = trap._ip;
+						_top = trap._stacksize;
+						_stackbase = trap._stackbase;
+						_stack._vals[_stackbase+trap._extarget] = currerror;
 						_etraps.pop_back(); traps--; ci->_etraps--;
 						CLEARSTACK(last_top);
 						goto exception_restore;
@@ -1160,7 +1162,7 @@ bool SQVM::CallNative(SQNativeClosure *nclosure,SQInteger nargs,SQInteger stackb
 	_top = stackbase + nargs;
 	CallInfo lci = {};
 	lci._closure = nclosure;
-	lci._generator = NULL;
+	lci._generator = nullptr;
 	lci._etraps = 0;
 	lci._prevstkbase = (SQInt32) (stackbase - _stackbase);
 	lci._ncalls = 1;
@@ -1460,7 +1462,7 @@ bool SQVM::DeleteSlot(const SQObjectPtr &self,const SQObjectPtr &key,SQObjectPtr
 			}
 		}
 		res = t;
-				}
+	}
 		break;
 	default:
 		Raise_Error("attempt to delete a slot from a %s",GetTypeName(self));
@@ -1471,9 +1473,7 @@ bool SQVM::DeleteSlot(const SQObjectPtr &self,const SQObjectPtr &key,SQObjectPtr
 
 bool SQVM::Call(SQObjectPtr &closure,SQInteger nparams,SQInteger stackbase,SQObjectPtr &outres,SQBool raiseerror,SQBool can_suspend)
 {
-#ifdef _DEBUG
-SQInteger prevstackbase = _stackbase;
-#endif
+	[[maybe_unused]] SQInteger prevstackbase = _stackbase;
 	switch(type(closure)) {
 	case OT_CLOSURE: {
 		assert(!can_suspend || this->_can_suspend);
@@ -1482,13 +1482,13 @@ SQInteger prevstackbase = _stackbase;
 		bool ret = Execute(closure, _top - nparams, nparams, stackbase,outres,raiseerror);
 		this->_can_suspend = backup_suspend;
 		return ret;
-					 }
+	}
 		break;
-	case OT_NATIVECLOSURE:{
+	case OT_NATIVECLOSURE: {
 		bool suspend;
 		return CallNative(_nativeclosure(closure), nparams, stackbase, outres,suspend);
 
-						  }
+	}
 		break;
 	case OT_CLASS: {
 		SQObjectPtr constr;
@@ -1499,16 +1499,14 @@ SQInteger prevstackbase = _stackbase;
 			return Call(constr,nparams,stackbase,temp,raiseerror,false);
 		}
 		return true;
-				   }
+	}
 		break;
 	default:
 		return false;
 	}
-#ifdef _DEBUG
 	if(!_suspended) {
 		assert(_stackbase == prevstackbase);
 	}
-#endif
 	return true;
 }
 

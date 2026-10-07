@@ -214,6 +214,13 @@ enum FontSize {
 };
 DECLARE_POSTFIX_INCREMENT(FontSize)
 
+static inline const char *FontSizeToName(FontSize fs)
+{
+	static const char *SIZE_TO_NAME[] = { "medium", "small", "large", "mono" };
+	assert(fs < FS_END);
+	return SIZE_TO_NAME[fs];
+}
+
 /**
  * Used to only draw a part of the sprite.
  * Draw the subsprite in the rect (sprite_x_offset + left, sprite_y_offset + top) to (sprite_x_offset + right, sprite_y_offset + bottom).
@@ -223,7 +230,7 @@ struct SubSprite {
 	int left, top, right, bottom;
 };
 
-enum Colours {
+enum Colours : byte {
 	COLOUR_BEGIN,
 	COLOUR_DARK_BLUE = COLOUR_BEGIN,
 	COLOUR_PALE_GREEN,
@@ -244,7 +251,6 @@ enum Colours {
 	COLOUR_END,
 	INVALID_COLOUR = 0xFF,
 };
-template <> struct EnumPropsT<Colours> : MakeEnumPropsT<Colours, byte, COLOUR_BEGIN, COLOUR_END, INVALID_COLOUR, 8> {};
 
 /** Colour of the strings, see _string_colourmap in table/string_colours.h or docs/ottd-colourtext-palette.png */
 enum TextColour {
@@ -298,16 +304,20 @@ enum PaletteType {
 };
 
 /** Types of sprites that might be loaded */
-enum SpriteType : byte {
-	ST_NORMAL   = 0,      ///< The most basic (normal) sprite
-	ST_MAPGEN   = 1,      ///< Special sprite for the map generator
-	ST_FONT     = 2,      ///< A sprite used for fonts
-	ST_RECOLOUR = 3,      ///< Recolour sprite
-	ST_INVALID  = 4,      ///< Pseudosprite or other unusable sprite, used only internally
+enum class SpriteType : byte {
+	Normal   = 0,      ///< The most basic (normal) sprite
+	MapGen   = 1,      ///< Special sprite for the map generator
+	Font     = 2,      ///< A sprite used for fonts
+	Recolour = 3,      ///< Recolour sprite
+	Invalid  = 4,      ///< Pseudosprite or other unusable sprite, used only internally
 };
 
-/** The number of milliseconds per game tick. */
-static const uint MILLISECONDS_PER_TICK = 30;
+/**
+ * The number of milliseconds per game tick.
+ * The value 27 together with a day length of 74 ticks makes one day 1998 milliseconds, almost exactly 2 seconds.
+ * With a 2 second day, one standard month is 1 minute, and one standard year is slightly over 12 minutes.
+ */
+static const uint MILLISECONDS_PER_TICK = 27;
 
 /** Information about the currently used palette. */
 struct Palette {
@@ -322,5 +332,23 @@ enum Support8bpp {
 	S8BPP_SYSTEM,   ///< No 8bpp support by hardware, do not try to use 8bpp video modes or hardware palettes.
 	S8BPP_HARDWARE, ///< Full 8bpp support by OS and hardware.
 };
+
+	/** How to align the to-be drawn text. */
+enum StringAlignment {
+	SA_LEFT        = 0 << 0, ///< Left align the text.
+	SA_HOR_CENTER  = 1 << 0, ///< Horizontally center the text.
+	SA_RIGHT       = 2 << 0, ///< Right align the text (must be a single bit).
+	SA_HOR_MASK    = 3 << 0, ///< Mask for horizontal alignment.
+
+	SA_TOP         = 0 << 2, ///< Top align the text.
+	SA_VERT_CENTER = 1 << 2, ///< Vertically center the text.
+	SA_BOTTOM      = 2 << 2, ///< Bottom align the text.
+	SA_VERT_MASK   = 3 << 2, ///< Mask for vertical alignment.
+
+	SA_CENTER      = SA_HOR_CENTER | SA_VERT_CENTER, ///< Center both horizontally and vertically.
+
+	SA_FORCE       = 1 << 4, ///< Force the alignment, i.e. don't swap for RTL languages.
+};
+DECLARE_ENUM_AS_BIT_SET(StringAlignment)
 
 #endif /* GFX_TYPE_H */

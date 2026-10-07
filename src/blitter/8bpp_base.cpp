@@ -16,7 +16,7 @@
 
 void Blitter_8bppBase::DrawColourMappingRect(void *dst, int width, int height, PaletteID pal)
 {
-	const uint8 *ctab = GetNonSprite(pal, ST_RECOLOUR) + 1;
+	const uint8 *ctab = GetNonSprite(pal, SpriteType::Recolour) + 1;
 
 	do {
 		for (int i = 0; i != width; i++) *((uint8 *)dst + i) = ctab[((uint8 *)dst)[i]];
@@ -144,9 +144,9 @@ void Blitter_8bppBase::ScrollBuffer(void *video, int &left, int &top, int &width
 	}
 }
 
-int Blitter_8bppBase::BufferSize(int width, int height)
+size_t Blitter_8bppBase::BufferSize(uint width, uint height)
 {
-	return width * height;
+	return static_cast<size_t>(width) * height;
 }
 
 void Blitter_8bppBase::PaletteAnimate(const Palette &palette)

@@ -124,13 +124,13 @@ void AddCargoDelivery(CargoID cargo_type, CompanyID company, uint32 amount, Sour
 	if (src != INVALID_SOURCE) {
 		/* Handle pickup update. */
 		switch (src_type) {
-			case ST_INDUSTRY: {
+			case SourceType::Industry: {
 				CargoMonitorID num = EncodeCargoIndustryMonitor(company, cargo_type, src);
 				CargoMonitorMap::iterator iter = _cargo_pickups.find(num);
 				if (iter != _cargo_pickups.end()) iter->second += amount;
 				break;
 			}
-			case ST_TOWN: {
+			case SourceType::Town: {
 				CargoMonitorID num = EncodeCargoTownMonitor(company, cargo_type, src);
 				CargoMonitorMap::iterator iter = _cargo_pickups.find(num);
 				if (iter != _cargo_pickups.end()) iter->second += amount;
@@ -149,9 +149,9 @@ void AddCargoDelivery(CargoID cargo_type, CompanyID company, uint32 amount, Sour
 	if (iter != _cargo_deliveries.end()) iter->second += amount;
 
 	/* Industry delivery. */
-	for (Industry *ind : st->industries_near) {
-		if (ind->index != dest) continue;
-		CargoMonitorID num = EncodeCargoIndustryMonitor(company, cargo_type, ind->index);
+	for (const auto &i : st->industries_near) {
+		if (i.industry->index != dest) continue;
+		CargoMonitorID num = EncodeCargoIndustryMonitor(company, cargo_type, i.industry->index);
 		CargoMonitorMap::iterator iter = _cargo_deliveries.find(num);
 		if (iter != _cargo_deliveries.end()) iter->second += amount;
 	}
