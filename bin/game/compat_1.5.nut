@@ -5,11 +5,4 @@
  * See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with OpenTTD. If not, see <http://www.gnu.org/licenses/>.
  */
 
-GSLog.Info("1.5 API compatibility in effect.");
-
-/* 1.9 adds a vehicle type parameter. */
-GSBridge._GetName <- GSBridge.GetName;
-GSBridge.GetName <- function(bridge_id)
-{
-	return GSBridge._GetName(bridge_id, GSVehicle.VT_RAIL);
-}
+/* This file contains code to downgrade the API from 1.6 to 1.5. */

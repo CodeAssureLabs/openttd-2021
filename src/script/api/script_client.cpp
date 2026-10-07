@@ -32,23 +32,23 @@ static NetworkClientInfo *FindClientInfo(ScriptClient::ClientID client)
 	return (FindClientInfo(client) == nullptr ? ScriptClient::CLIENT_INVALID : client);
 }
 
-/* static */ char *ScriptClient::GetName(ScriptClient::ClientID client)
+/* static */ std::optional<std::string> ScriptClient::GetName(ScriptClient::ClientID client)
 {
 	NetworkClientInfo *ci = FindClientInfo(client);
-	if (ci == nullptr) return nullptr;
-	return stredup(ci->client_name);
+	if (ci == nullptr) return std::nullopt;
+	return ci->client_name;
 }
 
 /* static */ ScriptCompany::CompanyID ScriptClient::GetCompany(ScriptClient::ClientID client)
 {
 	NetworkClientInfo *ci = FindClientInfo(client);
 	if (ci == nullptr) return ScriptCompany::COMPANY_INVALID;
-	return (ScriptCompany::CompanyID)ci->client_playas;
+	return ScriptCompany::ToScriptCompanyID(ci->client_playas);
 }
 
 /* static */ ScriptDate::Date ScriptClient::GetJoinDate(ScriptClient::ClientID client)
 {
 	NetworkClientInfo *ci = FindClientInfo(client);
 	if (ci == nullptr) return ScriptDate::DATE_INVALID;
-	return (ScriptDate::Date)ci->join_date;
+	return (ScriptDate::Date)ci->join_date.base();
 }
