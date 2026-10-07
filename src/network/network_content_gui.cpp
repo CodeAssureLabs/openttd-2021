@@ -15,6 +15,7 @@
 #include "../ai/ai.hpp"
 #include "../game/game.hpp"
 #include "../base_media_base.h"
+#include "../openttd.h"
 #include "../sortlist_type.h"
 #include "../stringfilter_type.h"
 #include "../querystring_gui.h"
@@ -73,7 +74,7 @@ struct ContentTextfileWindow : public TextfileWindow {
 
 void ShowContentTextfileWindow(TextfileType file_type, const ContentInfo *ci)
 {
-	DeleteWindowById(WC_TEXTFILE, file_type);
+	CloseWindowById(WC_TEXTFILE, file_type);
 	new ContentTextfileWindow(file_type, ci);
 }
 
@@ -108,9 +109,10 @@ BaseNetworkContentDownloadStatusWindow::BaseNetworkContentDownloadStatusWindow(W
 	this->InitNested(WN_NETWORK_STATUS_WINDOW_CONTENT_DOWNLOAD);
 }
 
-BaseNetworkContentDownloadStatusWindow::~BaseNetworkContentDownloadStatusWindow()
+void BaseNetworkContentDownloadStatusWindow::Close()
 {
 	_network_content_client.RemoveCallback(this);
+	this->Window::Close();
 }
 
 void BaseNetworkContentDownloadStatusWindow::DrawWidget(const Rect &r, int widget) const
@@ -170,8 +172,7 @@ public:
 		this->parent = FindWindowById(WC_NETWORK_WINDOW, WN_NETWORK_WINDOW_CONTENT_LIST);
 	}
 
-	/** Free whatever we've allocated */
-	~NetworkContentDownloadStatusWindow()
+	void Close() override
 	{
 		TarScanner::Mode mode = TarScanner::NONE;
 		for (auto ctype : this->receivedTypes) {
@@ -236,7 +237,7 @@ public:
 					break;
 
 				case CONTENT_TYPE_NEWGRF:
-					ScanNewGRFFiles(nullptr);
+					RequestNewGRFScan();
 					break;
 
 				case CONTENT_TYPE_SCENARIO:
@@ -253,18 +254,20 @@ public:
 
 		/* Always invalidate the download window; tell it we are going to be gone */
 		InvalidateWindowData(WC_NETWORK_WINDOW, WN_NETWORK_WINDOW_CONTENT_LIST, 2);
+
+		this->BaseNetworkContentDownloadStatusWindow::Close();
 	}
 
 	void OnClick(Point pt, int widget, int click_count) override
 	{
 		if (widget == WID_NCDS_CANCELOK) {
 			if (this->downloaded_bytes != this->total_bytes) {
-				_network_content_client.Close();
-				delete this;
+				_network_content_client.CloseConnection();
+				this->Close();
 			} else {
 				/* If downloading succeeded, close the online content window. This will close
 				 * the current window as well. */
-				DeleteWindowById(WC_NETWORK_WINDOW, WN_NETWORK_WINDOW_CONTENT_LIST);
+				CloseWindowById(WC_NETWORK_WINDOW, WN_NETWORK_WINDOW_CONTENT_LIST);
 			}
 		}
 	}
@@ -325,7 +328,7 @@ class NetworkContentListWindow : public Window, ContentCallback {
 		char url[1024];
 		const char *last = lastof(url);
 
-		char *pos = strecpy(url, "http://grfsearch.openttd.org/?", last);
+		char *pos = strecpy(url, "https://grfsearch.openttd.org/?", last);
 
 		if (this->auto_select) {
 			pos = strecpy(pos, "do=searchgrfid&q=", last);
@@ -548,10 +551,10 @@ public:
 		this->InvalidateData();
 	}
 
-	/** Free everything we allocated */
-	~NetworkContentListWindow()
+	void Close() override
 	{
 		_network_content_client.RemoveCallback(this);
+		this->Window::Close();
 	}
 
 	void UpdateWidgetSize(int widget, Dimension *size, const Dimension &padding, Dimension *fill, Dimension *resize) override
@@ -575,7 +578,7 @@ public:
 			}
 
 			case WID_NCL_MATRIX:
-				resize->height = max(this->checkbox_size.height, (uint)FONT_HEIGHT_NORMAL) + WD_MATRIX_TOP + WD_MATRIX_BOTTOM;
+				resize->height = std::max(this->checkbox_size.height, (uint)FONT_HEIGHT_NORMAL) + WD_MATRIX_TOP + WD_MATRIX_BOTTOM;
 				size->height = 10 * resize->height;
 				break;
 		}
@@ -626,7 +629,7 @@ public:
 		const NWidgetBase *nwi_name = this->GetWidget<NWidgetBase>(WID_NCL_NAME);
 		const NWidgetBase *nwi_type = this->GetWidget<NWidgetBase>(WID_NCL_TYPE);
 
-		int line_height = max(this->checkbox_size.height, (uint)FONT_HEIGHT_NORMAL);
+		int line_height = std::max(this->checkbox_size.height, (uint)FONT_HEIGHT_NORMAL);
 
 		/* Fill the matrix with the information */
 		int sprite_y_offset = WD_MATRIX_TOP + (line_height - this->checkbox_size.height) / 2 - 1;
@@ -836,7 +839,7 @@ public:
 				break;
 
 			case WID_NCL_CANCEL:
-				delete this;
+				this->Close();
 				break;
 
 			case WID_NCL_OPEN_URL:
@@ -862,55 +865,31 @@ public:
 
 	EventState OnKeyPress(WChar key, uint16 keycode) override
 	{
-		switch (keycode) {
-			case WKC_UP:
-				/* scroll up by one */
-				if (this->list_pos > 0) this->list_pos--;
-				break;
-			case WKC_DOWN:
-				/* scroll down by one */
-				if (this->list_pos < (int)this->content.size() - 1) this->list_pos++;
-				break;
-			case WKC_PAGEUP:
-				/* scroll up a page */
-				this->list_pos = (this->list_pos < this->vscroll->GetCapacity()) ? 0 : this->list_pos - this->vscroll->GetCapacity();
-				break;
-			case WKC_PAGEDOWN:
-				/* scroll down a page */
-				this->list_pos = min(this->list_pos + this->vscroll->GetCapacity(), (int)this->content.size() - 1);
-				break;
-			case WKC_HOME:
-				/* jump to beginning */
-				this->list_pos = 0;
-				break;
-			case WKC_END:
-				/* jump to end */
-				this->list_pos = (int)this->content.size() - 1;
-				break;
-
-			case WKC_SPACE:
-			case WKC_RETURN:
-				if (keycode == WKC_RETURN || !IsWidgetFocused(WID_NCL_FILTER)) {
-					if (this->selected != nullptr) {
-						_network_content_client.ToggleSelectedState(this->selected);
-						this->content.ForceResort();
-						this->InvalidateData();
+		if (this->vscroll->UpdateListPositionOnKeyPress(this->list_pos, keycode) == ES_NOT_HANDLED) {
+			switch (keycode) {
+				case WKC_SPACE:
+				case WKC_RETURN:
+					if (keycode == WKC_RETURN || !IsWidgetFocused(WID_NCL_FILTER)) {
+						if (this->selected != nullptr) {
+							_network_content_client.ToggleSelectedState(this->selected);
+							this->content.ForceResort();
+							this->InvalidateData();
+						}
+						if (this->filter_data.types.any()) {
+							this->content.ForceRebuild();
+							this->InvalidateData();
+						}
+						return ES_HANDLED;
 					}
-					if (this->filter_data.types.any()) {
-						this->content.ForceRebuild();
-						this->InvalidateData();
-					}
-					return ES_HANDLED;
-				}
-				/* space is pressed and filter is focused. */
-				FALLTHROUGH;
+					/* space is pressed and filter is focused. */
+					FALLTHROUGH;
 
-			default:
-				return ES_NOT_HANDLED;
+				default:
+					return ES_NOT_HANDLED;
+			}
 		}
 
 		if (this->content.size() == 0) {
-			this->list_pos = 0; // above stuff may result in "-1".
 			if (this->UpdateFilterState()) {
 				this->content.ForceRebuild();
 				this->InvalidateData();
@@ -964,7 +943,7 @@ public:
 	{
 		if (!success) {
 			ShowErrorMessage(STR_CONTENT_ERROR_COULD_NOT_CONNECT, INVALID_STRING_ID, WL_ERROR);
-			delete this;
+			this->Close();
 			return;
 		}
 
@@ -1151,7 +1130,7 @@ void ShowNetworkContentListWindow(ContentVector *cv, ContentType type1, ContentT
 		_network_content_client.RequestContentList(cv, true);
 	}
 
-	DeleteWindowById(WC_NETWORK_WINDOW, WN_NETWORK_WINDOW_CONTENT_LIST);
+	CloseWindowById(WC_NETWORK_WINDOW, WN_NETWORK_WINDOW_CONTENT_LIST);
 	new NetworkContentListWindow(&_network_content_list_desc, cv != nullptr, types);
 #else
 	ShowErrorMessage(STR_CONTENT_NO_ZLIB, STR_CONTENT_NO_ZLIB_SUB, WL_ERROR);

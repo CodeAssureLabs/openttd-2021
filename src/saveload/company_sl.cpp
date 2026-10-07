@@ -61,7 +61,7 @@ CompanyManagerFace ConvertFromOldCompanyManagerFace(uint32 face)
 	uint lips = GB(face, 10, 4);
 	if (!HasBit(ge, GENDER_FEMALE) && lips < 4) {
 		SetCompanyManagerFaceBits(cmf, CMFV_HAS_MOUSTACHE, ge, true);
-		SetCompanyManagerFaceBits(cmf, CMFV_MOUSTACHE,     ge, max(lips, 1U) - 1);
+		SetCompanyManagerFaceBits(cmf, CMFV_MOUSTACHE,     ge, std::max(lips, 1U) - 1);
 	} else {
 		if (!HasBit(ge, GENDER_FEMALE)) {
 			lips = lips * 15 / 16;
@@ -128,7 +128,7 @@ void AfterLoadCompanyStats()
 				}
 
 				/* Iterate all present road types as each can have a different owner. */
-				FOR_ALL_ROADTRAMTYPES(rtt) {
+				for (RoadTramType rtt : _roadtramtypes) {
 					RoadType rt = GetRoadType(tile, rtt);
 					if (rt == INVALID_ROADTYPE) continue;
 					c = Company::GetIfValid(IsRoadDepot(tile) ? GetTileOwner(tile) : GetRoadOwner(tile, rtt));
@@ -151,7 +151,7 @@ void AfterLoadCompanyStats()
 					case STATION_BUS:
 					case STATION_TRUCK: {
 						/* Iterate all present road types as each can have a different owner. */
-						FOR_ALL_ROADTRAMTYPES(rtt) {
+						for (RoadTramType rtt : _roadtramtypes) {
 							RoadType rt = GetRoadType(tile, rtt);
 							if (rt == INVALID_ROADTYPE) continue;
 							c = Company::GetIfValid(GetRoadOwner(tile, rtt));
@@ -209,7 +209,7 @@ void AfterLoadCompanyStats()
 
 						case TRANSPORT_ROAD: {
 							/* Iterate all present road types as each can have a different owner. */
-							FOR_ALL_ROADTRAMTYPES(rtt) {
+							for (RoadTramType rtt : _roadtramtypes) {
 								RoadType rt = GetRoadType(tile, rtt);
 								if (rt == INVALID_ROADTYPE) continue;
 								c = Company::GetIfValid(GetRoadOwner(tile, rtt));
