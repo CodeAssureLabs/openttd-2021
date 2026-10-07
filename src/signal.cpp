@@ -2,10 +2,10 @@
  * This file is part of OpenTTD.
  * OpenTTD is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, version 2.
  * OpenTTD is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with OpenTTD. If not, see <http://www.gnu.org/licenses/>.
+ * See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with OpenTTD. If not, see <https://www.gnu.org/licenses/old-licenses/gpl-2.0>.
  */
 
-/** @file signal.cpp functions related to rail signals updating */
+/** @file signal.cpp Functions related to rail signals updating. */
 
 #include "stdafx.h"
 #include "debug.h"
@@ -15,6 +15,9 @@
 #include "viewport_func.h"
 #include "train.h"
 #include "company_base.h"
+#include "pbs.h"
+
+#include "table/signal_data.h"
 
 #include "safeguards.h"
 
@@ -51,9 +54,9 @@ static const TrackdirBits _enterdir_to_trackdirbits[DIAGDIR_END] = {
 template <typename Tdir, uint items>
 struct SmallSet {
 private:
-	uint n;           // actual number of units
-	bool overflowed;  // did we try to overflow the set?
-	const char *name; // name, used for debugging purposes...
+	uint n = 0; ///< Actual number of units.
+	bool overflowed = false; ///< Did we try to overflow the set?
+	const std::string_view name; ///< Name, used for debugging purposes...
 
 	/** Element of set */
 	struct SSdata {
@@ -62,8 +65,11 @@ private:
 	} data[items];
 
 public:
-	/** Constructor - just set default values and 'name' */
-	SmallSet(const char *name) : n(0), overflowed(false), name(name) { }
+	/**
+	 * Constructor - just set default values and 'name'
+	 * @param name The name of the set.
+	 */
+	SmallSet(std::string_view name) : name(name) { }
 
 	/** Reset variables to default values */
 	void Reset()
@@ -153,7 +159,7 @@ public:
 	{
 		if (this->IsFull()) {
 			overflowed = true;
-			DEBUG(misc, 0, "SignalSegment too complex. Set %s is full (maximum %d)", name, items);
+			Debug(misc, 0, "SignalSegment too complex. Set {} is full (maximum {})", name, items);
 			return false; // set is full
 		}
 
@@ -187,12 +193,14 @@ static SmallSet<DiagDirection, SIG_TBD_SIZE> _tbdset("_tbdset");    ///< set of 
 static SmallSet<DiagDirection, SIG_GLOB_SIZE> _globset("_globset"); ///< set of places to be updated in following runs
 
 
-/** Check whether there is a train on rail, not in a depot */
-static Vehicle *TrainOnTileEnum(Vehicle *v, void *)
+/**
+ * Check whether there is a train on rail, not in a depot.
+ * @param v The vehicle to check.
+ * @return \c true when the vehicle is a train that's not in a depot.
+ */
+static bool IsTrainAndNotInDepot(const Vehicle *v)
 {
-	if (v->type != VEH_TRAIN || Train::From(v)->track == TRACK_BIT_DEPOT) return nullptr;
-
-	return v;
+	return v->type == VEH_TRAIN && Train::From(v)->track != TRACK_BIT_DEPOT;
 }
 
 
@@ -216,9 +224,7 @@ static inline bool CheckAddToTodoSet(TileIndex t1, DiagDirection d1, TileIndex t
 
 	assert(!_tbdset.IsIn(t1, d1)); // it really shouldn't be there already
 
-	if (_tbdset.Remove(t2, d2)) return false;
-
-	return true;
+	return !_tbdset.Remove(t2, d2);
 }
 
 
@@ -244,19 +250,19 @@ static inline bool MaybeAddToTodoSet(TileIndex t1, DiagDirection d1, TileIndex t
 
 
 /** Current signal block state flags */
-enum SigFlags {
-	SF_NONE   = 0,
-	SF_TRAIN  = 1 << 0, ///< train found in segment
-	SF_EXIT   = 1 << 1, ///< exitsignal found
-	SF_EXIT2  = 1 << 2, ///< two or more exits found
-	SF_GREEN  = 1 << 3, ///< green exitsignal found
-	SF_GREEN2 = 1 << 4, ///< two or more green exits found
-	SF_FULL   = 1 << 5, ///< some of buffers was full, do not continue
-	SF_PBS    = 1 << 6, ///< pbs signal found
+enum class SigFlag : uint8_t {
+	Train, ///< train found in segment
+	Exit, ///< exitsignal found
+	MultiExit, ///< two or more exits found
+	Green, ///< green exitsignal found
+	MultiGreen, ///< two or more green exits found
+	Full, ///< some of buffers was full, do not continue
+	Pbs, ///< pbs signal found
+	Split, ///< track merge/split found
+	Enter, ///< signal entering the block found
+	MultiEnter, ///< two or more signals entering the block found
 };
-
-DECLARE_ENUM_AS_BIT_SET(SigFlags)
-
+using SigFlags = EnumBitSet<SigFlag, uint16_t>;
 
 /**
  * Search signal block
@@ -266,7 +272,7 @@ DECLARE_ENUM_AS_BIT_SET(SigFlags)
  */
 static SigFlags ExploreSegment(Owner owner)
 {
-	SigFlags flags = SF_NONE;
+	SigFlags flags{};
 
 	TileIndex tile = INVALID_TILE; // Stop GCC from complaining about a possibly uninitialized variable (issue #8280).
 	DiagDirection enterdir = INVALID_DIAGDIR;
@@ -276,18 +282,18 @@ static SigFlags ExploreSegment(Owner owner)
 		DiagDirection exitdir = enterdir == INVALID_DIAGDIR ? INVALID_DIAGDIR : ReverseDiagDir(enterdir); // expected new exit direction (for straight line)
 
 		switch (GetTileType(tile)) {
-			case MP_RAILWAY: {
+			case TileType::Railway: {
 				if (GetTileOwner(tile) != owner) continue; // do not propagate signals on others' tiles (remove for tracksharing)
 
 				if (IsRailDepot(tile)) {
 					if (enterdir == INVALID_DIAGDIR) { // from 'inside' - train just entered or left the depot
-						if (!(flags & SF_TRAIN) && HasVehicleOnPos(tile, nullptr, &TrainOnTileEnum)) flags |= SF_TRAIN;
+						if (!flags.Test(SigFlag::Train) && HasVehicleOnTile(tile, IsTrainAndNotInDepot)) flags.Set(SigFlag::Train);
 						exitdir = GetRailDepotDirection(tile);
 						tile += TileOffsByDiagDir(exitdir);
 						enterdir = ReverseDiagDir(exitdir);
 						break;
 					} else if (enterdir == GetRailDepotDirection(tile)) { // entered a depot
-						if (!(flags & SF_TRAIN) && HasVehicleOnPos(tile, nullptr, &TrainOnTileEnum)) flags |= SF_TRAIN;
+						if (!flags.Test(SigFlag::Train) && HasVehicleOnTile(tile, IsTrainAndNotInDepot)) flags.Set(SigFlag::Train);
 						continue;
 					} else {
 						continue;
@@ -301,37 +307,40 @@ static SigFlags ExploreSegment(Owner owner)
 				if (tracks == TRACK_BIT_HORZ || tracks == TRACK_BIT_VERT) { // there is exactly one incidating track, no need to check
 					tracks = tracks_masked;
 					/* If no train detected yet, and there is not no train -> there is a train -> set the flag */
-					if (!(flags & SF_TRAIN) && EnsureNoTrainOnTrackBits(tile, tracks).Failed()) flags |= SF_TRAIN;
+					if (!flags.Test(SigFlag::Train) && EnsureNoTrainOnTrackBits(tile, tracks).Failed()) flags. Set(SigFlag::Train);
 				} else {
 					if (tracks_masked == TRACK_BIT_NONE) continue; // no incidating track
-					if (!(flags & SF_TRAIN) && HasVehicleOnPos(tile, nullptr, &TrainOnTileEnum)) flags |= SF_TRAIN;
+					if (!flags.Test(SigFlag::Train) && HasVehicleOnTile(tile, IsTrainAndNotInDepot)) flags.Set(SigFlag::Train);
 				}
+
+				/* Is this a track merge or split? */
+				if (!HasAtMostOneBit(tracks)) flags.Set(SigFlag::Split);
 
 				if (HasSignals(tile)) { // there is exactly one track - not zero, because there is exit from this tile
 					Track track = TrackBitsToTrack(tracks_masked); // mask TRACK_BIT_X and Y too
 					if (HasSignalOnTrack(tile, track)) { // now check whole track, not trackdir
 						SignalType sig = GetSignalType(tile, track);
-						Trackdir trackdir = (Trackdir)FindFirstBit((tracks * 0x101) & _enterdir_to_trackdirbits[enterdir]);
+						Trackdir trackdir = (Trackdir)FindFirstBit((tracks * 0x101U) & _enterdir_to_trackdirbits[enterdir]);
 						Trackdir reversedir = ReverseTrackdir(trackdir);
 						/* add (tile, reversetrackdir) to 'to-be-updated' set when there is
 						 * ANY conventional signal in REVERSE direction
 						 * (if it is a presignal EXIT and it changes, it will be added to 'to-be-done' set later) */
 						if (HasSignalOnTrackdir(tile, reversedir)) {
-							if (IsPbsSignal(sig)) {
-								flags |= SF_PBS;
-							} else if (!_tbuset.Add(tile, reversedir)) {
-								return flags | SF_FULL;
-							}
+							if (IsPbsSignal(sig)) flags.Set(SigFlag::Pbs);
+							if (flags.Test(SigFlag::Enter)) flags.Set(SigFlag::MultiEnter);
+							flags.Set(SigFlag::Enter);
+
+							if (!_tbuset.Add(tile, reversedir)) return flags | SigFlag::Full;
 						}
-						if (HasSignalOnTrackdir(tile, trackdir) && !IsOnewaySignal(tile, track)) flags |= SF_PBS;
+						if (HasSignalOnTrackdir(tile, trackdir) && !IsOnewaySignal(tile, track)) flags.Set(SigFlag::Pbs);
 
 						/* if it is a presignal EXIT in OUR direction and we haven't found 2 green exits yes, do special check */
-						if (!(flags & SF_GREEN2) && IsPresignalExit(tile, track) && HasSignalOnTrackdir(tile, trackdir)) { // found presignal exit
-							if (flags & SF_EXIT) flags |= SF_EXIT2; // found two (or more) exits
-							flags |= SF_EXIT; // found at least one exit - allow for compiler optimizations
+						if (!flags.Test(SigFlag::MultiGreen) && IsPresignalExit(tile, track) && HasSignalOnTrackdir(tile, trackdir)) { // found presignal exit
+							if (flags.Test(SigFlag::Exit)) flags.Set(SigFlag::MultiExit); // found two (or more) exits
+							flags.Set(SigFlag::Exit); // found at least one exit - allow for compiler optimizations
 							if (GetSignalStateByTrackdir(tile, trackdir) == SIGNAL_STATE_GREEN) { // found green presignal exit
-								if (flags & SF_GREEN) flags |= SF_GREEN2;
-								flags |= SF_GREEN;
+								if (flags.Test(SigFlag::Green)) flags.Set(SigFlag::MultiGreen);
+								flags.Set(SigFlag::Green);
 							}
 						}
 
@@ -343,45 +352,45 @@ static SigFlags ExploreSegment(Owner owner)
 					if (dir != enterdir && (tracks & _enterdir_to_trackbits[dir])) { // any track incidating?
 						TileIndex newtile = tile + TileOffsByDiagDir(dir);  // new tile to check
 						DiagDirection newdir = ReverseDiagDir(dir); // direction we are entering from
-						if (!MaybeAddToTodoSet(newtile, newdir, tile, dir)) return flags | SF_FULL;
+						if (!MaybeAddToTodoSet(newtile, newdir, tile, dir)) return flags | SigFlag::Full;
 					}
 				}
 
 				continue; // continue the while() loop
 				}
 
-			case MP_STATION:
+			case TileType::Station:
 				if (!HasStationRail(tile)) continue;
 				if (GetTileOwner(tile) != owner) continue;
 				if (DiagDirToAxis(enterdir) != GetRailStationAxis(tile)) continue; // different axis
 				if (IsStationTileBlocked(tile)) continue; // 'eye-candy' station tile
 
-				if (!(flags & SF_TRAIN) && HasVehicleOnPos(tile, nullptr, &TrainOnTileEnum)) flags |= SF_TRAIN;
+				if (!flags.Test(SigFlag::Train) && HasVehicleOnTile(tile, IsTrainAndNotInDepot)) flags.Set(SigFlag::Train);
 				tile += TileOffsByDiagDir(exitdir);
 				break;
 
-			case MP_ROAD:
+			case TileType::Road:
 				if (!IsLevelCrossing(tile)) continue;
 				if (GetTileOwner(tile) != owner) continue;
 				if (DiagDirToAxis(enterdir) == GetCrossingRoadAxis(tile)) continue; // different axis
 
-				if (!(flags & SF_TRAIN) && HasVehicleOnPos(tile, nullptr, &TrainOnTileEnum)) flags |= SF_TRAIN;
+				if (!flags.Test(SigFlag::Train) && HasVehicleOnTile(tile, IsTrainAndNotInDepot)) flags.Set(SigFlag::Train);
 				tile += TileOffsByDiagDir(exitdir);
 				break;
 
-			case MP_TUNNELBRIDGE: {
+			case TileType::TunnelBridge: {
 				if (GetTileOwner(tile) != owner) continue;
 				if (GetTunnelBridgeTransportType(tile) != TRANSPORT_RAIL) continue;
 				DiagDirection dir = GetTunnelBridgeDirection(tile);
 
 				if (enterdir == INVALID_DIAGDIR) { // incoming from the wormhole
-					if (!(flags & SF_TRAIN) && HasVehicleOnPos(tile, nullptr, &TrainOnTileEnum)) flags |= SF_TRAIN;
+					if (!flags.Test(SigFlag::Train) && HasVehicleOnTile(tile, IsTrainAndNotInDepot)) flags.Set(SigFlag::Train);
 					enterdir = dir;
 					exitdir = ReverseDiagDir(dir);
 					tile += TileOffsByDiagDir(exitdir); // just skip to next tile
 				} else { // NOT incoming from the wormhole!
 					if (ReverseDiagDir(enterdir) != dir) continue;
-					if (!(flags & SF_TRAIN) && HasVehicleOnPos(tile, nullptr, &TrainOnTileEnum)) flags |= SF_TRAIN;
+					if (!flags.Test(SigFlag::Train) && HasVehicleOnTile(tile, IsTrainAndNotInDepot)) flags.Set(SigFlag::Train);
 					tile = GetOtherTunnelBridgeEnd(tile); // just skip to exit tile
 					enterdir = INVALID_DIAGDIR;
 					exitdir = INVALID_DIAGDIR;
@@ -393,7 +402,7 @@ static SigFlags ExploreSegment(Owner owner)
 				continue; // continue the while() loop
 		}
 
-		if (!MaybeAddToTodoSet(tile, enterdir, oldtile, exitdir)) return flags | SF_FULL;
+		if (!MaybeAddToTodoSet(tile, enterdir, oldtile, exitdir)) return flags | SigFlag::Full;
 	}
 
 	return flags;
@@ -413,26 +422,33 @@ static void UpdateSignalsAroundSegment(SigFlags flags)
 	while (_tbuset.Get(&tile, &trackdir)) {
 		assert(HasSignalOnTrackdir(tile, trackdir));
 
-		SignalType sig = GetSignalType(tile, TrackdirToTrack(trackdir));
+		Track track = TrackdirToTrack(trackdir);
+		SignalType sig = GetSignalType(tile, track);
 		SignalState newstate = SIGNAL_STATE_GREEN;
 
+		/* Signal state of reserved path signals is handled by the reserve/unreserve process. */
+		if (IsPbsSignal(sig) && (GetRailReservationTrackBits(tile) & TrackToTrackBits(track)) != TRACK_BIT_NONE) continue;
+
 		/* determine whether the new state is red */
-		if (flags & SF_TRAIN) {
+		if (flags.Test(SigFlag::Train)) {
 			/* train in the segment */
+			newstate = SIGNAL_STATE_RED;
+		} else if (IsPbsSignal(sig) && flags.Any({SigFlag::Split, SigFlag::MultiEnter})) {
+			/* Turn path signals red if the segment has a junction or more than one way in. */
 			newstate = SIGNAL_STATE_RED;
 		} else {
 			/* is it a bidir combo? - then do not count its other signal direction as exit */
 			if (sig == SIGTYPE_COMBO && HasSignalOnTrackdir(tile, ReverseTrackdir(trackdir))) {
 				/* at least one more exit */
-				if ((flags & SF_EXIT2) &&
+				if (flags.Test(SigFlag::MultiExit) &&
 						/* no green exit */
-						(!(flags & SF_GREEN) ||
+						(!flags.Test(SigFlag::Green) ||
 						/* only one green exit, and it is this one - so all other exits are red */
-						(!(flags & SF_GREEN2) && GetSignalStateByTrackdir(tile, ReverseTrackdir(trackdir)) == SIGNAL_STATE_GREEN))) {
+						(!flags.Test(SigFlag::MultiGreen) && GetSignalStateByTrackdir(tile, ReverseTrackdir(trackdir)) == SIGNAL_STATE_GREEN))) {
 					newstate = SIGNAL_STATE_RED;
 				}
 			} else { // entry, at least one exit, no green exit
-				if (IsPresignalEntry(tile, TrackdirToTrack(trackdir)) && (flags & SF_EXIT) && !(flags & SF_GREEN)) newstate = SIGNAL_STATE_RED;
+				if (IsPresignalEntry(tile, TrackdirToTrack(trackdir)) && flags.Test(SigFlag::Exit) && !flags.Test(SigFlag::Green)) newstate = SIGNAL_STATE_RED;
 			}
 		}
 
@@ -481,13 +497,13 @@ static SigSegState UpdateSignalsInBuffer(Owner owner)
 		assert(_tbuset.IsEmpty());
 		assert(_tbdset.IsEmpty());
 
-		/* After updating signal, data stored are always MP_RAILWAY with signals.
+		/* After updating signal, data stored are always TileType::Railway with signals.
 		 * Other situations happen when data are from outside functions -
 		 * modification of railbits (including both rail building and removal),
 		 * train entering/leaving block, train leaving depot...
 		 */
 		switch (GetTileType(tile)) {
-			case MP_TUNNELBRIDGE:
+			case TileType::TunnelBridge:
 				/* 'optimization assert' - do not try to update signals when it is not needed */
 				assert(GetTunnelBridgeTransportType(tile) == TRANSPORT_RAIL);
 				assert(dir == INVALID_DIAGDIR || dir == ReverseDiagDir(GetTunnelBridgeDirection(tile)));
@@ -495,30 +511,30 @@ static SigSegState UpdateSignalsInBuffer(Owner owner)
 				_tbdset.Add(GetOtherTunnelBridgeEnd(tile), INVALID_DIAGDIR);
 				break;
 
-			case MP_RAILWAY:
+			case TileType::Railway:
 				if (IsRailDepot(tile)) {
 					/* 'optimization assert' do not try to update signals in other cases */
 					assert(dir == INVALID_DIAGDIR || dir == GetRailDepotDirection(tile));
 					_tbdset.Add(tile, INVALID_DIAGDIR); // start from depot inside
 					break;
 				}
-				FALLTHROUGH;
+				[[fallthrough]];
 
-			case MP_STATION:
-			case MP_ROAD:
-				if ((TrackStatusToTrackBits(GetTileTrackStatus(tile, TRANSPORT_RAIL, 0)) & _enterdir_to_trackbits[dir]) != TRACK_BIT_NONE) {
+			case TileType::Station:
+			case TileType::Road:
+				if ((TrackStatusToTrackBits(GetTileTrackStatus(tile, TRANSPORT_RAIL, RoadTramType::Invalid)) & _enterdir_to_trackbits[dir]) != TRACK_BIT_NONE) {
 					/* only add to set when there is some 'interesting' track */
 					_tbdset.Add(tile, dir);
 					_tbdset.Add(tile + TileOffsByDiagDir(dir), ReverseDiagDir(dir));
 					break;
 				}
-				FALLTHROUGH;
+				[[fallthrough]];
 
 			default:
 				/* jump to next tile */
 				tile = tile + TileOffsByDiagDir(dir);
 				dir = ReverseDiagDir(dir);
-				if ((TrackStatusToTrackBits(GetTileTrackStatus(tile, TRANSPORT_RAIL, 0)) & _enterdir_to_trackbits[dir]) != TRACK_BIT_NONE) {
+				if ((TrackStatusToTrackBits(GetTileTrackStatus(tile, TRANSPORT_RAIL, RoadTramType::Invalid)) & _enterdir_to_trackbits[dir]) != TRACK_BIT_NONE) {
 					_tbdset.Add(tile, dir);
 					break;
 				}
@@ -534,15 +550,15 @@ static SigSegState UpdateSignalsInBuffer(Owner owner)
 		if (first) {
 			first = false;
 			/* SIGSEG_FREE is set by default */
-			if (flags & SF_PBS) {
+			if (flags.Test(SigFlag::Pbs)) {
 				state = SIGSEG_PBS;
-			} else if ((flags & SF_TRAIN) || ((flags & SF_EXIT) && !(flags & SF_GREEN)) || (flags & SF_FULL)) {
+			} else if (flags.Test(SigFlag::Train) || (flags.Test(SigFlag::Exit) && !flags.Test(SigFlag::Green)) || flags.Test(SigFlag::Full)) {
 				state = SIGSEG_FULL;
 			}
 		}
 
 		/* do not do anything when some buffer was full */
-		if (flags & SF_FULL) {
+		if (flags.Test(SigFlag::Full)) {
 			ResetSets(); // free all sets
 			break;
 		}
