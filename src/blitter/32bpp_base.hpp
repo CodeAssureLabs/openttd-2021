@@ -27,7 +27,7 @@ public:
 	void CopyToBuffer(const void *video, void *dst, int width, int height) override;
 	void CopyImageToBuffer(const void *video, void *dst, int width, int height, int dst_pitch) override;
 	void ScrollBuffer(void *video, int &left, int &top, int &width, int &height, int scroll_x, int scroll_y) override;
-	int BufferSize(int width, int height) override;
+	size_t BufferSize(uint width, uint height) override;
 	void PaletteAnimate(const Palette &palette) override;
 	Blitter::PaletteAnimation UsePaletteAnimation() override;
 	int GetBytesPerPixel() override { return 4; }
@@ -125,6 +125,18 @@ public:
 	}
 
 	/**
+	 * Make a colour dark grey, for specialized 32bpp remapping.
+	 * @param colour the colour to make dark.
+	 * @return the new colour, now darker.
+	 */
+	static inline Colour MakeDark(Colour colour)
+	{
+		uint8 d = MakeDark(colour.r, colour.g, colour.b);
+
+		return Colour(d, d, d);
+	}
+
+	/**
 	 * Make a colour grey - based.
 	 * @param colour the colour to make grey.
 	 * @return the new colour, now grey.
@@ -153,6 +165,16 @@ public:
 		if (brightness == DEFAULT_BRIGHTNESS) return colour;
 
 		return ReallyAdjustBrightness(colour, brightness);
+	}
+
+	static inline uint8 GetColourBrightness(Colour colour)
+	{
+		uint8 rgb_max = std::max(colour.r, std::max(colour.g, colour.b));
+
+		/* Black pixel (8bpp or old 32bpp image), so use default value */
+		if (rgb_max == 0) rgb_max = DEFAULT_BRIGHTNESS;
+
+		return rgb_max;
 	}
 };
 

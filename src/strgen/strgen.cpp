@@ -9,6 +9,7 @@
 
 #include "../stdafx.h"
 #include "../core/endian_func.hpp"
+#include "../error_func.h"
 #include "../string_func.h"
 #include "../strings_type.h"
 #include "../misc/getoptdata.h"
@@ -16,7 +17,6 @@
 
 #include "strgen.h"
 
-#include <stdarg.h>
 #include <exception>
 
 #if !defined(_WIN32) || defined(__CYGWIN__)
@@ -39,50 +39,34 @@
 # define LINE_NUM_FMT(s) "%s:%d: " s ": %s\n"
 #endif
 
-void CDECL strgen_warning(const char *s, ...)
+void StrgenWarningI(const std::string &msg)
 {
-	char buf[1024];
-	va_list va;
-	va_start(va, s);
-	vseprintf(buf, lastof(buf), s, va);
-	va_end(va);
-	fprintf(stderr, LINE_NUM_FMT("warning"), _file, _cur_line, buf);
+	if (_show_todo > 0) {
+		fprintf(stderr, LINE_NUM_FMT("warning"), _file, _cur_line, msg.c_str());
+	} else {
+		fprintf(stderr, LINE_NUM_FMT("info"), _file, _cur_line, msg.c_str());
+	}
 	_warnings++;
 }
 
-void CDECL strgen_error(const char *s, ...)
+void StrgenErrorI(const std::string &msg)
 {
-	char buf[1024];
-	va_list va;
-	va_start(va, s);
-	vseprintf(buf, lastof(buf), s, va);
-	va_end(va);
-	fprintf(stderr, LINE_NUM_FMT("error"), _file, _cur_line, buf);
+	fprintf(stderr, LINE_NUM_FMT("error"), _file, _cur_line, msg.c_str());
 	_errors++;
 }
 
-void NORETURN CDECL strgen_fatal(const char *s, ...)
+void NORETURN StrgenFatalI(const std::string &msg)
 {
-	char buf[1024];
-	va_list va;
-	va_start(va, s);
-	vseprintf(buf, lastof(buf), s, va);
-	va_end(va);
-	fprintf(stderr, LINE_NUM_FMT("FATAL"), _file, _cur_line, buf);
+	fprintf(stderr, LINE_NUM_FMT("FATAL"), _file, _cur_line, msg.c_str());
 #ifdef _MSC_VER
 	fprintf(stderr, LINE_NUM_FMT("warning"), _file, _cur_line, "language is not compiled");
 #endif
 	throw std::exception();
 }
 
-void NORETURN CDECL error(const char *s, ...)
+void NORETURN FatalErrorI(const std::string &msg)
 {
-	char buf[1024];
-	va_list va;
-	va_start(va, s);
-	vseprintf(buf, lastof(buf), s, va);
-	va_end(va);
-	fprintf(stderr, LINE_NUM_FMT("FATAL"), _file, _cur_line, buf);
+	fprintf(stderr, LINE_NUM_FMT("FATAL"), _file, _cur_line, msg.c_str());
 #ifdef _MSC_VER
 	fprintf(stderr, LINE_NUM_FMT("warning"), _file, _cur_line, "language is not compiled");
 #endif
@@ -104,7 +88,7 @@ struct FileStringReader : StringReader {
 			StringReader(data, file, master, translation)
 	{
 		this->fh = fopen(file, "rb");
-		if (this->fh == nullptr) error("Could not open %s", file);
+		if (this->fh == nullptr) FatalError("Could not open {}", file);
 	}
 
 	/** Free/close the file. */
@@ -125,7 +109,7 @@ struct FileStringReader : StringReader {
 		this->StringReader::ParseFile();
 
 		if (StrEmpty(_lang.name) || StrEmpty(_lang.own_name) || StrEmpty(_lang.isocode)) {
-			error("Language must include ##name, ##ownname and ##isocode");
+			FatalError("Language must include ##name, ##ownname and ##isocode");
 		}
 	}
 };
@@ -133,7 +117,7 @@ struct FileStringReader : StringReader {
 void FileStringReader::HandlePragma(char *str)
 {
 	if (!memcmp(str, "id ", 3)) {
-		this->data.next_string_id = strtoul(str + 3, nullptr, 0);
+		this->data.next_string_id = std::strtoul(str + 3, nullptr, 0);
 	} else if (!memcmp(str, "name ", 5)) {
 		strecpy(_lang.name, str + 5, lastof(_lang.name));
 	} else if (!memcmp(str, "ownname ", 8)) {
@@ -146,7 +130,7 @@ void FileStringReader::HandlePragma(char *str)
 		} else if (!memcmp(str + 8, "rtl", 3)) {
 			_lang.text_dir = TD_RTL;
 		} else {
-			error("Invalid textdir %s", str + 8);
+			FatalError("Invalid textdir {}", str + 8);
 		}
 	} else if (!memcmp(str, "digitsep ", 9)) {
 		str += 9;
@@ -159,39 +143,39 @@ void FileStringReader::HandlePragma(char *str)
 		strecpy(_lang.digit_decimal_separator, strcmp(str, "{NBSP}") == 0 ? NBSP : str, lastof(_lang.digit_decimal_separator));
 	} else if (!memcmp(str, "winlangid ", 10)) {
 		const char *buf = str + 10;
-		long langid = strtol(buf, nullptr, 16);
+		long langid = std::strtol(buf, nullptr, 16);
 		if (langid > (long)UINT16_MAX || langid < 0) {
-			error("Invalid winlangid %s", buf);
+			FatalError("Invalid winlangid {}", buf);
 		}
 		_lang.winlangid = (uint16)langid;
 	} else if (!memcmp(str, "grflangid ", 10)) {
 		const char *buf = str + 10;
-		long langid = strtol(buf, nullptr, 16);
+		long langid = std::strtol(buf, nullptr, 16);
 		if (langid >= 0x7F || langid < 0) {
-			error("Invalid grflangid %s", buf);
+			FatalError("Invalid grflangid {}", buf);
 		}
 		_lang.newgrflangid = (uint8)langid;
 	} else if (!memcmp(str, "gender ", 7)) {
-		if (this->master) error("Genders are not allowed in the base translation.");
+		if (this->master) FatalError("Genders are not allowed in the base translation.");
 		char *buf = str + 7;
 
 		for (;;) {
 			const char *s = ParseWord(&buf);
 
 			if (s == nullptr) break;
-			if (_lang.num_genders >= MAX_NUM_GENDERS) error("Too many genders, max %d", MAX_NUM_GENDERS);
+			if (_lang.num_genders >= MAX_NUM_GENDERS) FatalError("Too many genders, max {}", MAX_NUM_GENDERS);
 			strecpy(_lang.genders[_lang.num_genders], s, lastof(_lang.genders[_lang.num_genders]));
 			_lang.num_genders++;
 		}
 	} else if (!memcmp(str, "case ", 5)) {
-		if (this->master) error("Cases are not allowed in the base translation.");
+		if (this->master) FatalError("Cases are not allowed in the base translation.");
 		char *buf = str + 5;
 
 		for (;;) {
 			const char *s = ParseWord(&buf);
 
 			if (s == nullptr) break;
-			if (_lang.num_cases >= MAX_NUM_CASES) error("Too many cases, max %d", MAX_NUM_CASES);
+			if (_lang.num_cases >= MAX_NUM_CASES) FatalError("Too many cases, max {}", MAX_NUM_CASES);
 			strecpy(_lang.cases[_lang.num_cases], s, lastof(_lang.cases[_lang.num_cases]));
 			_lang.num_cases++;
 		}
@@ -208,7 +192,7 @@ bool CompareFiles(const char *n1, const char *n2)
 	FILE *f1 = fopen(n1, "rb");
 	if (f1 == nullptr) {
 		fclose(f2);
-		error("can't open %s", n1);
+		FatalError("can't open {}", n1);
 	}
 
 	size_t l1, l2;
@@ -245,7 +229,7 @@ struct FileWriter {
 		this->fh = fopen(this->filename, "wb");
 
 		if (this->fh == nullptr) {
-			error("Could not open %s", this->filename);
+			FatalError("Could not open {}", this->filename);
 		}
 	}
 
@@ -273,13 +257,14 @@ struct HeaderFileWriter : HeaderWriter, FileWriter {
 	const char *real_filename;
 	/** The previous string ID that was printed. */
 	int prev;
+	uint total_strings;
 
 	/**
 	 * Open a file to write to.
 	 * @param filename The file to open.
 	 */
 	HeaderFileWriter(const char *filename) : FileWriter("tmp.xxx"),
-		real_filename(stredup(filename)), prev(0)
+		real_filename(stredup(filename)), prev(0), total_strings(0)
 	{
 		fprintf(this->fh, "/* This file is automatically generated. Do not modify */\n\n");
 		fprintf(this->fh, "#ifndef TABLE_STRINGS_H\n");
@@ -297,6 +282,7 @@ struct HeaderFileWriter : HeaderWriter, FileWriter {
 		if (prev + 1 != stringid) fprintf(this->fh, "\n");
 		fprintf(this->fh, "static const StringID %s = 0x%X;\n", name, stringid);
 		prev = stringid;
+		total_strings++;
 	}
 
 	void Finalise(const StringData &data)
@@ -304,15 +290,17 @@ struct HeaderFileWriter : HeaderWriter, FileWriter {
 		/* Find the plural form with the most amount of cases. */
 		int max_plural_forms = 0;
 		for (uint i = 0; i < lengthof(_plural_forms); i++) {
-			max_plural_forms = max(max_plural_forms, _plural_forms[i].plural_count);
+			max_plural_forms = std::max(max_plural_forms, _plural_forms[i].plural_count);
 		}
 
 		fprintf(this->fh,
 			"\n"
 			"static const uint LANGUAGE_PACK_VERSION     = 0x%X;\n"
 			"static const uint LANGUAGE_MAX_PLURAL       = %u;\n"
-			"static const uint LANGUAGE_MAX_PLURAL_FORMS = %d;\n\n",
-			(uint)data.Version(), (uint)lengthof(_plural_forms), max_plural_forms
+			"static const uint LANGUAGE_MAX_PLURAL_FORMS = %d;\n"
+			"static const uint LANGUAGE_TOTAL_STRINGS    = %u;\n"
+			"\n",
+			(uint)data.Version(), (uint)lengthof(_plural_forms), max_plural_forms, total_strings
 		);
 
 		fprintf(this->fh, "#endif /* TABLE_STRINGS_H */\n");
@@ -327,7 +315,7 @@ struct HeaderFileWriter : HeaderWriter, FileWriter {
 #	if defined(_WIN32)
 			unlink(this->real_filename);
 #	endif
-			if (rename(this->filename, this->real_filename) == -1) error("rename() failed");
+			if (rename(this->filename, this->real_filename) == -1) FatalError("rename() failed");
 		}
 	}
 };
@@ -350,7 +338,7 @@ struct LanguageFileWriter : LanguageWriter, FileWriter {
 	void Finalise()
 	{
 		if (fputc(0, this->fh) == EOF) {
-			error("Could not write to %s", this->filename);
+			FatalError("Could not write to {}", this->filename);
 		}
 		this->FileWriter::Finalise();
 	}
@@ -358,7 +346,7 @@ struct LanguageFileWriter : LanguageWriter, FileWriter {
 	void Write(const byte *buffer, size_t length)
 	{
 		if (fwrite(buffer, sizeof(*buffer), length, this->fh) != length) {
-			error("Could not write to %s", this->filename);
+			FatalError("Could not write to {}", this->filename);
 		}
 	}
 };
@@ -464,9 +452,9 @@ int CDECL main(int argc, char *argv[])
 
 			case 'P':
 				printf("name\tflags\tdefault\tdescription\n");
-				for (size_t i = 0; i < lengthof(_pragmas); i++) {
+				for (size_t j = 0; j < lengthof(_pragmas); j++) {
 					printf("\"%s\"\t%s\t\"%s\"\t\"%s\"\n",
-							_pragmas[i][0], _pragmas[i][1], _pragmas[i][2], _pragmas[i][3]);
+							_pragmas[j][0], _pragmas[j][1], _pragmas[j][2], _pragmas[j][3]);
 				}
 				return 0;
 

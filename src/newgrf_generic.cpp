@@ -63,8 +63,6 @@ struct GenericResolverObject : public ResolverObject {
 		}
 	}
 
-	const SpriteGroup *ResolveReal(const RealSpriteGroup *group) const override;
-
 	GrfSpecFeature GetFeature() const override
 	{
 		return (GrfSpecFeature)this->generic_scope.feature;
@@ -111,7 +109,7 @@ void ResetGenericCallbacks()
 void AddGenericCallback(uint8 feature, const GRFFile *file, const SpriteGroup *group)
 {
 	if (feature >= lengthof(_gcl)) {
-		grfmsg(5, "AddGenericCallback: Unsupported feature 0x%02X", feature);
+		GrfMsg(5, "AddGenericCallback: Unsupported feature 0x{:02X}", feature);
 		return;
 	}
 
@@ -141,18 +139,10 @@ void AddGenericCallback(uint8 feature, const GRFFile *file, const SpriteGroup *g
 		}
 	}
 
-	DEBUG(grf, 1, "Unhandled generic feature variable 0x%02X", variable);
+	Debug(grf, 1, "Unhandled generic feature variable 0x{:02X}", variable);
 
 	*available = false;
 	return UINT_MAX;
-}
-
-
-/* virtual */ const SpriteGroup *GenericResolverObject::ResolveReal(const RealSpriteGroup *group) const
-{
-	if (group->num_loaded == 0) return nullptr;
-
-	return group->loaded[0];
 }
 
 /**
