@@ -52,7 +52,7 @@ private:
 	typedef std::vector<NodeAnnotation> NodeAnnotationVector;
 	typedef SmallMatrix<EdgeAnnotation> EdgeAnnotationMatrix;
 
-	friend const SaveLoad *GetLinkGraphJobDesc();
+	friend SaveLoadTable GetLinkGraphJobDesc();
 	friend class LinkGraphSchedule;
 
 protected:
@@ -332,7 +332,7 @@ public:
 	 * Get the size of the underlying link graph.
 	 * @return Size.
 	 */
-	inline uint Size() const { return this->link_graph.Size(); }
+	inline NodeID Size() const { return this->link_graph.Size(); }
 
 	/**
 	 * Get the cargo of the underlying link graph.
@@ -367,6 +367,7 @@ public:
 	static Path *invalid_path;
 
 	Path(NodeID n, bool source = false);
+	virtual ~Path() = default;
 
 	/** Get the node this leg passes. */
 	inline NodeID GetNode() const { return this->node; }
@@ -392,7 +393,7 @@ public:
 	 */
 	inline static int GetCapacityRatio(int free, uint total)
 	{
-		return Clamp(free, PATH_CAP_MIN_FREE, PATH_CAP_MAX_FREE) * PATH_CAP_MULTIPLIER / max(total, 1U);
+		return Clamp(free, PATH_CAP_MIN_FREE, PATH_CAP_MAX_FREE) * PATH_CAP_MULTIPLIER / std::max(total, 1U);
 	}
 
 	/**

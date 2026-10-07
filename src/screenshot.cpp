@@ -12,6 +12,7 @@
 #include "viewport_func.h"
 #include "gfx_func.h"
 #include "screenshot.h"
+#include "screenshot_gui.h"
 #include "blitter/factory.hpp"
 #include "zoom_func.h"
 #include "core/endian_func.hpp"
@@ -25,6 +26,7 @@
 #include "window_func.h"
 #include "tile_map.h"
 #include "landscape.h"
+#include "video/video_driver.hpp"
 
 #include "table/strings.h"
 
@@ -33,11 +35,12 @@
 static const char * const SCREENSHOT_NAME = "screenshot"; ///< Default filename of a saved screenshot.
 static const char * const HEIGHTMAP_NAME  = "heightmap";  ///< Default filename of a saved heightmap.
 
-char _screenshot_format_name[8];      ///< Extension of the current screenshot format (corresponds with #_cur_screenshot_format).
+std::string _screenshot_format_name;  ///< Extension of the current screenshot format (corresponds with #_cur_screenshot_format).
 uint _num_screenshot_formats;         ///< Number of available screenshot formats.
 uint _cur_screenshot_format;          ///< Index of the currently selected screenshot format in #_screenshot_formats.
 static char _screenshot_name[128];    ///< Filename of the screenshot file.
 char _full_screenshot_name[MAX_PATH]; ///< Pathname of the screenshot file.
+uint _heightmap_highest_peak;         ///< When saving a heightmap, this contains the highest peak on the map.
 
 /**
  * Callback function signature for generating lines of pixel data to be written to the screenshot file.
@@ -182,7 +185,7 @@ static bool MakeBMPImage(const char *name, ScreenshotCallback *callb, void *user
 
 	/* Start at the bottom, since bitmaps are stored bottom up */
 	do {
-		uint n = min(h, maxlines);
+		uint n = std::min(h, maxlines);
 		h -= n;
 
 		/* Render the pixels */
@@ -235,13 +238,13 @@ static bool MakeBMPImage(const char *name, ScreenshotCallback *callb, void *user
 
 static void PNGAPI png_my_error(png_structp png_ptr, png_const_charp message)
 {
-	DEBUG(misc, 0, "[libpng] error: %s - %s", message, (const char *)png_get_error_ptr(png_ptr));
+	Debug(misc, 0, "[libpng] error: {} - {}", message, (const char *)png_get_error_ptr(png_ptr));
 	longjmp(png_jmpbuf(png_ptr), 1);
 }
 
 static void PNGAPI png_my_warning(png_structp png_ptr, png_const_charp message)
 {
-	DEBUG(misc, 1, "[libpng] warning: %s - %s", message, (const char *)png_get_error_ptr(png_ptr));
+	Debug(misc, 1, "[libpng] warning: {} - {}", message, (const char *)png_get_error_ptr(png_ptr));
 }
 
 /**
@@ -375,7 +378,7 @@ static bool MakePNGImage(const char *name, ScreenshotCallback *callb, void *user
 	y = 0;
 	do {
 		/* determine # lines to write */
-		n = min(h - y, maxlines);
+		n = std::min(h - y, maxlines);
 
 		/* render the pixels into the buffer */
 		callb(userdata, buff, y, w, n);
@@ -442,7 +445,7 @@ static bool MakePCXImage(const char *name, ScreenshotCallback *callb, void *user
 	bool success;
 
 	if (pixelformat == 32) {
-		DEBUG(misc, 0, "Can't convert a 32bpp screenshot to PCX format. Please pick another format.");
+		Debug(misc, 0, "Can't convert a 32bpp screenshot to PCX format. Please pick another format.");
 		return false;
 	}
 	if (pixelformat != 8 || w == 0) return false;
@@ -482,7 +485,7 @@ static bool MakePCXImage(const char *name, ScreenshotCallback *callb, void *user
 	y = 0;
 	do {
 		/* determine # lines to write */
-		uint n = min(h - y, maxlines);
+		uint n = std::min(h - y, maxlines);
 		uint i;
 
 		/* render the pixels into the buffer */
@@ -582,7 +585,7 @@ void InitializeScreenshotFormats()
 {
 	uint j = 0;
 	for (uint i = 0; i < lengthof(_screenshot_formats); i++) {
-		if (!strcmp(_screenshot_format_name, _screenshot_formats[i].extension)) {
+		if (_screenshot_format_name.compare(_screenshot_formats[i].extension) == 0) {
 			j = i;
 			break;
 		}
@@ -640,7 +643,7 @@ static void LargeWorldCallback(void *userdata, void *buf, uint y, uint pitch, ui
 	/* Render viewport in blocks of 1600 pixels width */
 	left = 0;
 	while (vp->width - left != 0) {
-		wx = min(vp->width - left, 1600);
+		wx = std::min(vp->width - left, 1600);
 		left += wx;
 
 		ViewportDoDraw(vp,
@@ -709,13 +712,17 @@ static bool MakeSmallScreenshot(bool crashlog)
 /**
  * Configure a Viewport for rendering (a part of) the map into a screenshot.
  * @param t Screenshot type
+ * @param width the width of the screenshot, or 0 for current viewport width (needs to be 0 with SC_VIEWPORT, SC_CRASHLOG, and SC_WORLD).
+ * @param height the height of the screenshot, or 0 for current viewport height (needs to be 0 with SC_VIEWPORT, SC_CRASHLOG, and SC_WORLD).
  * @param[out] vp Result viewport
  */
-void SetupScreenshotViewport(ScreenshotType t, Viewport *vp)
+void SetupScreenshotViewport(ScreenshotType t, Viewport *vp, uint32 width, uint32 height)
 {
 	switch(t) {
 		case SC_VIEWPORT:
 		case SC_CRASHLOG: {
+			assert(width == 0 && height == 0);
+
 			Window *w = FindWindowById(WC_MAIN_WINDOW, 0);
 			vp->virtual_left   = w->viewport->virtual_left;
 			vp->virtual_top    = w->viewport->virtual_top;
@@ -725,12 +732,14 @@ void SetupScreenshotViewport(ScreenshotType t, Viewport *vp)
 			/* Compute pixel coordinates */
 			vp->left = 0;
 			vp->top = 0;
-			vp->width  = _screen.width;
+			vp->width = _screen.width;
 			vp->height = _screen.height;
 			vp->overlay = w->viewport->overlay;
 			break;
 		}
 		case SC_WORLD: {
+			assert(width == 0 && height == 0);
+
 			/* Determine world coordinates of screenshot */
 			vp->zoom = ZOOM_LVL_WORLD_SCREENSHOT;
 
@@ -761,8 +770,14 @@ void SetupScreenshotViewport(ScreenshotType t, Viewport *vp)
 			Window *w = FindWindowById(WC_MAIN_WINDOW, 0);
 			vp->virtual_left   = w->viewport->virtual_left;
 			vp->virtual_top    = w->viewport->virtual_top;
-			vp->virtual_width  = w->viewport->virtual_width;
-			vp->virtual_height = w->viewport->virtual_height;
+
+			if (width == 0 || height == 0) {
+				vp->virtual_width  = w->viewport->virtual_width;
+				vp->virtual_height = w->viewport->virtual_height;
+			} else {
+				vp->virtual_width = width << vp->zoom;
+				vp->virtual_height = height << vp->zoom;
+			}
 
 			/* Compute pixel coordinates */
 			vp->left = 0;
@@ -778,12 +793,14 @@ void SetupScreenshotViewport(ScreenshotType t, Viewport *vp)
 /**
  * Make a screenshot of the map.
  * @param t Screenshot type: World or viewport screenshot
+ * @param width the width of the screenshot of, or 0 for current viewport width.
+ * @param height the height of the screenshot of, or 0 for current viewport height.
  * @return true on success
  */
-static bool MakeLargeWorldScreenshot(ScreenshotType t)
+static bool MakeLargeWorldScreenshot(ScreenshotType t, uint32 width = 0, uint32 height = 0)
 {
 	Viewport vp;
-	SetupScreenshotViewport(t, &vp);
+	SetupScreenshotViewport(t, &vp, width, height);
 
 	const ScreenshotFormat *sf = _screenshot_formats + _cur_screenshot_format;
 	return sf->proc(MakeScreenshotName(SCREENSHOT_NAME, sf->extension), LargeWorldCallback, &vp, vp.width, vp.height,
@@ -805,7 +822,7 @@ static void HeightmapCallback(void *userdata, void *buffer, uint y, uint pitch, 
 	while (n > 0) {
 		TileIndex ti = TileXY(MapMaxX(), y);
 		for (uint x = MapMaxX(); true; x--) {
-			*buf = 256 * TileHeight(ti) / (1 + _settings_game.construction.max_heightlevel);
+			*buf = 256 * TileHeight(ti) / (1 + _heightmap_highest_peak);
 			buf++;
 			if (x == 0) break;
 			ti = TILE_ADDXY(ti, -1, 0);
@@ -828,6 +845,13 @@ bool MakeHeightmapScreenshot(const char *filename)
 		palette[i].g = i;
 		palette[i].b = i;
 	}
+
+	_heightmap_highest_peak = 0;
+	for (TileIndex tile = 0; tile < MapSize(); tile++) {
+		uint h = TileHeight(tile);
+		_heightmap_highest_peak = std::max(h, _heightmap_highest_peak);
+	}
+
 	const ScreenshotFormat *sf = _screenshot_formats + _cur_screenshot_format;
 	return sf->proc(filename, HeightmapCallback, nullptr, MapSizeX(), MapSizeY(), 8, palette);
 }
@@ -841,7 +865,7 @@ static ScreenshotType _confirmed_screenshot_type; ///< Screenshot type the curre
  */
 static void ScreenshotConfirmationCallback(Window *w, bool confirmed)
 {
-	if (confirmed) MakeScreenshot(_confirmed_screenshot_type, nullptr);
+	if (confirmed) MakeScreenshot(_confirmed_screenshot_type, {});
 }
 
 /**
@@ -867,31 +891,33 @@ void MakeScreenshotWithConfirm(ScreenshotType t)
 		ShowQuery(STR_WARNING_SCREENSHOT_SIZE_CAPTION, STR_WARNING_SCREENSHOT_SIZE_MESSAGE, nullptr, ScreenshotConfirmationCallback);
 	} else {
 		/* Less than 64M pixels, just do it */
-		MakeScreenshot(t, nullptr);
+		MakeScreenshot(t, {});
 	}
 }
 
 /**
  * Make a screenshot.
- * Unconditionally take a screenshot of the requested type.
  * @param t    the type of screenshot to make.
  * @param name the name to give to the screenshot.
+ * @param width the width of the screenshot of, or 0 for current viewport width (only works for SC_ZOOMEDIN and SC_DEFAULTZOOM).
+ * @param height the height of the screenshot of, or 0 for current viewport height (only works for SC_ZOOMEDIN and SC_DEFAULTZOOM).
  * @return true iff the screenshot was made successfully
- * @see MakeScreenshotWithConfirm
  */
-bool MakeScreenshot(ScreenshotType t, const char *name)
+static bool RealMakeScreenshot(ScreenshotType t, std::string name, uint32 width, uint32 height)
 {
 	if (t == SC_VIEWPORT) {
 		/* First draw the dirty parts of the screen and only then change the name
 		 * of the screenshot. This way the screenshot will always show the name
 		 * of the previous screenshot in the 'successful' message instead of the
 		 * name of the new screenshot (or an empty name). */
+		SetScreenshotWindowVisibility(true);
 		UndrawMouseCursor();
 		DrawDirtyBlocks();
+		SetScreenshotWindowVisibility(false);
 	}
 
 	_screenshot_name[0] = '\0';
-	if (name != nullptr) strecpy(_screenshot_name, name, lastof(_screenshot_name));
+	if (!name.empty()) strecpy(_screenshot_name, name.c_str(), lastof(_screenshot_name));
 
 	bool ret;
 	switch (t) {
@@ -905,6 +931,9 @@ bool MakeScreenshot(ScreenshotType t, const char *name)
 
 		case SC_ZOOMEDIN:
 		case SC_DEFAULTZOOM:
+			ret = MakeLargeWorldScreenshot(t, width, height);
+			break;
+
 		case SC_WORLD:
 			ret = MakeLargeWorldScreenshot(t);
 			break;
@@ -924,13 +953,45 @@ bool MakeScreenshot(ScreenshotType t, const char *name)
 	}
 
 	if (ret) {
-		SetDParamStr(0, _screenshot_name);
-		ShowErrorMessage(STR_MESSAGE_SCREENSHOT_SUCCESSFULLY, INVALID_STRING_ID, WL_WARNING);
+		if (t == SC_HEIGHTMAP) {
+			SetDParamStr(0, _screenshot_name);
+			SetDParam(1, _heightmap_highest_peak);
+			ShowErrorMessage(STR_MESSAGE_HEIGHTMAP_SUCCESSFULLY, INVALID_STRING_ID, WL_WARNING);
+		} else {
+			SetDParamStr(0, _screenshot_name);
+			ShowErrorMessage(STR_MESSAGE_SCREENSHOT_SUCCESSFULLY, INVALID_STRING_ID, WL_WARNING);
+		}
 	} else {
 		ShowErrorMessage(STR_ERROR_SCREENSHOT_FAILED, INVALID_STRING_ID, WL_ERROR);
 	}
 
 	return ret;
+}
+
+/**
+ * Schedule making a screenshot.
+ * Unconditionally take a screenshot of the requested type.
+ * @param t    the type of screenshot to make.
+ * @param name the name to give to the screenshot.
+ * @param width the width of the screenshot of, or 0 for current viewport width (only works for SC_ZOOMEDIN and SC_DEFAULTZOOM).
+ * @param height the height of the screenshot of, or 0 for current viewport height (only works for SC_ZOOMEDIN and SC_DEFAULTZOOM).
+ * @return true iff the screenshot was successfully made.
+ * @see MakeScreenshotWithConfirm
+ */
+bool MakeScreenshot(ScreenshotType t, std::string name, uint32 width, uint32 height)
+{
+	if (t == SC_CRASHLOG) {
+		/* Video buffer might or might not be locked. */
+		VideoDriver::VideoBufferLocker lock;
+
+		return RealMakeScreenshot(t, name, width, height);
+	}
+
+	VideoDriver::GetInstance()->QueueOnMainThread([=] { // Capture by value to not break scope.
+		RealMakeScreenshot(t, name, width, height);
+	});
+
+	return true;
 }
 
 

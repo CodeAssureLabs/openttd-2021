@@ -17,6 +17,7 @@
 #include "viewport_kdtree.h"
 #include "window_func.h"
 #include "string_func.h"
+#include "signs_cmd.h"
 
 #include "table/strings.h"
 
@@ -36,13 +37,13 @@ SignID _new_sign_id;
  * @param text unused
  * @return the cost of this operation or an error
  */
-CommandCost CmdPlaceSign(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 p2, const char *text)
+CommandCost CmdPlaceSign(DoCommandFlag flags, TileIndex tile, uint32 p1, uint32 p2, const std::string &text)
 {
 	/* Try to locate a new sign */
 	if (!Sign::CanAllocateItem()) return_cmd_error(STR_ERROR_TOO_MANY_SIGNS);
 
 	/* Check sign text length if any */
-	if (!StrEmpty(text) && Utf8StringLength(text) >= MAX_LENGTH_SIGN_NAME_CHARS) return CMD_ERROR;
+	if (Utf8StringLength(text) >= MAX_LENGTH_SIGN_NAME_CHARS) return CMD_ERROR;
 
 	/* When we execute, really make the sign */
 	if (flags & DC_EXEC) {
@@ -53,8 +54,8 @@ CommandCost CmdPlaceSign(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 
 		si->x = x;
 		si->y = y;
 		si->z = GetSlopePixelZ(x, y);
-		if (!StrEmpty(text)) {
-			si->name = stredup(text);
+		if (!text.empty()) {
+			si->name = text;
 		}
 		si->UpdateVirtCoord();
 		InvalidateWindowData(WC_SIGN_LIST, 0, 0);
@@ -75,14 +76,14 @@ CommandCost CmdPlaceSign(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 
  * @param text the new name or an empty string when resetting to the default
  * @return the cost of this operation or an error
  */
-CommandCost CmdRenameSign(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 p2, const char *text)
+CommandCost CmdRenameSign(DoCommandFlag flags, TileIndex tile, uint32 p1, uint32 p2, const std::string &text)
 {
 	Sign *si = Sign::GetIfValid(p1);
 	if (si == nullptr) return CMD_ERROR;
-	if (si->owner == OWNER_DEITY && _current_company != OWNER_DEITY && _game_mode != GM_EDITOR) return CMD_ERROR;
+	if (!CompanyCanRenameSign(si)) return CMD_ERROR;
 
 	/* Rename the signs when empty, otherwise remove it */
-	if (!StrEmpty(text)) {
+	if (!text.empty()) {
 		if (Utf8StringLength(text) >= MAX_LENGTH_SIGN_NAME_CHARS) return CMD_ERROR;
 
 		if (flags & DC_EXEC) {
@@ -109,12 +110,13 @@ CommandCost CmdRenameSign(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32
 /**
  * Callback function that is called after a sign is placed
  * @param result of the operation
+ * @param cmd unused
  * @param tile unused
  * @param p1 unused
  * @param p2 unused
- * @param cmd unused
+ * @param text unused
  */
-void CcPlaceSign(const CommandCost &result, TileIndex tile, uint32 p1, uint32 p2, uint32 cmd)
+void CcPlaceSign(Commands cmd, const CommandCost &result, TileIndex tile, const CommandDataBuffer &)
 {
 	if (result.Failed()) return;
 
@@ -130,5 +132,5 @@ void CcPlaceSign(const CommandCost &result, TileIndex tile, uint32 p1, uint32 p2
  */
 void PlaceProc_Sign(TileIndex tile)
 {
-	DoCommandP(tile, 0, 0, CMD_PLACE_SIGN | CMD_MSG(STR_ERROR_CAN_T_PLACE_SIGN_HERE), CcPlaceSign);
+	Command<CMD_PLACE_SIGN>::Post(STR_ERROR_CAN_T_PLACE_SIGN_HERE, CcPlaceSign, tile, 0, 0, {});
 }

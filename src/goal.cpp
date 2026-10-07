@@ -23,6 +23,7 @@
 #include "network/network.h"
 #include "network/network_base.h"
 #include "network/network_func.h"
+#include "goal_cmd.h"
 
 #include "safeguards.h"
 
@@ -34,8 +35,8 @@ INSTANTIATE_POOL_METHODS(Goal)
 
 /**
  * Create a new goal.
- * @param tile unused.
  * @param flags type of operation
+ * @param tile unused.
  * @param p1 various bitstuffed elements
  * - p1 = (bit  0 -  7) - GoalType of destination.
  * - p1 = (bit  8 - 15) - Company for which this goal is.
@@ -43,7 +44,7 @@ INSTANTIATE_POOL_METHODS(Goal)
  * @param text Text of the goal.
  * @return the cost of this operation or an error
  */
-CommandCost CmdCreateGoal(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 p2, const char *text)
+CommandCost CmdCreateGoal(DoCommandFlag flags, TileIndex tile, uint32 p1, uint32 p2, const std::string &text)
 {
 	if (!Goal::CanAllocateItem()) return CMD_ERROR;
 
@@ -51,7 +52,7 @@ CommandCost CmdCreateGoal(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32
 	CompanyID company = (CompanyID)GB(p1, 8, 8);
 
 	if (_current_company != OWNER_DEITY) return CMD_ERROR;
-	if (StrEmpty(text)) return CMD_ERROR;
+	if (text.empty()) return CMD_ERROR;
 	if (company != INVALID_COMPANY && !Company::IsValidID(company)) return CMD_ERROR;
 
 	switch (type) {
@@ -90,7 +91,7 @@ CommandCost CmdCreateGoal(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32
 		g->type = type;
 		g->dst = p2;
 		g->company = company;
-		g->text = stredup(text);
+		g->text = stredup(text.c_str());
 		g->progress = nullptr;
 		g->completed = false;
 
@@ -109,14 +110,14 @@ CommandCost CmdCreateGoal(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32
 
 /**
  * Remove a goal.
- * @param tile unused.
  * @param flags type of operation
+ * @param tile unused.
  * @param p1 GoalID to remove.
  * @param p2 unused.
  * @param text unused.
  * @return the cost of this operation or an error
  */
-CommandCost CmdRemoveGoal(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 p2, const char *text)
+CommandCost CmdRemoveGoal(DoCommandFlag flags, TileIndex tile, uint32 p1, uint32 p2, const std::string &text)
 {
 	if (_current_company != OWNER_DEITY) return CMD_ERROR;
 	if (!Goal::IsValidID(p1)) return CMD_ERROR;
@@ -139,23 +140,23 @@ CommandCost CmdRemoveGoal(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32
 
 /**
  * Update goal text of a goal.
- * @param tile unused.
  * @param flags type of operation
+ * @param tile unused.
  * @param p1 GoalID to update.
  * @param p2 unused
  * @param text Text of the goal.
  * @return the cost of this operation or an error
  */
-CommandCost CmdSetGoalText(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 p2, const char *text)
+CommandCost CmdSetGoalText(DoCommandFlag flags, TileIndex tile, uint32 p1, uint32 p2, const std::string &text)
 {
 	if (_current_company != OWNER_DEITY) return CMD_ERROR;
 	if (!Goal::IsValidID(p1)) return CMD_ERROR;
-	if (StrEmpty(text)) return CMD_ERROR;
+	if (text.empty()) return CMD_ERROR;
 
 	if (flags & DC_EXEC) {
 		Goal *g = Goal::Get(p1);
 		free(g->text);
-		g->text = stredup(text);
+		g->text = stredup(text.c_str());
 
 		if (g->company == INVALID_COMPANY) {
 			InvalidateWindowClassesData(WC_GOALS_LIST);
@@ -169,14 +170,14 @@ CommandCost CmdSetGoalText(TileIndex tile, DoCommandFlag flags, uint32 p1, uint3
 
 /**
  * Update progress text of a goal.
- * @param tile unused.
  * @param flags type of operation
+ * @param tile unused.
  * @param p1 GoalID to update.
  * @param p2 unused
  * @param text Progress text of the goal.
  * @return the cost of this operation or an error
  */
-CommandCost CmdSetGoalProgress(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 p2, const char *text)
+CommandCost CmdSetGoalProgress(DoCommandFlag flags, TileIndex tile, uint32 p1, uint32 p2, const std::string &text)
 {
 	if (_current_company != OWNER_DEITY) return CMD_ERROR;
 	if (!Goal::IsValidID(p1)) return CMD_ERROR;
@@ -184,10 +185,10 @@ CommandCost CmdSetGoalProgress(TileIndex tile, DoCommandFlag flags, uint32 p1, u
 	if (flags & DC_EXEC) {
 		Goal *g = Goal::Get(p1);
 		free(g->progress);
-		if (StrEmpty(text)) {
+		if (text.empty()) {
 			g->progress = nullptr;
 		} else {
-			g->progress = stredup(text);
+			g->progress = stredup(text.c_str());
 		}
 
 		if (g->company == INVALID_COMPANY) {
@@ -202,14 +203,14 @@ CommandCost CmdSetGoalProgress(TileIndex tile, DoCommandFlag flags, uint32 p1, u
 
 /**
  * Update completed state of a goal.
- * @param tile unused.
  * @param flags type of operation
+ * @param tile unused.
  * @param p1 GoalID to update.
  * @param p2 completed state. If goal is completed, set to 1, otherwise 0.
  * @param text unused
  * @return the cost of this operation or an error
  */
-CommandCost CmdSetGoalCompleted(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 p2, const char *text)
+CommandCost CmdSetGoalCompleted(DoCommandFlag flags, TileIndex tile, uint32 p1, uint32 p2, const std::string &text)
 {
 	if (_current_company != OWNER_DEITY) return CMD_ERROR;
 	if (!Goal::IsValidID(p1)) return CMD_ERROR;
@@ -230,8 +231,8 @@ CommandCost CmdSetGoalCompleted(TileIndex tile, DoCommandFlag flags, uint32 p1, 
 
 /**
  * Ask a goal related question
- * @param tile unused.
  * @param flags type of operation
+ * @param tile unused.
  * @param p1 various bitstuffed elements
  * - p1 = (bit  0 - 15) - Unique ID to use for this question.
  * - p1 = (bit 16 - 31) - Company or client for which this question is.
@@ -242,7 +243,7 @@ CommandCost CmdSetGoalCompleted(TileIndex tile, DoCommandFlag flags, uint32 p1, 
  * @param text Text of the question.
  * @return the cost of this operation or an error
  */
-CommandCost CmdGoalQuestion(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 p2, const char *text)
+CommandCost CmdGoalQuestion(DoCommandFlag flags, TileIndex tile, uint32 p1, uint32 p2, const std::string &text)
 {
 	uint16 uniqueid = (uint16)GB(p1, 0, 16);
 	CompanyID company = (CompanyID)GB(p1, 16, 8);
@@ -254,14 +255,18 @@ CommandCost CmdGoalQuestion(TileIndex tile, DoCommandFlag flags, uint32 p1, uint
 	bool is_client = HasBit(p2, 31);
 
 	if (_current_company != OWNER_DEITY) return CMD_ERROR;
-	if (StrEmpty(text)) return CMD_ERROR;
+	if (text.empty()) return CMD_ERROR;
 	if (is_client) {
-		if (NetworkClientInfo::GetByClientID(client) == nullptr) return CMD_ERROR;
+		/* Only check during pre-flight; the client might have left between
+		 * testing and executing. In that case it is fine to just ignore the
+		 * fact the client is no longer here. */
+		if (!(flags & DC_EXEC) && _network_server && NetworkClientInfo::GetByClientID(client) == nullptr) return CMD_ERROR;
 	} else {
 		if (company != INVALID_COMPANY && !Company::IsValidID(company)) return CMD_ERROR;
 	}
-	if (CountBits(button_mask) < 1 || CountBits(button_mask) > 3) return CMD_ERROR;
-	if (type >= GOAL_QUESTION_TYPE_COUNT) return CMD_ERROR;
+	uint min_buttons = (type == GQT_QUESTION ? 1 : 0);
+	if (CountBits(button_mask) < min_buttons || CountBits(button_mask) > 3) return CMD_ERROR;
+	if (type >= GQT_END) return CMD_ERROR;
 
 	if (flags & DC_EXEC) {
 		if (is_client) {
@@ -270,7 +275,7 @@ CommandCost CmdGoalQuestion(TileIndex tile, DoCommandFlag flags, uint32 p1, uint
 			if (company == INVALID_COMPANY && !Company::IsValidID(_local_company)) return CommandCost();
 			if (company != INVALID_COMPANY && company != _local_company) return CommandCost();
 		}
-		ShowGoalQuestion(uniqueid, type, button_mask, text);
+		ShowGoalQuestion(uniqueid, type, button_mask, text.c_str());
 	}
 
 	return CommandCost();
@@ -278,27 +283,27 @@ CommandCost CmdGoalQuestion(TileIndex tile, DoCommandFlag flags, uint32 p1, uint
 
 /**
  * Reply to a goal question.
- * @param tile unused.
  * @param flags type of operation
+ * @param tile unused.
  * @param p1 Unique ID to use for this question.
  * @param p2 Button the company pressed
  * @param text Text of the question.
  * @return the cost of this operation or an error
  */
-CommandCost CmdGoalQuestionAnswer(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 p2, const char *text)
+CommandCost CmdGoalQuestionAnswer(DoCommandFlag flags, TileIndex tile, uint32 p1, uint32 p2, const std::string &text)
 {
 	if (p1 > UINT16_MAX) return CMD_ERROR;
 	if (p2 >= GOAL_QUESTION_BUTTON_COUNT) return CMD_ERROR;
 
 	if (_current_company == OWNER_DEITY) {
 		/* It has been requested to close this specific question on all clients */
-		if (flags & DC_EXEC) DeleteWindowById(WC_GOAL_QUESTION, p1);
+		if (flags & DC_EXEC) CloseWindowById(WC_GOAL_QUESTION, p1);
 		return CommandCost();
 	}
 
 	if (_networking && _local_company == _current_company) {
 		/* Somebody in the same company answered the question. Close the window */
-		if (flags & DC_EXEC) DeleteWindowById(WC_GOAL_QUESTION, p1);
+		if (flags & DC_EXEC) CloseWindowById(WC_GOAL_QUESTION, p1);
 		if (!_network_server) return CommandCost();
 	}
 
