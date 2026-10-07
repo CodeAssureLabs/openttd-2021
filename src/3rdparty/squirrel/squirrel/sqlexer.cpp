@@ -26,7 +26,7 @@ SQLexer::~SQLexer()
 	_keywords->Release();
 }
 
-void SQLexer::APPEND_CHAR(WChar c)
+void SQLexer::APPEND_CHAR(char32_t c)
 {
 	char buf[4];
 	size_t chars = Utf8Encode(buf, c);
@@ -35,10 +35,8 @@ void SQLexer::APPEND_CHAR(WChar c)
 	}
 }
 
-SQLexer::SQLexer(SQSharedState *ss, SQLEXREADFUNC rg, SQUserPointer up,CompilerErrorFunc efunc,void *ed)
+SQLexer::SQLexer(SQSharedState *ss, SQLEXREADFUNC rg, SQUserPointer up)
 {
-	_errfunc = efunc;
-	_errtarget = ed;
 	_sharedstate = ss;
 	_keywords = SQTable::Create(ss, 26);
 	ADD_KEYWORD(while, TK_WHILE);
@@ -87,21 +85,21 @@ SQLexer::SQLexer(SQSharedState *ss, SQLEXREADFUNC rg, SQUserPointer up,CompilerE
 	_prevtoken = -1;
 	_curtoken = -1;
 
-	_svalue = NULL;
+	_svalue = nullptr;
 	_nvalue = 0;
 	_fvalue = 0;
 
 	Next();
 }
 
-NORETURN void SQLexer::Error(const SQChar *err)
+[[noreturn]] void SQLexer::Error(const SQChar *err)
 {
-	_errfunc(_errtarget,err);
+	throw CompileException(err);
 }
 
 void SQLexer::Next()
 {
-	WChar t = _readf(_up);
+	char32_t t = _readf(_up);
 	if(t > MAX_CHAR) Error("Invalid character");
 	if(t != 0) {
 		_currdata = t;
@@ -119,7 +117,7 @@ const SQChar *SQLexer::Tok2Str(SQInteger tok)
 		if(((SQInteger)_integer(val)) == tok)
 			return _stringval(key);
 	}
-	return NULL;
+	return nullptr;
 }
 
 void SQLexer::LexBlockComment()
@@ -177,7 +175,6 @@ SQInteger SQLexer::Lex()
 			else if ( CUR_CHAR == '-' ) { NEXT(); RETURN_TOKEN(TK_NEWSLOT); }
 			else if ( CUR_CHAR == '<' ) { NEXT(); RETURN_TOKEN(TK_SHIFTL); }
 			else if ( CUR_CHAR == '/' ) { NEXT(); RETURN_TOKEN(TK_ATTR_OPEN); }
-			//else if ( CUR_CHAR == '[' ) { NEXT(); ReadMultilineString(); RETURN_TOKEN(TK_STRING_LITERAL); }
 			else { RETURN_TOKEN('<') }
 		case '>':
 			NEXT();
@@ -288,7 +285,7 @@ SQInteger SQLexer::GetIDType(SQChar *s)
 }
 
 
-SQInteger SQLexer::ReadString(WChar ndelim,bool verbatim)
+SQInteger SQLexer::ReadString(char32_t ndelim,bool verbatim)
 {
 	INIT_TEMP_STRING();
 	NEXT();

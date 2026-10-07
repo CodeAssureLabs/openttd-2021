@@ -10,12 +10,7 @@
 #ifndef GAME_HPP
 #define GAME_HPP
 
-#include "../core/string_compare_type.hpp"
 #include "game_scanner.hpp"
-#include <map>
-
-/** A list that maps AI names to their AIInfo object. */
-typedef std::map<const char *, class ScriptInfo *, StringCompare> ScriptInfoList;
 
 #include "../script/api/script_event_types.hpp"
 
@@ -70,11 +65,6 @@ public:
 	static void NewEvent(class ScriptEvent *event);
 
 	/**
-	 * Get the current GameScript instance.
-	 */
-	static class GameInstance *GetGameInstance() { return Game::instance; }
-
-	/**
 	 * Get the current GameInfo.
 	 */
 	static class GameInfo *GetInfo() { return Game::info; }
@@ -87,28 +77,23 @@ public:
 	 */
 	static void Save();
 
-	/**
-	 * Load data for a GameScript from a savegame.
-	 */
-	static void Load(int version);
-
 	/** Wrapper function for GameScanner::GetConsoleList */
-	static char *GetConsoleList(char *p, const char *last, bool newest_only = false);
+	static void GetConsoleList(std::back_insert_iterator<std::string> &output_iterator, bool newest_only);
 	/** Wrapper function for GameScanner::GetConsoleLibraryList */
-	static char *GetConsoleLibraryList(char *p, const char *last);
+	static void GetConsoleLibraryList(std::back_insert_iterator<std::string> &output_iterator);
 	/** Wrapper function for GameScanner::GetInfoList */
 	static const ScriptInfoList *GetInfoList();
 	/** Wrapper function for GameScanner::GetUniqueInfoList */
 	static const ScriptInfoList *GetUniqueInfoList();
 	/** Wrapper function for GameScannerInfo::FindInfo */
-	static class GameInfo *FindInfo(const char *name, int version, bool force_exact_match);
+	static class GameInfo *FindInfo(const std::string &name, int version, bool force_exact_match);
 	/** Wrapper function for GameScanner::FindLibrary */
-	static class GameLibrary *FindLibrary(const char *library, int version);
+	static class GameLibrary *FindLibrary(const std::string &library, int version);
 
 	/**
 	 * Get the current active instance.
 	 */
-	static class GameInstance *GetInstance() { return Game::instance; }
+	static class GameInstance *GetInstance() { return Game::instance.get(); }
 
 	/** Wrapper function for GameScanner::HasGame */
 	static bool HasGame(const struct ContentInfo *ci, bool md5sum);
@@ -119,11 +104,11 @@ public:
 	static GameScannerLibrary *GetScannerLibrary();
 
 private:
-	static uint frame_counter;                        ///< Tick counter for the Game code.
-	static class GameInstance *instance;              ///< Instance to the current active Game.
-	static class GameScannerInfo *scanner_info;       ///< Scanner for Game scripts.
-	static class GameScannerLibrary *scanner_library; ///< Scanner for GS Libraries.
-	static class GameInfo *info;                      ///< Current selected GameInfo.
+	static uint frame_counter; ///< Tick counter for the Game code.
+	static std::unique_ptr<GameInstance> instance; ///< Instance to the current active Game.
+	static std::unique_ptr<GameScannerInfo> scanner_info; ///< Scanner for Game scripts.
+	static std::unique_ptr<GameScannerLibrary> scanner_library; ///< Scanner for GS Libraries.
+	static GameInfo *info; ///< Current selected GameInfo.
 };
 
 #endif /* GAME_HPP */
