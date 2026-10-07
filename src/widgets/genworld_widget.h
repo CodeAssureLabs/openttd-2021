@@ -11,7 +11,7 @@
 #define WIDGETS_GENWORLD_WIDGET_H
 
 /** Widgets of the #GenerateLandscapeWindow class. */
-enum GenerateLandscapeWidgets {
+enum GenerateLandscapeWidgets : WidgetID {
 	WID_GL_TEMPERATE,                   ///< Button with icon "Temperate".
 	WID_GL_ARCTIC,                      ///< Button with icon "Arctic".
 	WID_GL_TROPICAL,                    ///< Button with icon "Tropical".
@@ -21,23 +21,27 @@ enum GenerateLandscapeWidgets {
 	WID_GL_MAPSIZE_Y_PULLDOWN,          ///< Dropdown 'map Y size'.
 
 	WID_GL_TOWN_PULLDOWN,               ///< Dropdown 'No. of towns'.
+	WID_GL_TOWNNAME_DROPDOWN,           ///< Dropdown 'Townnames'.
 	WID_GL_INDUSTRY_PULLDOWN,           ///< Dropdown 'No. of industries'.
 
 	WID_GL_GENERATE_BUTTON,             ///< 'Generate' button.
 
-	WID_GL_MAX_HEIGHTLEVEL_DOWN,        ///< Decrease max. heightlevel
-	WID_GL_MAX_HEIGHTLEVEL_TEXT,        ///< Max. heightlevel
-	WID_GL_MAX_HEIGHTLEVEL_UP,          ///< Increase max. heightlevel
+	WID_GL_HEIGHTMAP_HEIGHT_DOWN,       ///< Decrease heightmap highest mountain
+	WID_GL_HEIGHTMAP_HEIGHT_TEXT,       ///< Max. heightmap highest mountain
+	WID_GL_HEIGHTMAP_HEIGHT_UP,         ///< Increase max. heightmap highest mountain
 
 	WID_GL_START_DATE_DOWN,             ///< Decrease start year.
 	WID_GL_START_DATE_TEXT,             ///< Start year.
 	WID_GL_START_DATE_UP,               ///< Increase start year.
 
-	WID_GL_SNOW_LEVEL_DOWN,             ///< Decrease snow level.
-	WID_GL_SNOW_LEVEL_TEXT,             ///< Snow level.
-	WID_GL_SNOW_LEVEL_UP,               ///< Increase snow level.
+	WID_GL_SNOW_COVERAGE_DOWN,          ///< Decrease snow coverage.
+	WID_GL_SNOW_COVERAGE_TEXT,          ///< Snow coverage.
+	WID_GL_SNOW_COVERAGE_UP,            ///< Increase snow coverage.
 
-	WID_GL_TREE_PULLDOWN,               ///< Dropdown 'Tree algorithm'.
+	WID_GL_DESERT_COVERAGE_DOWN,        ///< Decrease desert coverage.
+	WID_GL_DESERT_COVERAGE_TEXT,        ///< Desert coverage.
+	WID_GL_DESERT_COVERAGE_UP,          ///< Increase desert coverage.
+
 	WID_GL_LANDSCAPE_PULLDOWN,          ///< Dropdown 'Land generator'.
 
 	WID_GL_HEIGHTMAP_NAME_TEXT,         ///< Heightmap name.
@@ -55,10 +59,17 @@ enum GenerateLandscapeWidgets {
 	WID_GL_WATER_NE,                    ///< NE 'Water'/'Freeform'.
 	WID_GL_WATER_SE,                    ///< SE 'Water'/'Freeform'.
 	WID_GL_WATER_SW,                    ///< SW 'Water'/'Freeform'.
+
+	WID_GL_AI_BUTTON,                   ///< 'AI Settings' button.
+	WID_GL_GS_BUTTON,                   ///< 'Game Script Settings' button.
+	WID_GL_NEWGRF_BUTTON,               ///< 'NewGRF Settings' button.
+
+	WID_GL_CLIMATE_SEL_LABEL,           ///< NWID_SELECTION for snow or desert coverage label
+	WID_GL_CLIMATE_SEL_SELECTOR,        ///< NWID_SELECTION for snow or desert coverage selector
 };
 
 /** Widgets of the #CreateScenarioWindow class. */
-enum CreateScenarioWidgets {
+enum CreateScenarioWidgets : WidgetID {
 	WID_CS_TEMPERATE,              ///< Select temperate landscape style.
 	WID_CS_ARCTIC,                 ///< Select arctic landscape style.
 	WID_CS_TROPICAL,               ///< Select tropical landscape style.
@@ -76,7 +87,7 @@ enum CreateScenarioWidgets {
 };
 
 /** Widgets of the #GenerateProgressWindow class. */
-enum GenerationProgressWidgets {
+enum GenerationProgressWidgets : WidgetID {
 	WID_GP_PROGRESS_BAR,  ///< Progress bar.
 	WID_GP_PROGRESS_TEXT, ///< Text with the progress bar.
 	WID_GP_ABORT,         ///< Abort button.
