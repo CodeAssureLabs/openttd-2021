@@ -17,9 +17,9 @@
  */
 struct DrawIndustryAnimationStruct {
 	int x;        ///< coordinate x of the first image offset
-	byte image_1; ///< image offset 1
-	byte image_2; ///< image offset 2
-	byte image_3; ///< image offset 3
+	uint8_t image_1; ///< image offset 1
+	uint8_t image_2; ///< image offset 2
+	uint8_t image_3; ///< image offset 3
 };
 
 /**
@@ -27,8 +27,8 @@ struct DrawIndustryAnimationStruct {
  * industries animations
  */
 struct DrawIndustryCoordinates {
-	byte x;  ///< coordinate x of the pair
-	byte y;  ///< coordinate y of the pair
+	uint8_t x;  ///< coordinate x of the pair
+	uint8_t y;  ///< coordinate y of the pair
 };
 
 /**
@@ -37,15 +37,15 @@ struct DrawIndustryCoordinates {
  * @param p1 palette ID of ground sprite
  * @param s2 sprite ID of building sprite
  * @param p2 palette ID of building sprite
- * @param sx coordinate x of the sprite
- * @param sy coordinate y of the sprite
- * @param w width of the sprite
- * @param h height of the sprite
- * @param dz virtual height of the sprite
+ * @param dx The x-position of the sprite within the tile.
+ * @param dy the y-position of the sprite within the tile.
+ * @param sx the x-extent of the sprite.
+ * @param sy the y-extent of the sprite.
+ * @param sz the z-extent of the sprite.
  * @param p this allows to specify a special drawing procedure.
  * @see DrawBuildingsTileStruct
  */
-#define M(s1, p1, s2, p2, sx, sy, w, h, dz, p) { { s1, p1 }, { s2, p2 }, sx, sy, w, h, dz, p }
+#define M(s1, p1, s2, p2, dx, dy, sx, sy, sz, p) { {{dx, dy, 0}, {sx, sy, sz}, {}}, { s1, p1 }, { s2, p2 }, p}
 
 /** Structure for industry tiles drawing */
 static const DrawBuildingsTileStruct _industry_draw_tile_data[NEW_INDUSTRYTILEOFFSET * 4] = {
@@ -924,7 +924,7 @@ static const DrawIndustryAnimationStruct _industry_anim_offs_toys[] = {
 #undef MD
 
 /* this is ONLY used for Toffee Quarry*/
-static const byte _industry_anim_offs_toffee[] = {
+static const uint8_t _industry_anim_offs_toffee[] = {
 	255,   0,   0,   0,   2,   4,   6,   8,  10,   9,
 	  7,   5,   3,   1, 255,   0,   0,   0,   2,   4,
 	  6,   8,  10,   9,   7,   5,   3,   1, 255,   0,
@@ -935,7 +935,7 @@ static const byte _industry_anim_offs_toffee[] = {
 };
 
 /* this is ONLY used for the Bubble Generator*/
-static const byte _industry_anim_offs_bubbles[] = {
+static const uint8_t _industry_anim_offs_bubbles[] = {
 	68, 69, 71, 74, 77, 80, 83, 85, 86, 86,
 	86, 86, 86, 86, 86, 86, 86, 86, 86, 86,
 	86, 86, 85, 84, 83, 82, 81, 80, 79, 78,

@@ -23,6 +23,8 @@ class ScriptTile : public ScriptObject {
 public:
 	/**
 	 * Error messages related to modifying tiles.
+	 *
+	 * @see ScriptErrorType
 	 */
 	enum ErrorMessages {
 
@@ -119,6 +121,7 @@ public:
 		BT_CLEAR_ROCKY,  ///< Clear a tile with rocks
 		BT_CLEAR_FIELDS, ///< Clear a tile with farm fields
 		BT_CLEAR_HOUSE,  ///< Clear a tile with a house
+		BT_CLEAR_WATER,  ///< Clear a tile with either river or sea
 	};
 
 	/**
@@ -154,15 +157,34 @@ public:
 	 * @param width The width of the rectangle.
 	 * @param height The height of the rectangle.
 	 * @pre ScriptMap::IsValidTile(tile).
+	 * @pre width >= 0.
+	 * @pre height >= 0.
 	 * @return True if it is buildable, false if not.
 	 */
-	static bool IsBuildableRectangle(TileIndex tile, uint width, uint height);
+	static bool IsBuildableRectangle(TileIndex tile, SQInteger width, SQInteger height);
+
+	/**
+	 * Checks whether the given tile is actually a sea tile.
+	 * @param tile The tile to check on.
+	 * @pre ScriptMap::IsValidTile(tile).
+	 * @return True if and only if the tile is a sea tile.
+	 */
+	static bool IsSeaTile(TileIndex tile);
+
+	/**
+	 * Checks whether the given tile is actually a river tile.
+	 * @param tile The tile to check on.
+	 * @pre ScriptMap::IsValidTile(tile).
+	 * @return True if and only if the tile is a river tile.
+	 */
+	static bool IsRiverTile(TileIndex tile);
 
 	/**
 	 * Checks whether the given tile is actually a water tile.
 	 * @param tile The tile to check on.
 	 * @pre ScriptMap::IsValidTile(tile).
 	 * @return True if and only if the tile is a water tile.
+	 * @note Returns false when a buoy is on the tile.
 	 */
 	static bool IsWaterTile(TileIndex tile);
 
@@ -254,6 +276,14 @@ public:
 	static bool IsDesertTile(TileIndex tile);
 
 	/**
+	 * Check if the tile is town house/building
+	 * @param tile The tile to check on.
+	 * @pre ScriptMap::IsValidTile(tile).
+	 * @return True if and only if the tile is house tile.
+	 */
+	static bool IsHouseTile(TileIndex tile);
+
+	/**
 	 * Get the type of terrain regardless of buildings or infrastructure.
 	 * @note When a desert or rainforest tile are changed, their terrain type will remain the same. In other words, a sea tile can be of the desert terrain type.
 	 * @note The snow terrain type can change to the normal terrain type and vice versa based on landscaping or variable snow lines from NewGRFs.
@@ -290,7 +320,7 @@ public:
 	 * @pre ScriptMap::IsValidTile(tile).
 	 * @return The height of the lowest corner of the tile, ranging from 0 to 15.
 	 */
-	static int32 GetMinHeight(TileIndex tile);
+	static SQInteger GetMinHeight(TileIndex tile);
 
 	/**
 	 * Get the maximal height on a tile.
@@ -299,7 +329,7 @@ public:
 	 * @pre ScriptMap::IsValidTile(tile).
 	 * @return The height of the highest corner of the tile, ranging from 0 to 15.
 	 */
-	static int32 GetMaxHeight(TileIndex tile);
+	static SQInteger GetMaxHeight(TileIndex tile);
 
 	/**
 	 * Get the height of a certain corner of a tile.
@@ -309,7 +339,7 @@ public:
 	 * @pre ScriptMap::IsValidTile(tile).
 	 * @return The height of the lowest corner of the tile, ranging from 0 to 15.
 	 */
-	static int32 GetCornerHeight(TileIndex tile, Corner corner);
+	static SQInteger GetCornerHeight(TileIndex tile, Corner corner);
 
 	/**
 	 * Get the owner of the tile.
@@ -354,7 +384,7 @@ public:
 	 * @pre radius >= 0.
 	 * @return Values below 8 mean no acceptance; the more the better.
 	 */
-	static int32 GetCargoAcceptance(TileIndex tile, CargoID cargo_type, int width, int height, int radius);
+	static SQInteger GetCargoAcceptance(TileIndex tile, CargoType cargo_type, SQInteger width, SQInteger height, SQInteger radius);
 
 	/**
 	 * Checks how many producers in the radius produces this cargo.
@@ -371,7 +401,7 @@ public:
 	 * @pre radius >= 0.
 	 * @return The number of producers that produce this cargo within radius of the tile.
 	 */
-	static int32 GetCargoProduction(TileIndex tile, CargoID cargo_type, int width, int height, int radius);
+	static SQInteger GetCargoProduction(TileIndex tile, CargoType cargo_type, SQInteger width, SQInteger height, SQInteger radius);
 
 	/**
 	 * Get the manhattan distance from the tile to the tile.
@@ -379,7 +409,7 @@ public:
 	 * @param tile_to The tile to get the distance to.
 	 * @return The distance between the two tiles.
 	 */
-	static int32 GetDistanceManhattanToTile(TileIndex tile_from, TileIndex tile_to);
+	static SQInteger GetDistanceManhattanToTile(TileIndex tile_from, TileIndex tile_to);
 
 	/**
 	 * Get the square distance from the tile to the tile.
@@ -387,41 +417,41 @@ public:
 	 * @param tile_to The tile to get the distance to.
 	 * @return The distance between the two tiles.
 	 */
-	static int32 GetDistanceSquareToTile(TileIndex tile_from, TileIndex tile_to);
+	static SQInteger GetDistanceSquareToTile(TileIndex tile_from, TileIndex tile_to);
 
 	/**
 	 * Raise the given corners of the tile. The corners can be combined,
 	 *  for example: SLOPE_N | SLOPE_W (= SLOPE_NW) will raise the west and the north corner.
 	 * @note The corners will be modified in the order west (first), south, east, north (last).
-	 *       Changing one corner might cause another corner to be changed too. So modifiing
+	 *       Changing one corner might cause another corner to be changed too. So modifying
 	 *       multiple corners may result in changing some corners by multiple steps.
 	 * @param tile The tile to raise.
 	 * @param slope Corners to raise (SLOPE_xxx).
 	 * @pre tile < ScriptMap::GetMapSize().
-	 * @game @pre Valid ScriptCompanyMode active in scope.
+	 * @game @pre ScriptCompanyMode::IsValid().
 	 * @exception ScriptError::ERR_AREA_NOT_CLEAR
 	 * @exception ScriptError::ERR_TOO_CLOSE_TO_EDGE
 	 * @exception ScriptTile::ERR_TILE_TOO_HIGH
 	 * @return 0 means failed, 1 means success.
 	 */
-	static bool RaiseTile(TileIndex tile, int32 slope);
+	static bool RaiseTile(TileIndex tile, Slope slope);
 
 	/**
 	 * Lower the given corners of the tile. The corners can be combined,
 	 *  for example: SLOPE_N | SLOPE_W (= SLOPE_NW) will lower the west and the north corner.
 	 * @note The corners will be modified in the order west (first), south, east, north (last).
-	 *       Changing one corner might cause another corner to be changed too. So modifiing
+	 *       Changing one corner might cause another corner to be changed too. So modifying
 	 *       multiple corners may result in changing some corners by multiple steps.
 	 * @param tile The tile to lower.
 	 * @param slope Corners to lower (SLOPE_xxx).
 	 * @pre tile < ScriptMap::GetMapSize().
-	 * @game @pre Valid ScriptCompanyMode active in scope.
+	 * @game @pre ScriptCompanyMode::IsValid().
 	 * @exception ScriptError::ERR_AREA_NOT_CLEAR
 	 * @exception ScriptError::ERR_TOO_CLOSE_TO_EDGE
 	 * @exception ScriptTile::ERR_TILE_TOO_LOW
 	 * @return 0 means failed, 1 means success.
 	 */
-	static bool LowerTile(TileIndex tile, int32 slope);
+	static bool LowerTile(TileIndex tile, Slope slope);
 
 	/**
 	 * Level all tiles in the rectangle between start_tile and end_tile so they
@@ -431,7 +461,7 @@ public:
 	 * @param end_tile The opposite corner of the rectangle.
 	 * @pre start_tile < ScriptMap::GetMapSize().
 	 * @pre end_tile < ScriptMap::GetMapSize().
-	 * @game @pre Valid ScriptCompanyMode active in scope.
+	 * @game @pre ScriptCompanyMode::IsValid().
 	 * @exception ScriptError::ERR_AREA_NOT_CLEAR
 	 * @exception ScriptError::ERR_TOO_CLOSE_TO_EDGE
 	 * @return True if one or more tiles were leveled.
@@ -455,7 +485,7 @@ public:
 	 * Create a random tree on a tile.
 	 * @param tile The tile to build a tree on.
 	 * @pre ScriptMap::IsValidTile(tile).
-	 * @game @pre Valid ScriptCompanyMode active in scope.
+	 * @game @pre ScriptCompanyMode::IsValid().
 	 * @return True if and only if a tree was added on the tile.
 	 */
 	static bool PlantTree(TileIndex tile);
@@ -468,10 +498,10 @@ public:
 	 * @pre ScriptMap::IsValidTile(tile).
 	 * @pre width >= 1 && width <= 20.
 	 * @pre height >= 1 && height <= 20.
-	 * @game @pre Valid ScriptCompanyMode active in scope.
+	 * @game @pre ScriptCompanyMode::IsValid().
 	 * @return True if and only if a tree was added on any of the tiles in the rectangle.
 	 */
-	static bool PlantTreeRectangle(TileIndex tile, uint width, uint height);
+	static bool PlantTreeRectangle(TileIndex tile, SQInteger width, SQInteger height);
 
 	/**
 	 * Find out if this tile is within the rating influence of a town.

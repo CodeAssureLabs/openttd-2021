@@ -11,27 +11,29 @@
 #define SQUIRREL_HPP
 
 #include <squirrel.h>
+#include "../core/convertible_through_base.hpp"
 
 /** The type of script we're working with, i.e. for who is it? */
-enum ScriptType {
-	ST_AI, ///< The script is for AI scripts.
-	ST_GS, ///< The script is for Game scripts.
+enum class ScriptType : uint8_t {
+	AI, ///< The script is for AI scripts.
+	GS, ///< The script is for Game scripts.
 };
 
 struct ScriptAllocator;
 
 class Squirrel {
 	friend class ScriptAllocatorScope;
+	friend class ScriptInstance;
 
 private:
-	typedef void (SQPrintFunc)(bool error_msg, const SQChar *message);
+	using SQPrintFunc = void (bool error_msg, std::string_view message);
 
 	HSQUIRRELVM vm;          ///< The VirtualMachine instance for squirrel
 	void *global_pointer;    ///< Can be set by who ever initializes Squirrel
 	SQPrintFunc *print_func; ///< Points to either nullptr, or a custom print handler
 	bool crashed;            ///< True if the squirrel script made an error.
 	int overdrawn_ops;       ///< The amount of operations we have overdrawn.
-	const char *APIName;     ///< Name of the API used for this squirrel.
+	std::string_view api_name; ///< Name of the API used for this squirrel.
 	std::unique_ptr<ScriptAllocator> allocator; ///< Allocator object used by this script.
 
 	/**
@@ -42,7 +44,7 @@ private:
 	/**
 	 * Get the API name.
 	 */
-	const char *GetAPIName() { return this->APIName; }
+	std::string_view GetAPIName() { return this->api_name; }
 
 	/** Perform all initialization steps to create the engine. */
 	void Initialize();
@@ -53,25 +55,25 @@ protected:
 	/**
 	 * The CompileError handler.
 	 */
-	static void CompileError(HSQUIRRELVM vm, const SQChar *desc, const SQChar *source, SQInteger line, SQInteger column);
+	static void CompileError(HSQUIRRELVM vm, std::string_view desc, std::string_view source, SQInteger line, SQInteger column);
 
 	/**
 	 * The RunError handler.
 	 */
-	static void RunError(HSQUIRRELVM vm, const SQChar *error);
+	static void RunError(HSQUIRRELVM vm, std::string_view error);
 
 	/**
 	 * If a user runs 'print' inside a script, this function gets the params.
 	 */
-	static void PrintFunc(HSQUIRRELVM vm, const SQChar *s, ...) WARN_FORMAT(2, 3);
+	static void PrintFunc(HSQUIRRELVM vm, std::string_view s);
 
 	/**
 	 * If an error has to be print, this function is called.
 	 */
-	static void ErrorPrintFunc(HSQUIRRELVM vm, const SQChar *s, ...) WARN_FORMAT(2, 3);
+	static void ErrorPrintFunc(HSQUIRRELVM vm, std::string_view s);
 
 public:
-	Squirrel(const char *APIName);
+	Squirrel(std::string_view api_name);
 	~Squirrel();
 
 	/**
@@ -84,49 +86,57 @@ public:
 	 * @param script The full script-name to load.
 	 * @return False if loading failed.
 	 */
-	bool LoadScript(const char *script);
-	bool LoadScript(HSQUIRRELVM vm, const char *script, bool in_root = true);
+	bool LoadScript(const std::string &script);
+	bool LoadScript(HSQUIRRELVM vm, const std::string &script, bool in_root = true);
 
 	/**
 	 * Load a file to a given VM.
 	 */
-	SQRESULT LoadFile(HSQUIRRELVM vm, const char *filename, SQBool printerror);
+	SQRESULT LoadFile(HSQUIRRELVM vm, const std::string &filename, SQBool printerror);
 
 	/**
 	 * Adds a function to the stack. Depending on the current state this means
 	 *  either a method or a global function.
 	 */
-	void AddMethod(const char *method_name, SQFUNCTION proc, uint nparam = 0, const char *params = nullptr, void *userdata = nullptr, int size = 0);
+	void AddMethod(std::string_view method_name, SQFUNCTION proc, std::string_view params = {}, void *userdata = nullptr, int size = 0);
 
 	/**
 	 * Adds a const to the stack. Depending on the current state this means
 	 *  either a const to a class or to the global space.
 	 */
-	void AddConst(const char *var_name, int value);
+	void AddConst(std::string_view var_name, SQInteger value);
 
 	/**
 	 * Adds a const to the stack. Depending on the current state this means
 	 *  either a const to a class or to the global space.
 	 */
-	void AddConst(const char *var_name, uint value) { this->AddConst(var_name, (int)value); }
+	void AddConst(std::string_view var_name, uint value) { this->AddConst(var_name, (SQInteger)value); }
 
 	/**
 	 * Adds a const to the stack. Depending on the current state this means
 	 *  either a const to a class or to the global space.
 	 */
-	void AddConst(const char *var_name, bool value);
+	void AddConst(std::string_view var_name, int value) { this->AddConst(var_name, (SQInteger)value); }
+
+	void AddConst(std::string_view var_name, const ConvertibleThroughBase auto &value) { this->AddConst(var_name, static_cast<SQInteger>(value.base())); }
+
+	/**
+	 * Adds a const to the stack. Depending on the current state this means
+	 *  either a const to a class or to the global space.
+	 */
+	void AddConst(std::string_view var_name, bool value);
 
 	/**
 	 * Adds a class to the global scope. Make sure to call AddClassEnd when you
 	 *  are done adding methods.
 	 */
-	void AddClassBegin(const char *class_name);
+	void AddClassBegin(std::string_view class_name);
 
 	/**
 	 * Adds a class to the global scope, extending 'parent_class'.
 	 * Make sure to call AddClassEnd when you are done adding methods.
 	 */
-	void AddClassBegin(const char *class_name, const char *parent_class);
+	void AddClassBegin(std::string_view class_name, std::string_view parent_class);
 
 	/**
 	 * Finishes adding a class to the global scope. If this isn't called, no
@@ -152,21 +162,22 @@ public:
 	void InsertResult(bool result);
 	void InsertResult(int result);
 	void InsertResult(uint result) { this->InsertResult((int)result); }
+	void InsertResult(ConvertibleThroughBase auto result) { this->InsertResult(static_cast<int>(result.base())); }
 
 	/**
 	 * Call a method of an instance, in various flavors.
 	 * @return False if the script crashed or returned a wrong type.
 	 */
-	bool CallMethod(HSQOBJECT instance, const char *method_name, HSQOBJECT *ret, int suspend);
-	bool CallMethod(HSQOBJECT instance, const char *method_name, int suspend) { return this->CallMethod(instance, method_name, nullptr, suspend); }
-	bool CallStringMethodStrdup(HSQOBJECT instance, const char *method_name, const char **res, int suspend);
-	bool CallIntegerMethod(HSQOBJECT instance, const char *method_name, int *res, int suspend);
-	bool CallBoolMethod(HSQOBJECT instance, const char *method_name, bool *res, int suspend);
+	bool CallMethod(HSQOBJECT instance, std::string_view method_name, HSQOBJECT *ret, int suspend);
+	bool CallMethod(HSQOBJECT instance, std::string_view method_name, int suspend) { return this->CallMethod(instance, method_name, nullptr, suspend); }
+	bool CallStringMethod(HSQOBJECT instance, std::string_view method_name, std::string *res, int suspend);
+	bool CallIntegerMethod(HSQOBJECT instance, std::string_view method_name, int *res, int suspend);
+	bool CallBoolMethod(HSQOBJECT instance, std::string_view method_name, bool *res, int suspend);
 
 	/**
 	 * Check if a method exists in an instance.
 	 */
-	bool MethodExists(HSQOBJECT instance, const char *method_name);
+	bool MethodExists(HSQOBJECT instance, std::string_view method_name);
 
 	/**
 	 * Creates a class instance.
@@ -178,19 +189,19 @@ public:
 	 * @param prepend_API_name Optional parameter; if true, the class_name is prefixed with the current API name.
 	 * @return False if creating failed.
 	 */
-	static bool CreateClassInstanceVM(HSQUIRRELVM vm, const char *class_name, void *real_instance, HSQOBJECT *instance, SQRELEASEHOOK release_hook, bool prepend_API_name = false);
+	static bool CreateClassInstanceVM(HSQUIRRELVM vm, const std::string &class_name, void *real_instance, HSQOBJECT *instance, SQRELEASEHOOK release_hook, bool prepend_API_name = false);
 
 	/**
 	 * Exactly the same as CreateClassInstanceVM, only callable without instance of Squirrel.
 	 */
-	bool CreateClassInstance(const char *class_name, void *real_instance, HSQOBJECT *instance);
+	bool CreateClassInstance(const std::string &class_name, void *real_instance, HSQOBJECT *instance);
 
 	/**
 	 * Get the real-instance pointer.
 	 * @note This will only work just after a function-call from within Squirrel
 	 *  to your C++ function.
 	 */
-	static bool GetRealInstance(HSQUIRRELVM vm, SQUserPointer *ptr) { return SQ_SUCCEEDED(sq_getinstanceup(vm, 1, ptr, 0)); }
+	static SQUserPointer GetRealInstance(HSQUIRRELVM vm, int index, std::string_view tag);
 
 	/**
 	 * Get the Squirrel-instance pointer.
@@ -202,7 +213,7 @@ public:
 	/**
 	 * Convert a Squirrel-object to a string.
 	 */
-	static const char *ObjectToString(HSQOBJECT *ptr) { return sq_objtostring(ptr); }
+	static std::optional<std::string_view> ObjectToString(HSQOBJECT *ptr) { return sq_objtostring(ptr); }
 
 	/**
 	 * Convert a Squirrel-object to an integer.
@@ -233,7 +244,7 @@ public:
 	/**
 	 * Throw a Squirrel error that will be nicely displayed to the user.
 	 */
-	void ThrowError(const char *error) { sq_throwerror(this->vm, error); }
+	void ThrowError(std::string_view error) { sq_throwerror(this->vm, error); }
 
 	/**
 	 * Release a SQ object.

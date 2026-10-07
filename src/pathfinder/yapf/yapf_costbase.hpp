@@ -10,6 +10,12 @@
 #ifndef YAPF_COSTBASE_HPP
 #define YAPF_COSTBASE_HPP
 
+#include "../../bridge_map.h"
+#include "../../tile_type.h"
+#include "../../track_func.h"
+#include "../../track_type.h"
+#include "../../tunnelbridge_map.h"
+
 /** Base implementation for cost accounting. */
 struct CYapfCostBase {
 	/**
@@ -18,7 +24,7 @@ struct CYapfCostBase {
 	 * @param td   The track direction to check.
 	 * @return True if there's a slope, otherwise false.
 	 */
-	inline static bool stSlopeCost(TileIndex tile, Trackdir td)
+	static inline bool stSlopeCost(TileIndex tile, Trackdir td)
 	{
 		if (IsDiagonalTrackdir(td)) {
 			if (IsBridgeTile(tile)) {

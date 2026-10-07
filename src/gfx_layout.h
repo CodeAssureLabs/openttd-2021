@@ -10,34 +10,25 @@
 #ifndef GFX_LAYOUT_H
 #define GFX_LAYOUT_H
 
+#include "misc/lrucache.hpp"
 #include "fontcache.h"
-#include "gfx_func.h"
-#include "core/smallmap_type.hpp"
 
-#include <map>
-#include <string>
-#include <stack>
-#include <vector>
-
-#ifdef WITH_ICU_LX
-#include "layout/ParagraphLayout.h"
-#define ICU_FONTINSTANCE : public icu::LEFontInstance
-#else /* WITH_ICU_LX */
-#define ICU_FONTINSTANCE
-#endif /* WITH_ICU_LX */
+#include <string_view>
 
 /**
  * Text drawing parameters, which can change while drawing a line, but are kept between multiple parts
  * of the same text, e.g. on line breaks.
  */
 struct FontState {
-	FontSize fontsize;       ///< Current font size.
-	TextColour cur_colour;   ///< Current text colour.
+	FontSize fontsize; ///< Current font size.
+	FontIndex font_index; ///< Current font index.
+	TextColour cur_colour; ///< Current text colour.
+	std::vector<TextColour> colour_stack; ///< Stack of colours to assist with colour switching.
 
-	std::stack<TextColour, std::vector<TextColour>> colour_stack; ///< Stack of colours to assist with colour switching.
+	FontState() : fontsize(FS_END), font_index(INVALID_FONT_INDEX), cur_colour(TC_INVALID) {}
+	FontState(TextColour colour, FontSize fontsize, FontIndex font_index) : fontsize(fontsize), font_index(font_index), cur_colour(colour) {}
 
-	FontState() : fontsize(FS_END), cur_colour(TC_INVALID) {}
-	FontState(TextColour colour, FontSize fontsize) : fontsize(fontsize), cur_colour(colour) {}
+	auto operator<=>(const FontState &) const = default;
 
 	/**
 	 * Switch to new colour \a c.
@@ -45,7 +36,8 @@ struct FontState {
 	 */
 	inline void SetColour(TextColour c)
 	{
-		assert(c >= TC_BLUE && c <= TC_BLACK);
+		assert(((c & TC_COLOUR_MASK) >= TC_BLUE && (c & TC_COLOUR_MASK) <= TC_BLACK) || (c & TC_COLOUR_MASK) == TC_INVALID);
+		assert((c & (TC_COLOUR_MASK | TC_FLAGS_MASK)) == c);
 		if ((this->cur_colour & TC_FORCED) == 0) this->cur_colour = c;
 	}
 
@@ -55,8 +47,8 @@ struct FontState {
 	inline void PopColour()
 	{
 		if (colour_stack.empty()) return;
-		SetColour(colour_stack.top());
-		colour_stack.pop();
+		SetColour(colour_stack.back());
+		colour_stack.pop_back();
 	}
 
 	/**
@@ -64,7 +56,7 @@ struct FontState {
 	 */
 	inline void PushColour()
 	{
-		colour_stack.push(this->cur_colour);
+		colour_stack.push_back(this->cur_colour);
 	}
 
 	/**
@@ -74,69 +66,87 @@ struct FontState {
 	inline void SetFontSize(FontSize f)
 	{
 		this->fontsize = f;
+		this->font_index = FontCache::GetDefaultFontIndex(this->fontsize);
+	}
+};
+
+template <typename T> struct std::hash<std::vector<T>> {
+	size_t operator()(const std::vector<T> &vec) const
+	{
+		/* This is not an optimal hash algorithm but in most cases this is empty and therefore the same anyway. */
+		return std::transform_reduce(std::begin(vec), std::end(vec),
+			std::hash<size_t>{}(std::size(vec)),
+			[](const size_t &a, const size_t &b) -> size_t { return a ^ b; },
+			[](const T &x) -> size_t { return std::hash<T>{}(x); });
+	}
+};
+
+template <> struct std::hash<FontState> {
+	std::size_t operator()(const FontState &state) const noexcept
+	{
+		size_t h1 = std::hash<FontSize>{}(state.fontsize);
+		size_t h2 = std::hash<FontIndex>{}(state.font_index);
+		size_t h3 = std::hash<TextColour>{}(state.cur_colour);
+		size_t h4 = std::hash<std::vector<TextColour>>{}(state.colour_stack);
+		return h1 ^ (h2 << 1) ^ (h3 << 2) ^ (h4 << 3);
 	}
 };
 
 /**
  * Container with information about a font.
  */
-class Font ICU_FONTINSTANCE {
+class Font {
 public:
-	FontCache *fc;     ///< The font we are using.
-	TextColour colour; ///< The colour this font has to be.
+	FontIndex font_index = INVALID_FONT_INDEX; ///< The font we are using.
+	TextColour colour = TC_INVALID; ///< The colour this font has to be.
 
-	Font(FontSize size, TextColour colour);
-
-#ifdef WITH_ICU_LX
-	/* Implementation details of LEFontInstance */
-
-	le_int32 getUnitsPerEM() const;
-	le_int32 getAscent() const;
-	le_int32 getDescent() const;
-	le_int32 getLeading() const;
-	float getXPixelsPerEm() const;
-	float getYPixelsPerEm() const;
-	float getScaleFactorX() const;
-	float getScaleFactorY() const;
-	const void *getFontTable(LETag tableTag) const;
-	const void *getFontTable(LETag tableTag, size_t &length) const;
-	LEGlyphID mapCharToGlyph(LEUnicode32 ch) const;
-	void getGlyphAdvance(LEGlyphID glyph, LEPoint &advance) const;
-	le_bool getGlyphPoint(LEGlyphID glyph, le_int32 pointNumber, LEPoint &point) const;
-#endif /* WITH_ICU_LX */
+	inline FontCache &GetFontCache() const { return *FontCache::Get(this->font_index); }
 };
 
-/** Mapping from index to font. */
-typedef SmallMap<int, Font *> FontMap;
+/** Mapping from index to font. The pointer is owned by FontColourMap. */
+using FontMap = std::vector<std::pair<int, Font>>;
 
 /**
  * Interface to glue fallback and normal layouter into one.
  */
 class ParagraphLayouter {
 public:
-	virtual ~ParagraphLayouter() {}
+	virtual ~ParagraphLayouter() = default;
+
+	/** Position of a glyph within a VisualRun. */
+	class Position {
+	public:
+		int16_t left; ///< Left-most position of glyph.
+		int16_t right; ///< Right-most position of glyph.
+		int16_t top; ///< Top-most position of glyph.
+
+		constexpr inline Position(int16_t left, int16_t right, int16_t top) : left(left), right(right), top(top) { }
+
+		/** Conversion from a single point to a Position. */
+		constexpr inline Position(const Point &pt) : left(pt.x), right(pt.x), top(pt.y) { }
+	};
 
 	/** Visual run contains data about the bit of text with the same font. */
 	class VisualRun {
 	public:
-		virtual ~VisualRun() {}
-		virtual const Font *GetFont() const = 0;
+		virtual ~VisualRun() = default;
+		virtual const Font &GetFont() const = 0;
 		virtual int GetGlyphCount() const = 0;
-		virtual const GlyphID *GetGlyphs() const = 0;
-		virtual const float *GetPositions() const = 0;
+		virtual std::span<const GlyphID> GetGlyphs() const = 0;
+		virtual std::span<const Position> GetPositions() const = 0;
 		virtual int GetLeading() const = 0;
-		virtual const int *GetGlyphToCharMap() const = 0;
+		virtual std::span<const int> GetGlyphToCharMap() const = 0;
 	};
 
 	/** A single line worth of VisualRuns. */
 	class Line {
 	public:
-		virtual ~Line() {}
+		virtual ~Line() = default;
 		virtual int GetLeading() const = 0;
 		virtual int GetWidth() const = 0;
 		virtual int CountRuns() const = 0;
 		virtual const VisualRun &GetVisualRun(int run) const = 0;
-		virtual int GetInternalCharLength(WChar c) const = 0;
+		virtual int GetInternalCharLength(char32_t c) const = 0;
 	};
 
 	virtual void Reflow() = 0;
@@ -148,55 +158,82 @@ public:
  *
  * It also accounts for the memory allocations and frees.
  */
-class Layouter : public std::vector<std::unique_ptr<const ParagraphLayouter::Line>> {
-	const char *string; ///< Pointer to the original string.
+class Layouter : public std::vector<const ParagraphLayouter::Line *> {
+	std::string_view string; ///< Pointer to the original string.
 
 	/** Key into the linecache */
 	struct LineCacheKey {
 		FontState state_before;  ///< Font state at the beginning of the line.
 		std::string str;         ///< Source string of the line (including colour and font size codes).
+	};
 
-		/** Comparison operator for std::map */
-		bool operator<(const LineCacheKey &other) const
+	struct LineCacheQuery {
+		const FontState &state_before; ///< Font state at the beginning of the line.
+		std::string_view str;    ///< Source string of the line (including colour and font size codes).
+	};
+
+	friend struct std::hash<Layouter::LineCacheQuery>;
+	struct LineCacheHash;
+
+	struct LineCacheEqualTo {
+		using is_transparent = void;
+
+		template <typename Tlhs, typename Trhs>
+		bool operator()(const Tlhs &lhs, const Trhs &rhs) const
 		{
-			if (this->state_before.fontsize != other.state_before.fontsize) return this->state_before.fontsize < other.state_before.fontsize;
-			if (this->state_before.cur_colour != other.state_before.cur_colour) return this->state_before.cur_colour < other.state_before.cur_colour;
-			if (this->state_before.colour_stack != other.state_before.colour_stack) return this->state_before.colour_stack < other.state_before.colour_stack;
-			return this->str < other.str;
+			return lhs.state_before == rhs.state_before && lhs.str == rhs.str;
 		}
 	};
+
 public:
 	/** Item in the linecache */
 	struct LineCacheItem {
+		/* Due to the type of data in the buffer differing depending on the Layouter, we need to pass our own deleter routine. */
+		using Buffer = std::unique_ptr<void, void(*)(void *)>;
 		/* Stuff that cannot be freed until the ParagraphLayout is freed */
-		void *buffer;              ///< Accessed by both ICU's and our ParagraphLayout::nextLine.
+		Buffer buffer{nullptr, [](void *){}}; ///< Accessed by our ParagraphLayout::nextLine.
 		FontMap runs;              ///< Accessed by our ParagraphLayout::nextLine.
 
 		FontState state_after;     ///< Font state after the line.
-		ParagraphLayouter *layout; ///< Layout of the line.
+		std::unique_ptr<ParagraphLayouter> layout = nullptr; ///< Layout of the line.
 
-		LineCacheItem() : buffer(nullptr), layout(nullptr) {}
-		~LineCacheItem() { delete layout; free(buffer); }
+		std::vector<std::unique_ptr<const ParagraphLayouter::Line>> cached_layout{}; ///< Cached results of line layouting.
+		int cached_width = 0; ///< Width used for the cached layout.
 	};
 private:
-	typedef std::map<LineCacheKey, LineCacheItem> LineCache;
-	static LineCache *linecache;
+	using LineCache = LRUCache<LineCacheKey, LineCacheItem, LineCacheHash, LineCacheEqualTo>;
+	static std::unique_ptr<LineCache> linecache;
 
-	static LineCacheItem &GetCachedParagraphLayout(const char *str, size_t len, const FontState &state);
+	static LineCacheItem &GetCachedParagraphLayout(std::string_view str, const FontState &state);
 
-	typedef SmallMap<TextColour, Font *> FontColourMap;
-	static FontColourMap fonts[FS_END];
 public:
-	static Font *GetFont(FontSize size, TextColour colour);
-
-	Layouter(const char *str, int maxw = INT32_MAX, TextColour colour = TC_FROMSTRING, FontSize fontsize = FS_NORMAL);
+	Layouter(std::string_view str, int maxw = INT32_MAX, FontSize fontsize = FS_NORMAL);
 	Dimension GetBounds();
-	Point GetCharPosition(const char *ch) const;
-	const char *GetCharAtPosition(int x) const;
+	ParagraphLayouter::Position GetCharPosition(std::string_view::const_iterator ch) const;
+	ptrdiff_t GetCharAtPosition(int x, size_t line_index) const;
 
-	static void ResetFontCache(FontSize size);
+	static void Initialize();
+	static void ResetFontCache(FontSize fs);
 	static void ResetLineCache();
-	static void ReduceLineCache();
+};
+
+ParagraphLayouter::Position GetCharPosInString(std::string_view str, size_t pos, FontSize start_fontsize = FS_NORMAL);
+ptrdiff_t GetCharAtPosition(std::string_view str, int x, FontSize start_fontsize = FS_NORMAL);
+
+template <> struct std::hash<Layouter::LineCacheQuery> {
+	std::size_t operator()(const Layouter::LineCacheQuery &state) const noexcept
+	{
+		size_t h1 = std::hash<std::string_view>{}(state.str);
+		size_t h2 = std::hash<FontState>{}(state.state_before);
+		return h1 ^ (h2 << 1);
+	}
+};
+
+struct Layouter::LineCacheHash {
+	using is_transparent = void;
+
+	std::size_t operator()(const Layouter::LineCacheKey &query) const { return std::hash<Layouter::LineCacheQuery>{}(LineCacheQuery{query.state_before, query.str}); }
+	std::size_t operator()(const Layouter::LineCacheQuery &query) const { return std::hash<Layouter::LineCacheQuery>{}(query); }
 };
 
 #endif /* GFX_LAYOUT_H */
