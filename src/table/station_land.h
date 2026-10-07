@@ -39,7 +39,7 @@
  * @param img Sprite to draw
  * @param pal Palette sprite
  */
-#define TILE_SEQ_CHILD(dx, dy, img, pal) TILE_SEQ_LINE_PAL(dx, dy, (int8)0x80, 0, 0, 0, img, pal)
+#define TILE_SEQ_CHILD(dx, dy, img, pal) TILE_SEQ_LINE_PAL(dx, dy, (int8_t)0x80, 0, 0, 0, img, pal)
 
 /**
  * Constructor macro for additional ground sprites.
@@ -52,7 +52,7 @@
 #define TILE_SEQ_GROUND(dx, dy, dz, img) TILE_SEQ_CHILD(2 * (dy - dx), dx + dy - dz, img, PAL_NONE)
 
 /** Constructor macro for a terminating DrawTileSeqStruct entry in an array */
-#define TILE_SEQ_END() { (int8)0x80, 0, 0, 0, 0, 0, {0, 0} }
+#define TILE_SEQ_END() { (int8_t)0x80, 0, 0, 0, 0, 0, {0, 0} }
 
 static const DrawTileSeqStruct _station_display_nothing[] = {
 	TILE_SEQ_END()
@@ -71,13 +71,13 @@ static const DrawTileSeqStruct _station_display_datas_1[] = {
 };
 
 static const DrawTileSeqStruct _station_display_datas_2[] = {
-	TILE_SEQ_LINE( 0,  0,  0, 16,  5,  2, SPR_RAIL_PLATFORM_BUILDING_X | (1U << PALETTE_MODIFIER_COLOUR))
+	TILE_SEQ_LINE( 0,  0,  0, 16,  5, 15, SPR_RAIL_PLATFORM_BUILDING_X | (1U << PALETTE_MODIFIER_COLOUR))
 	TILE_SEQ_LINE( 0, 11,  0, 16,  5,  2, SPR_RAIL_PLATFORM_X_FRONT    | (1U << PALETTE_MODIFIER_COLOUR))
 	TILE_SEQ_END()
 };
 
 static const DrawTileSeqStruct _station_display_datas_3[] = {
-	TILE_SEQ_LINE( 0,  0,  0,  5, 16,  2, SPR_RAIL_PLATFORM_BUILDING_Y | (1U << PALETTE_MODIFIER_COLOUR))
+	TILE_SEQ_LINE( 0,  0,  0,  5, 16, 15, SPR_RAIL_PLATFORM_BUILDING_Y | (1U << PALETTE_MODIFIER_COLOUR))
 	TILE_SEQ_LINE(11,  0,  0,  5, 16,  2, SPR_RAIL_PLATFORM_Y_FRONT    | (1U << PALETTE_MODIFIER_COLOUR))
 	TILE_SEQ_END()
 };

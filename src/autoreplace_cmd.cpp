@@ -16,10 +16,18 @@
 #include "autoreplace_func.h"
 #include "autoreplace_gui.h"
 #include "articulated_vehicles.h"
+#include "core/bitmath_func.hpp"
 #include "core/random_func.hpp"
 #include "vehiclelist.h"
 #include "road.h"
 #include "ai/ai.hpp"
+#include "news_func.h"
+#include "strings_func.h"
+#include "autoreplace_cmd.h"
+#include "group_cmd.h"
+#include "order_cmd.h"
+#include "train_cmd.h"
+#include "vehicle_cmd.h"
 
 #include "table/strings.h"
 
@@ -52,9 +60,6 @@ static bool EnginesHaveCargoInCommon(EngineID engine_a, EngineID engine_b)
 bool CheckAutoreplaceValidity(EngineID from, EngineID to, CompanyID company)
 {
 	assert(Engine::IsValidID(from) && Engine::IsValidID(to));
-
-	/* we can't replace an engine into itself (that would be autorenew) */
-	if (from == to) return false;
 
 	const Engine *e_from = Engine::Get(from);
 	const Engine *e_to = Engine::Get(to);
@@ -115,7 +120,7 @@ void CheckCargoCapacity(Vehicle *v)
 			assert(dest->cargo.TotalCount() == dest->cargo.ActionCount(VehicleCargoList::MTA_KEEP));
 			if (dest->cargo.TotalCount() >= dest->cargo_cap || dest->cargo_type != src->cargo_type) continue;
 
-			uint amount = min(to_spread, dest->cargo_cap - dest->cargo.TotalCount());
+			uint amount = std::min(to_spread, dest->cargo_cap - dest->cargo.TotalCount());
 			src->cargo.Shift(amount, &dest->cargo);
 			to_spread -= amount;
 		}
@@ -157,7 +162,7 @@ static void TransferCargo(Vehicle *old_veh, Vehicle *new_head, bool part_of_chai
 			}
 			if (dest->cargo_type != src->cargo_type) continue;
 
-			uint amount = min(src->cargo.TotalCount(), dest->cargo_cap - dest->cargo.TotalCount());
+			uint amount = std::min(src->cargo.TotalCount(), dest->cargo_cap - dest->cargo.TotalCount());
 			if (amount <= 0) continue;
 
 			src->cargo.Shift(amount, &dest->cargo);
@@ -192,28 +197,60 @@ static bool VerifyAutoreplaceRefitForOrders(const Vehicle *v, EngineID engine_ty
 }
 
 /**
+ * Gets the index of the first refit order that is incompatible with the requested engine type
+ * @param v The vehicle to be replaced
+ * @param engine_type The type we want to replace with
+ * @return index of the incompatible order or -1 if none were found
+ */
+static int GetIncompatibleRefitOrderIdForAutoreplace(const Vehicle *v, EngineID engine_type)
+{
+	CargoTypes union_refit_mask = GetUnionOfArticulatedRefitMasks(engine_type, false);
+
+	const Order *o;
+	const Vehicle *u = (v->type == VEH_TRAIN) ? v->First() : v;
+
+	const OrderList *orders = u->orders;
+	if (orders == nullptr) return -1;
+	for (VehicleOrderID i = 0; i < orders->GetNumOrders(); i++) {
+		o = orders->GetOrderAt(i);
+		if (!o->IsRefit()) continue;
+		if (!HasBit(union_refit_mask, o->GetRefitCargo())) return i;
+	}
+
+	return -1;
+}
+
+/**
  * Function to find what type of cargo to refit to when autoreplacing
  * @param *v Original vehicle that is being replaced.
  * @param engine_type The EngineID of the vehicle that is being replaced to
  * @param part_of_chain The vehicle is part of a train
  * @return The cargo type to replace to
- *    CT_NO_REFIT is returned if no refit is needed
- *    CT_INVALID is returned when both old and new vehicle got cargo capacity and refitting the new one to the old one's cargo type isn't possible
+ *    CARGO_NO_REFIT is returned if no refit is needed
+ *    INVALID_CARGO is returned when both old and new vehicle got cargo capacity and refitting the new one to the old one's cargo type isn't possible
  */
 static CargoID GetNewCargoTypeForReplace(Vehicle *v, EngineID engine_type, bool part_of_chain)
 {
 	CargoTypes available_cargo_types, union_mask;
 	GetArticulatedRefitMasks(engine_type, true, &union_mask, &available_cargo_types);
 
-	if (union_mask == 0) return CT_NO_REFIT; // Don't try to refit an engine with no cargo capacity
+	if (union_mask == 0) return CARGO_NO_REFIT; // Don't try to refit an engine with no cargo capacity
 
 	CargoID cargo_type;
-	if (IsArticulatedVehicleCarryingDifferentCargoes(v, &cargo_type)) return CT_INVALID; // We cannot refit to mixed cargoes in an automated way
+	CargoTypes cargo_mask = GetCargoTypesOfArticulatedVehicle(v, &cargo_type);
+	if (!HasAtMostOneBit(cargo_mask)) {
+		CargoTypes new_engine_default_cargoes = GetCargoTypesOfArticulatedParts(engine_type);
+		if ((cargo_mask & new_engine_default_cargoes) == cargo_mask) {
+			return CARGO_NO_REFIT; // engine_type is already a mixed cargo type which matches the incoming vehicle by default, no refit required
+		}
 
-	if (cargo_type == CT_INVALID) {
-		if (v->type != VEH_TRAIN) return CT_NO_REFIT; // If the vehicle does not carry anything at all, every replacement is fine.
+		return INVALID_CARGO; // We cannot refit to mixed cargoes in an automated way
+	}
 
-		if (!part_of_chain) return CT_NO_REFIT;
+	if (!IsValidCargoID(cargo_type)) {
+		if (v->type != VEH_TRAIN) return CARGO_NO_REFIT; // If the vehicle does not carry anything at all, every replacement is fine.
+
+		if (!part_of_chain) return CARGO_NO_REFIT;
 
 		/* the old engine didn't have cargo capacity, but the new one does
 		 * now we will figure out what cargo the train is carrying and refit to fit this */
@@ -224,11 +261,11 @@ static CargoID GetNewCargoTypeForReplace(Vehicle *v, EngineID engine_type, bool 
 			if (HasBit(available_cargo_types, v->cargo_type)) return v->cargo_type;
 		}
 
-		return CT_NO_REFIT; // We failed to find a cargo type on the old vehicle and we will not refit the new one
+		return CARGO_NO_REFIT; // We failed to find a cargo type on the old vehicle and we will not refit the new one
 	} else {
-		if (!HasBit(available_cargo_types, cargo_type)) return CT_INVALID; // We can't refit the vehicle to carry the cargo we want
+		if (!HasBit(available_cargo_types, cargo_type)) return INVALID_CARGO; // We can't refit the vehicle to carry the cargo we want
 
-		if (part_of_chain && !VerifyAutoreplaceRefitForOrders(v, engine_type)) return CT_INVALID; // Some refit orders lose their effect
+		if (part_of_chain && !VerifyAutoreplaceRefitForOrders(v, engine_type)) return INVALID_CARGO; // Some refit orders lose their effect
 
 		return cargo_type;
 	}
@@ -293,26 +330,45 @@ static CommandCost BuildReplacementVehicle(Vehicle *old_veh, Vehicle **new_vehic
 
 	/* Does it need to be refitted */
 	CargoID refit_cargo = GetNewCargoTypeForReplace(old_veh, e, part_of_chain);
-	if (refit_cargo == CT_INVALID) return CommandCost(); // incompatible cargoes
+	if (!IsValidCargoID(refit_cargo)) {
+		if (!IsLocalCompany()) return CommandCost();
+
+		SetDParam(0, old_veh->index);
+
+		int order_id = GetIncompatibleRefitOrderIdForAutoreplace(old_veh, e);
+		if (order_id != -1) {
+			/* Orders contained a refit order that is incompatible with the new vehicle. */
+			SetDParam(1, STR_ERROR_AUTOREPLACE_INCOMPATIBLE_REFIT);
+			SetDParam(2, order_id + 1); // 1-based indexing for display
+		} else {
+			/* Current cargo is incompatible with the new vehicle. */
+			SetDParam(1, STR_ERROR_AUTOREPLACE_INCOMPATIBLE_CARGO);
+			SetDParam(2, CargoSpec::Get(old_veh->cargo_type)->name);
+		}
+
+		AddVehicleAdviceNewsItem(STR_NEWS_VEHICLE_AUTORENEW_FAILED, old_veh->index);
+		return CommandCost();
+	}
 
 	/* Build the new vehicle */
-	cost = DoCommand(old_veh->tile, e | (CT_INVALID << 24), 0, DC_EXEC | DC_AUTOREPLACE, GetCmdBuildVeh(old_veh));
+	VehicleID new_veh_id;
+	std::tie(cost, new_veh_id, std::ignore, std::ignore, std::ignore) = Command<CMD_BUILD_VEHICLE>::Do(DC_EXEC | DC_AUTOREPLACE, old_veh->tile, e, true, INVALID_CARGO, INVALID_CLIENT_ID);
 	if (cost.Failed()) return cost;
 
-	Vehicle *new_veh = Vehicle::Get(_new_vehicle_id);
+	Vehicle *new_veh = Vehicle::Get(new_veh_id);
 	*new_vehicle = new_veh;
 
 	/* Refit the vehicle if needed */
-	if (refit_cargo != CT_NO_REFIT) {
+	if (refit_cargo != CARGO_NO_REFIT) {
 		byte subtype = GetBestFittingSubType(old_veh, new_veh, refit_cargo);
 
-		cost.AddCost(DoCommand(0, new_veh->index, refit_cargo | (subtype << 8), DC_EXEC, GetCmdRefitVeh(new_veh)));
+		cost.AddCost(std::get<0>(Command<CMD_REFIT_VEHICLE>::Do(DC_EXEC, new_veh->index, refit_cargo, subtype, false, false, 0)));
 		assert(cost.Succeeded()); // This should be ensured by GetNewCargoTypeForReplace()
 	}
 
 	/* Try to reverse the vehicle, but do not care if it fails as the new type might not be reversible */
 	if (new_veh->type == VEH_TRAIN && HasBit(Train::From(old_veh)->flags, VRF_REVERSE_DIRECTION)) {
-		DoCommand(0, new_veh->index, true, DC_EXEC, CMD_REVERSE_TRAIN_DIRECTION);
+		Command<CMD_REVERSE_TRAIN_DIRECTION>::Do(DC_EXEC, new_veh->index, true);
 	}
 
 	return cost;
@@ -324,9 +380,9 @@ static CommandCost BuildReplacementVehicle(Vehicle *old_veh, Vehicle **new_vehic
  * @param evaluate_callback shall the start/stop callback be evaluated?
  * @return success or error
  */
-static inline CommandCost CmdStartStopVehicle(const Vehicle *v, bool evaluate_callback)
+static inline CommandCost DoCmdStartStopVehicle(const Vehicle *v, bool evaluate_callback)
 {
-	return DoCommand(0, v->index, evaluate_callback ? 1 : 0, DC_EXEC | DC_AUTOREPLACE, CMD_START_STOP_VEHICLE);
+	return Command<CMD_START_STOP_VEHICLE>::Do(DC_EXEC | DC_AUTOREPLACE, v->index, evaluate_callback);
 }
 
 /**
@@ -339,7 +395,7 @@ static inline CommandCost CmdStartStopVehicle(const Vehicle *v, bool evaluate_ca
  */
 static inline CommandCost CmdMoveVehicle(const Vehicle *v, const Vehicle *after, DoCommandFlag flags, bool whole_chain)
 {
-	return DoCommand(0, v->index | (whole_chain ? 1 : 0) << 20, after != nullptr ? after->index : INVALID_VEHICLE, flags | DC_NO_CARGO_CAP_CHECK, CMD_MOVE_RAIL_VEHICLE);
+	return Command<CMD_MOVE_RAIL_VEHICLE>::Do(flags | DC_NO_CARGO_CAP_CHECK, v->index, after != nullptr ? after->index : INVALID_VEHICLE, whole_chain);
 }
 
 /**
@@ -353,25 +409,26 @@ static CommandCost CopyHeadSpecificThings(Vehicle *old_head, Vehicle *new_head, 
 	CommandCost cost = CommandCost();
 
 	/* Share orders */
-	if (cost.Succeeded() && old_head != new_head) cost.AddCost(DoCommand(0, new_head->index | CO_SHARE << 30, old_head->index, DC_EXEC, CMD_CLONE_ORDER));
+	if (cost.Succeeded() && old_head != new_head) cost.AddCost(Command<CMD_CLONE_ORDER>::Do(DC_EXEC, CO_SHARE, new_head->index, old_head->index));
 
 	/* Copy group membership */
-	if (cost.Succeeded() && old_head != new_head) cost.AddCost(DoCommand(0, old_head->group_id, new_head->index, DC_EXEC, CMD_ADD_VEHICLE_GROUP));
+	if (cost.Succeeded() && old_head != new_head) cost.AddCost(std::get<0>(Command<CMD_ADD_VEHICLE_GROUP>::Do(DC_EXEC, old_head->group_id, new_head->index, false, VehicleListIdentifier{})));
 
 	/* Perform start/stop check whether the new vehicle suits newgrf restrictions etc. */
 	if (cost.Succeeded()) {
 		/* Start the vehicle, might be denied by certain things */
 		assert((new_head->vehstatus & VS_STOPPED) != 0);
-		cost.AddCost(CmdStartStopVehicle(new_head, true));
+		cost.AddCost(DoCmdStartStopVehicle(new_head, true));
 
 		/* Stop the vehicle again, but do not care about evil newgrfs allowing starting but not stopping :p */
-		if (cost.Succeeded()) cost.AddCost(CmdStartStopVehicle(new_head, false));
+		if (cost.Succeeded()) cost.AddCost(DoCmdStartStopVehicle(new_head, false));
 	}
 
 	/* Last do those things which do never fail (resp. we do not care about), but which are not undo-able */
 	if (cost.Succeeded() && old_head != new_head && (flags & DC_EXEC) != 0) {
 		/* Copy other things which cannot be copied by a command and which shall not stay resetted from the build vehicle command */
 		new_head->CopyVehicleConfigAndStatistics(old_head);
+		GroupStatistics::AddProfitLastYear(new_head);
 
 		/* Switch vehicle windows/news to the new vehicle, so they are not closed/deleted when the old vehicle is sold */
 		ChangeVehicleViewports(old_head->index, new_head->index);
@@ -394,7 +451,7 @@ static CommandCost ReplaceFreeUnit(Vehicle **single_unit, DoCommandFlag flags, b
 	Train *old_v = Train::From(*single_unit);
 	assert(!old_v->IsArticulatedPart() && !old_v->IsRearDualheaded());
 
-	CommandCost cost = CommandCost(EXPENSES_NEW_VEHICLES, 0);
+	CommandCost cost = CommandCost(EXPENSES_NEW_VEHICLES, (Money)0);
 
 	/* Build and refit replacement vehicle */
 	Vehicle *new_v = nullptr;
@@ -422,11 +479,11 @@ static CommandCost ReplaceFreeUnit(Vehicle **single_unit, DoCommandFlag flags, b
 		}
 
 		/* Sell the old vehicle */
-		cost.AddCost(DoCommand(0, old_v->index, 0, flags, GetCmdSellVeh(old_v)));
+		cost.AddCost(Command<CMD_SELL_VEHICLE>::Do(flags, old_v->index, false, false, INVALID_CLIENT_ID));
 
 		/* If we are not in DC_EXEC undo everything */
 		if ((flags & DC_EXEC) == 0) {
-			DoCommand(0, new_v->index, 0, DC_EXEC, GetCmdSellVeh(new_v));
+			Command<CMD_SELL_VEHICLE>::Do(DC_EXEC, new_v->index, false, false, INVALID_CLIENT_ID);
 		}
 	}
 
@@ -446,11 +503,11 @@ static CommandCost ReplaceChain(Vehicle **chain, DoCommandFlag flags, bool wagon
 	Vehicle *old_head = *chain;
 	assert(old_head->IsPrimaryVehicle());
 
-	CommandCost cost = CommandCost(EXPENSES_NEW_VEHICLES, 0);
+	CommandCost cost = CommandCost(EXPENSES_NEW_VEHICLES, (Money)0);
 
 	if (old_head->type == VEH_TRAIN) {
 		/* Store the length of the old vehicle chain, rounded up to whole tiles */
-		uint16 old_total_length = CeilDiv(Train::From(old_head)->gcache.cached_total_length, TILE_SIZE) * TILE_SIZE;
+		uint16_t old_total_length = CeilDiv(Train::From(old_head)->gcache.cached_total_length, TILE_SIZE) * TILE_SIZE;
 
 		int num_units = 0; ///< Number of units in the chain
 		for (Train *w = Train::From(old_head); w != nullptr; w = w->GetNextUnit()) num_units++;
@@ -553,7 +610,7 @@ static CommandCost ReplaceChain(Vehicle **chain, DoCommandFlag flags, bool wagon
 					assert(RailVehInfo(wagon->engine_type)->railveh_type == RAILVEH_WAGON);
 
 					/* Sell wagon */
-					CommandCost ret = DoCommand(0, wagon->index, 0, DC_EXEC, GetCmdSellVeh(wagon));
+					[[maybe_unused]] CommandCost ret = Command<CMD_SELL_VEHICLE>::Do(DC_EXEC, wagon->index, false, false, INVALID_CLIENT_ID);
 					assert(ret.Succeeded());
 					new_vehs[i] = nullptr;
 
@@ -570,6 +627,7 @@ static CommandCost ReplaceChain(Vehicle **chain, DoCommandFlag flags, bool wagon
 				/* Success ! */
 				if ((flags & DC_EXEC) != 0 && new_head != old_head) {
 					*chain = new_head;
+					AI::NewEvent(old_head->owner, new ScriptEventVehicleAutoReplaced(old_head->index, new_head->index));
 				}
 
 				/* Transfer cargo of old vehicles and sell them */
@@ -584,13 +642,10 @@ static CommandCost ReplaceChain(Vehicle **chain, DoCommandFlag flags, bool wagon
 					/* Sell the vehicle.
 					 * Note: This might temporarily construct new trains, so use DC_AUTOREPLACE to prevent
 					 *       it from failing due to engine limits. */
-					cost.AddCost(DoCommand(0, w->index, 0, flags | DC_AUTOREPLACE, GetCmdSellVeh(w)));
+					cost.AddCost(Command<CMD_SELL_VEHICLE>::Do(flags | DC_AUTOREPLACE, w->index, false, false, INVALID_CLIENT_ID));
 					if ((flags & DC_EXEC) != 0) {
 						old_vehs[i] = nullptr;
-						if (i == 0) {
-							AI::NewEvent(old_head->owner, new ScriptEventVehicleAutoReplaced(old_head->index, new_head->index));
-							old_head = nullptr;
-						}
+						if (i == 0) old_head = nullptr;
 					}
 				}
 
@@ -608,7 +663,7 @@ static CommandCost ReplaceChain(Vehicle **chain, DoCommandFlag flags, bool wagon
 				assert(Train::From(old_head)->GetNextUnit() == nullptr);
 
 				for (int i = num_units - 1; i > 0; i--) {
-					CommandCost ret = CmdMoveVehicle(old_vehs[i], old_head, DC_EXEC | DC_AUTOREPLACE, false);
+					[[maybe_unused]] CommandCost ret = CmdMoveVehicle(old_vehs[i], old_head, DC_EXEC | DC_AUTOREPLACE, false);
 					assert(ret.Succeeded());
 				}
 			}
@@ -618,7 +673,7 @@ static CommandCost ReplaceChain(Vehicle **chain, DoCommandFlag flags, bool wagon
 		if ((flags & DC_EXEC) == 0) {
 			for (int i = num_units - 1; i >= 0; i--) {
 				if (new_vehs[i] != nullptr) {
-					DoCommand(0, new_vehs[i]->index, 0, DC_EXEC, GetCmdSellVeh(new_vehs[i]));
+					Command<CMD_SELL_VEHICLE>::Do(DC_EXEC, new_vehs[i]->index, false, false, INVALID_CLIENT_ID);
 					new_vehs[i] = nullptr;
 				}
 			}
@@ -649,12 +704,12 @@ static CommandCost ReplaceChain(Vehicle **chain, DoCommandFlag flags, bool wagon
 				}
 
 				/* Sell the old vehicle */
-				cost.AddCost(DoCommand(0, old_head->index, 0, flags, GetCmdSellVeh(old_head)));
+				cost.AddCost(Command<CMD_SELL_VEHICLE>::Do(flags, old_head->index, false, false, INVALID_CLIENT_ID));
 			}
 
 			/* If we are not in DC_EXEC undo everything */
 			if ((flags & DC_EXEC) == 0) {
-				DoCommand(0, new_head->index, 0, DC_EXEC, GetCmdSellVeh(new_head));
+				Command<CMD_SELL_VEHICLE>::Do(DC_EXEC, new_head->index, false, false, INVALID_CLIENT_ID);
 			}
 		}
 	}
@@ -665,22 +720,18 @@ static CommandCost ReplaceChain(Vehicle **chain, DoCommandFlag flags, bool wagon
 /**
  * Autoreplaces a vehicle
  * Trains are replaced as a whole chain, free wagons in depot are replaced on their own
- * @param tile not used
  * @param flags type of operation
- * @param p1 Index of vehicle
- * @param p2 not used
- * @param text unused
+ * @param veh_id Index of vehicle
  * @return the cost of this operation or an error
  */
-CommandCost CmdAutoreplaceVehicle(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 p2, const char *text)
+CommandCost CmdAutoreplaceVehicle(DoCommandFlag flags, VehicleID veh_id)
 {
-	Vehicle *v = Vehicle::GetIfValid(p1);
+	Vehicle *v = Vehicle::GetIfValid(veh_id);
 	if (v == nullptr) return CMD_ERROR;
 
 	CommandCost ret = CheckOwnership(v->owner);
 	if (ret.Failed()) return ret;
 
-	if (!v->IsChainInDepot()) return CMD_ERROR;
 	if (v->vehstatus & VS_CRASHED) return CMD_ERROR;
 
 	bool free_wagon = false;
@@ -692,9 +743,13 @@ CommandCost CmdAutoreplaceVehicle(TileIndex tile, DoCommandFlag flags, uint32 p1
 	} else {
 		if (!v->IsPrimaryVehicle()) return CMD_ERROR;
 	}
+	if (!v->IsChainInDepot()) return CMD_ERROR;
 
 	const Company *c = Company::Get(_current_company);
 	bool wagon_removal = c->settings.renew_keep_length;
+
+	const Group *g = Group::GetIfValid(v->group_id);
+	if (g != nullptr) wagon_removal = HasBit(g->flags, GroupFlags::GF_REPLACE_WAGON_REMOVAL);
 
 	/* Test whether any replacement is set, before issuing a whole lot of commands that would end in nothing changed */
 	Vehicle *w = v;
@@ -707,14 +762,14 @@ CommandCost CmdAutoreplaceVehicle(TileIndex tile, DoCommandFlag flags, uint32 p1
 		w = (!free_wagon && w->type == VEH_TRAIN ? Train::From(w)->GetNextUnit() : nullptr);
 	}
 
-	CommandCost cost = CommandCost(EXPENSES_NEW_VEHICLES, 0);
+	CommandCost cost = CommandCost(EXPENSES_NEW_VEHICLES, (Money)0);
 	bool nothing_to_do = true;
 
 	if (any_replacements) {
 		bool was_stopped = free_wagon || ((v->vehstatus & VS_STOPPED) != 0);
 
 		/* Stop the vehicle */
-		if (!was_stopped) cost.AddCost(CmdStartStopVehicle(v, true));
+		if (!was_stopped) cost.AddCost(DoCmdStartStopVehicle(v, true));
 		if (cost.Failed()) return cost;
 
 		assert(free_wagon || v->IsStoppedInDepot());
@@ -732,7 +787,6 @@ CommandCost CmdAutoreplaceVehicle(TileIndex tile, DoCommandFlag flags, uint32 p1
 		RestoreRandomSeeds(saved_seeds);
 
 		if (cost.Succeeded() && (flags & DC_EXEC) != 0) {
-			CommandCost ret;
 			if (free_wagon) {
 				ret = ReplaceFreeUnit(&v, flags, &nothing_to_do);
 			} else {
@@ -742,7 +796,7 @@ CommandCost CmdAutoreplaceVehicle(TileIndex tile, DoCommandFlag flags, uint32 p1
 		}
 
 		/* Restart the vehicle */
-		if (!was_stopped) cost.AddCost(CmdStartStopVehicle(v, false));
+		if (!was_stopped) cost.AddCost(DoCmdStartStopVehicle(v, false));
 	}
 
 	if (cost.Succeeded() && nothing_to_do) cost = CommandCost(STR_ERROR_AUTOREPLACE_NOTHING_TO_DO);
@@ -751,35 +805,29 @@ CommandCost CmdAutoreplaceVehicle(TileIndex tile, DoCommandFlag flags, uint32 p1
 
 /**
  * Change engine renewal parameters
- * @param tile unused
  * @param flags operation to perform
- * @param p1 packed data
- *   - bit      0 = replace when engine gets old?
- *   - bits 16-31 = engine group
- * @param p2 packed data
- *   - bits  0-15 = old engine type
- *   - bits 16-31 = new engine type
- * @param text unused
+ * @param id_g engine group
+ * @param old_engine_type old engine type
+ * @param new_engine_type new engine type
+ * @param when_old replace when engine gets old?
  * @return the cost of this operation or an error
  */
-CommandCost CmdSetAutoReplace(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 p2, const char *text)
+CommandCost CmdSetAutoReplace(DoCommandFlag flags, GroupID id_g, EngineID old_engine_type, EngineID new_engine_type, bool when_old)
 {
 	Company *c = Company::GetIfValid(_current_company);
 	if (c == nullptr) return CMD_ERROR;
 
-	EngineID old_engine_type = GB(p2, 0, 16);
-	EngineID new_engine_type = GB(p2, 16, 16);
-	GroupID id_g = GB(p1, 16, 16);
 	CommandCost cost;
 
 	if (Group::IsValidID(id_g) ? Group::Get(id_g)->owner != _current_company : !IsAllGroupID(id_g) && !IsDefaultGroupID(id_g)) return CMD_ERROR;
 	if (!Engine::IsValidID(old_engine_type)) return CMD_ERROR;
+	if (Group::IsValidID(id_g) && Group::Get(id_g)->vehicle_type != Engine::Get(old_engine_type)->type) return CMD_ERROR;
 
 	if (new_engine_type != INVALID_ENGINE) {
 		if (!Engine::IsValidID(new_engine_type)) return CMD_ERROR;
 		if (!CheckAutoreplaceValidity(old_engine_type, new_engine_type, _current_company)) return CMD_ERROR;
 
-		cost = AddEngineReplacementForCompany(c, old_engine_type, new_engine_type, id_g, HasBit(p1, 0), flags);
+		cost = AddEngineReplacementForCompany(c, old_engine_type, new_engine_type, id_g, when_old, flags);
 	} else {
 		cost = RemoveEngineReplacementForCompany(c, old_engine_type, id_g, flags);
 	}

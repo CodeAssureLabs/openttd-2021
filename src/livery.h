@@ -17,7 +17,7 @@ static const byte LIT_COMPANY = 1; ///< Show the liveries of your own company
 static const byte LIT_ALL     = 2; ///< Show the liveries of all companies
 
 /** List of different livery schemes. */
-enum LiveryScheme {
+enum LiveryScheme : byte {
 	LS_BEGIN = 0,
 	LS_DEFAULT = 0,
 
@@ -57,11 +57,9 @@ enum LiveryScheme {
 };
 
 DECLARE_POSTFIX_INCREMENT(LiveryScheme)
-/** Helper information for extract tool. */
-template <> struct EnumPropsT<LiveryScheme> : MakeEnumPropsT<LiveryScheme, byte, LS_BEGIN, LS_END, LS_END, 8> {};
 
 /** List of different livery classes, used only by the livery GUI. */
-enum LiveryClass {
+enum LiveryClass : byte {
 	LC_OTHER,
 	LC_RAIL,
 	LC_ROAD,
@@ -73,6 +71,7 @@ enum LiveryClass {
 	LC_GROUP_AIRCRAFT,
 	LC_END
 };
+DECLARE_ENUM_AS_ADDABLE(LiveryClass)
 
 /** Information about a particular livery. */
 struct Livery {
