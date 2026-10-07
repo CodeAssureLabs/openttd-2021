@@ -26,6 +26,8 @@ enum NewGRFParametersWidgets {
 	WID_NP_RESET,            ///< Reset button.
 	WID_NP_SHOW_DESCRIPTION, ///< #NWID_SELECTION to optionally display parameter descriptions.
 	WID_NP_DESCRIPTION,      ///< Multi-line description of a parameter.
+
+	WID_NP_SETTING_DROPDOWN = -1, ///< Dynamically created dropdown for changing setting value.
 };
 
 /** Widgets of the #NewGRFWindow class. */
@@ -47,7 +49,7 @@ enum NewGRFStateWidgets {
 	WID_NS_NEWGRF_INFO,       ///< Panel for Info on selected NewGRF.
 	WID_NS_OPEN_URL,          ///< Open URL of NewGRF.
 	WID_NS_NEWGRF_TEXTFILE,   ///< Open NewGRF readme, changelog (+1) or license (+2).
-	WID_NS_SET_PARAMETERS = WID_NS_NEWGRF_TEXTFILE + TFT_END,   ///< Open Parameters Window for selected NewGRF for editing parameters.
+	WID_NS_SET_PARAMETERS = WID_NS_NEWGRF_TEXTFILE + TFT_CONTENT_END,   ///< Open Parameters Window for selected NewGRF for editing parameters.
 	WID_NS_VIEW_PARAMETERS,   ///< Open Parameters Window for selected NewGRF for viewing parameters.
 	WID_NS_TOGGLE_PALETTE,    ///< Toggle Palette of selected, active NewGRF.
 	WID_NS_APPLY_CHANGES,     ///< Apply changes to NewGRF config.

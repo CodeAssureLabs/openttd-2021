@@ -16,7 +16,7 @@
 /**
  * Global Railtype definition
  */
-static const RailtypeInfo _original_railtypes[] = {
+static const RailTypeInfo _original_railtypes[] = {
 	/** Railway */
 	{ // Main Sprites
 		{ SPR_RAIL_TRACK_Y, SPR_RAIL_TRACK_N_S, SPR_RAIL_TRACK_BASE, SPR_RAIL_SINGLE_X, SPR_RAIL_SINGLE_Y,
@@ -99,7 +99,7 @@ static const RailtypeInfo _original_railtypes[] = {
 		0x0A,
 
 		/* introduction date */
-		INVALID_DATE,
+		CalendarTime::INVALID_DATE,
 
 		/* railtypes required for this to be introduced */
 		RAILTYPES_NONE,
@@ -200,7 +200,7 @@ static const RailtypeInfo _original_railtypes[] = {
 		0x0A,
 
 		/* introduction date */
-		INVALID_DATE,
+		CalendarTime::INVALID_DATE,
 
 		/* railtypes required for this to be introduced */
 		RAILTYPES_NONE,
@@ -297,7 +297,7 @@ static const RailtypeInfo _original_railtypes[] = {
 		0x0A,
 
 		/* introduction date */
-		INVALID_DATE,
+		CalendarTime::INVALID_DATE,
 
 		/* railtypes required for this to be introduced */
 		RAILTYPES_NONE,
@@ -394,7 +394,7 @@ static const RailtypeInfo _original_railtypes[] = {
 		0x0A,
 
 		/* introduction date */
-		INVALID_DATE,
+		CalendarTime::INVALID_DATE,
 
 		/* railtypes required for this to be introduced */
 		RAILTYPES_NONE,

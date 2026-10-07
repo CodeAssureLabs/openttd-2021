@@ -19,42 +19,25 @@
 #include "game_info.hpp"
 
 #include "table/strings.h"
-
-#include <stdarg.h>
-#include <memory>
+#include "table/strgen_tables.h"
 
 #include "../safeguards.h"
 
-void CDECL strgen_warning(const char *s, ...)
+void CDECL StrgenWarningI(const std::string &msg)
 {
-	char buf[1024];
-	va_list va;
-	va_start(va, s);
-	vseprintf(buf, lastof(buf), s, va);
-	va_end(va);
-	DEBUG(script, 0, "%s:%d: warning: %s", _file, _cur_line, buf);
+	Debug(script, 0, "{}:{}: warning: {}", _file, _cur_line, msg);
 	_warnings++;
 }
 
-void CDECL strgen_error(const char *s, ...)
+void CDECL StrgenErrorI(const std::string &msg)
 {
-	char buf[1024];
-	va_list va;
-	va_start(va, s);
-	vseprintf(buf, lastof(buf), s, va);
-	va_end(va);
-	DEBUG(script, 0, "%s:%d: error: %s", _file, _cur_line, buf);
+	Debug(script, 0, "{}:{}: error: {}", _file, _cur_line, msg);
 	_errors++;
 }
 
-void NORETURN CDECL strgen_fatal(const char *s, ...)
+void CDECL StrgenFatalI(const std::string &msg)
 {
-	char buf[1024];
-	va_list va;
-	va_start(va, s);
-	vseprintf(buf, lastof(buf), s, va);
-	va_end(va);
-	DEBUG(script, 0, "%s:%d: FATAL: %s", _file, _cur_line, buf);
+	Debug(script, 0, "{}:{}: FATAL: {}", _file, _cur_line, msg);
 	throw std::exception();
 }
 
@@ -119,14 +102,10 @@ struct StringListReader : StringReader {
 	{
 	}
 
-	char *ReadLine(char *buffer, const char *last) override
+	std::optional<std::string> ReadLine() override
 	{
-		if (this->p == this->end) return nullptr;
-
-		strecpy(buffer, this->p->c_str(), last);
-		this->p++;
-
-		return buffer;
+		if (this->p == this->end) return std::nullopt;
+		return *this->p++;
 	}
 };
 
@@ -142,7 +121,7 @@ struct TranslationWriter : LanguageWriter {
 	{
 	}
 
-	void WriteHeader(const LanguagePackHeader *header)
+	void WriteHeader(const LanguagePackHeader *)
 	{
 		/* We don't use the header. */
 	}
@@ -152,7 +131,7 @@ struct TranslationWriter : LanguageWriter {
 		/* Nothing to do. */
 	}
 
-	void WriteLength(uint length)
+	void WriteLength(uint)
 	{
 		/* We don't write the length. */
 	}
@@ -175,12 +154,12 @@ struct StringNameWriter : HeaderWriter {
 	{
 	}
 
-	void WriteStringID(const char *name, int stringid)
+	void WriteStringID(const std::string &name, int stringid)
 	{
 		if (stringid == (int)this->strings.size()) this->strings.emplace_back(name);
 	}
 
-	void Finalise(const StringData &data)
+	void Finalise(const StringData &)
 	{
 		/* Nothing to do. */
 	}
@@ -206,7 +185,7 @@ public:
 		this->FileScanner::Scan(".txt", directory, false);
 	}
 
-	bool AddFile(const std::string &filename, size_t basepath_length, const std::string &tar_filename) override
+	bool AddFile(const std::string &filename, size_t, const std::string &) override
 	{
 		if (exclude == filename) return true;
 
@@ -225,13 +204,14 @@ public:
 GameStrings *LoadTranslations()
 {
 	const GameInfo *info = Game::GetInfo();
+	assert(info != nullptr);
 	std::string basename(info->GetMainScript());
 	auto e = basename.rfind(PATHSEPCHAR);
 	if (e == std::string::npos) return nullptr;
 	basename.erase(e + 1);
 
 	std::string filename = basename + "lang" PATHSEP "english.txt";
-	if (!FioCheckFileExists(filename.c_str() , GAME_DIR)) return nullptr;
+	if (!FioCheckFileExists(filename, GAME_DIR)) return nullptr;
 
 	auto ls = ReadRawLanguageStrings(filename);
 	if (!ls.IsValid()) return nullptr;
@@ -249,16 +229,15 @@ GameStrings *LoadTranslations()
 		if (!tar_filename.empty() && (iter = _tar_list[GAME_DIR].find(tar_filename)) != _tar_list[GAME_DIR].end()) {
 			/* The main script is in a tar file, so find all files that
 			 * are in the same tar and add them to the langfile scanner. */
-			TarFileList::iterator tar;
-			FOR_ALL_TARS(tar, GAME_DIR) {
+			for (const auto &tar : _tar_filelist[GAME_DIR]) {
 				/* Not in the same tar. */
-				if (tar->second.tar_filename != iter->first) continue;
+				if (tar.second.tar_filename != iter->first) continue;
 
 				/* Check the path and extension. */
-				if (tar->first.size() <= ldir.size() || tar->first.compare(0, ldir.size(), ldir) != 0) continue;
-				if (tar->first.compare(tar->first.size() - 4, 4, ".txt") != 0) continue;
+				if (tar.first.size() <= ldir.size() || tar.first.compare(0, ldir.size(), ldir) != 0) continue;
+				if (tar.first.compare(tar.first.size() - 4, 4, ".txt") != 0) continue;
 
-				scanner.AddFile(tar->first, 0, tar_filename);
+				scanner.AddFile(tar.first, 0, tar_filename);
 			}
 		} else {
 			/* Scan filesystem */
@@ -273,6 +252,30 @@ GameStrings *LoadTranslations()
 	}
 }
 
+static StringParam::ParamType GetParamType(const CmdStruct *cs)
+{
+	if (cs->value == SCC_RAW_STRING_POINTER) return StringParam::RAW_STRING;
+	if (cs->value == SCC_STRING || cs != TranslateCmdForCompare(cs)) return StringParam::STRING;
+	return StringParam::OTHER;
+}
+
+static void ExtractStringParams(const StringData &data, StringParamsList &params)
+{
+	for (size_t i = 0; i < data.max_strings; i++) {
+		const LangString *ls = data.strings[i].get();
+
+		if (ls != nullptr) {
+			StringParams &param = params.emplace_back();
+			ParsedCommandStruct pcs = ExtractCommandString(ls->english.c_str(), false);
+
+			for (const CmdStruct *cs : pcs.consuming_commands) {
+				if (cs == nullptr) break;
+				param.emplace_back(GetParamType(cs), cs->consumes);
+			}
+		}
+	}
+}
+
 /** Compile the language. */
 void GameStrings::Compile()
 {
@@ -282,6 +285,8 @@ void GameStrings::Compile()
 	if (_errors != 0) throw std::exception();
 
 	this->version = data.Version();
+
+	ExtractStringParams(data, this->string_params);
 
 	StringNameWriter id_writer(this->string_names);
 	id_writer.WriteHeader(data);
@@ -313,6 +318,34 @@ const char *GetGameStringPtr(uint id)
 }
 
 /**
+ * Get the string parameters of a particular game string.
+ * @param id The ID of the game string.
+ * @return The string parameters.
+ */
+const StringParams &GetGameStringParams(uint id)
+{
+	/* An empty result for STR_UNDEFINED. */
+	static StringParams empty;
+
+	if (id >= _current_data->string_params.size()) return empty;
+	return _current_data->string_params[id];
+}
+
+/**
+ * Get the name of a particular game string.
+ * @param id The ID of the game string.
+ * @return The name of the string.
+ */
+const std::string &GetGameStringName(uint id)
+{
+	/* The name for STR_UNDEFINED. */
+	static const std::string undefined = "STR_UNDEFINED";
+
+	if (id >= _current_data->string_names.size()) return undefined;
+	return _current_data->string_names[id];
+}
+
+/**
  * Register the current translation to the Squirrel engine.
  * @param engine The engine to update/
  */
@@ -329,7 +362,7 @@ void RegisterGameTranslation(Squirrel *engine)
 
 	int idx = 0;
 	for (const auto &p : _current_data->string_names) {
-		sq_pushstring(vm, p.c_str(), -1);
+		sq_pushstring(vm, p, -1);
 		sq_pushinteger(vm, idx);
 		sq_rawset(vm, -3);
 		idx++;
@@ -347,19 +380,7 @@ void ReconsiderGameScriptLanguage()
 {
 	if (_current_data == nullptr) return;
 
-	char temp[MAX_PATH];
-	strecpy(temp, _current_language->file, lastof(temp));
-
-	/* Remove the extension */
-	char *l = strrchr(temp, '.');
-	assert(l != nullptr);
-	*l = '\0';
-
-	/* Skip the path */
-	char *language = strrchr(temp, PATHSEPCHAR);
-	assert(language != nullptr);
-	language++;
-
+	std::string language = _current_language->file.stem().string();
 	for (auto &p : _current_data->compiled_strings) {
 		if (p.language == language) {
 			_current_data->cur_language = &p;
