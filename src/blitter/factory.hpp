@@ -13,8 +13,6 @@
 #include "base.hpp"
 #include "../debug.h"
 #include "../string_func.h"
-#include "../core/string_compare_type.hpp"
-#include <map>
 
 
 /**
@@ -61,16 +59,26 @@ protected:
 			name(name), description(description)
 	{
 		if (usable) {
+			Blitters &blitters = GetBlitters();
+			assert(blitters.find(this->name) == blitters.end());
 			/*
 			 * Only add when the blitter is usable. Do not bail out or
 			 * do more special things since the blitters are always
 			 * instantiated upon start anyhow and freed upon shutdown.
 			 */
-			std::pair<Blitters::iterator, bool> P = GetBlitters().insert(Blitters::value_type(this->name, this));
-			assert(P.second);
+			blitters.insert(Blitters::value_type(this->name, this));
 		} else {
-			DEBUG(driver, 1, "Not registering blitter %s as it is not usable", name);
+			Debug(driver, 1, "Not registering blitter {} as it is not usable", name);
 		}
+	}
+
+	/**
+	 * Is the blitter usable with the current drivers and hardware config?
+	 * @return True if the blitter can be instantiated.
+	 */
+	virtual bool IsUsable() const
+	{
+		return true;
 	}
 
 public:
@@ -81,7 +89,7 @@ public:
 	}
 
 	/**
-	 * Find the requested blitter and return his class.
+	 * Find the requested blitter and return its class.
 	 * @param name the blitter to select.
 	 * @post Sets the blitter so GetCurrentBlitter() returns it too.
 	 */
@@ -94,7 +102,7 @@ public:
 		delete *GetActiveBlitter();
 		*GetActiveBlitter() = newb;
 
-		DEBUG(driver, 1, "Successfully %s blitter '%s'", name.empty() ? "probed" : "loaded", newb->GetName());
+		Debug(driver, 1, "Successfully {} blitter '{}'", name.empty() ? "probed" : "loaded", newb->GetName());
 		return newb;
 	}
 
@@ -112,14 +120,13 @@ public:
 #else
 		const char *default_blitter = "8bpp-optimized";
 #endif
-		if (GetBlitters().size() == 0) return nullptr;
+		if (GetBlitters().empty()) return nullptr;
 		const char *bname = name.empty() ? default_blitter : name.c_str();
 
-		Blitters::iterator it = GetBlitters().begin();
-		for (; it != GetBlitters().end(); it++) {
-			BlitterFactory *b = (*it).second;
-			if (strcasecmp(bname, b->name.c_str()) == 0) {
-				return b;
+		for (auto &it : GetBlitters()) {
+			BlitterFactory *b = it.second;
+			if (StrEqualsIgnoreCase(bname, b->name)) {
+				return b->IsUsable() ? b : nullptr;
 			}
 		}
 		return nullptr;
@@ -139,17 +146,14 @@ public:
 	 * @param last The last element of the buffer.
 	 * @return p The location till where we filled the buffer.
 	 */
-	static char *GetBlittersInfo(char *p, const char *last)
+	static void GetBlittersInfo(std::back_insert_iterator<std::string> &output_iterator)
 	{
-		p += seprintf(p, last, "List of blitters:\n");
-		Blitters::iterator it = GetBlitters().begin();
-		for (; it != GetBlitters().end(); it++) {
-			BlitterFactory *b = (*it).second;
-			p += seprintf(p, last, "%18s: %s\n", b->name.c_str(), b->GetDescription().c_str());
+		fmt::format_to(output_iterator, "List of blitters:\n");
+		for (auto &it : GetBlitters()) {
+			BlitterFactory *b = it.second;
+			fmt::format_to(output_iterator, "{:>18}: {}\n", b->name, b->GetDescription());
 		}
-		p += seprintf(p, last, "\n");
-
-		return p;
+		fmt::format_to(output_iterator, "\n");
 	}
 
 	/**

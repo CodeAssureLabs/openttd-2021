@@ -3,6 +3,7 @@
  */
 
 #include "../../../stdafx.h"
+#include "../../fmt/format.h"
 
 #include "sqpcheader.h"
 #include "sqcompiler.h"
@@ -79,17 +80,18 @@ SQInstructionDesc g_InstrDesc[]={
 	{"_OP_NEWSLOTA"},
 	{"_OP_SCOPE_END"}
 };
-#endif
+
 void DumpLiteral(SQObjectPtr &o)
 {
 	switch(type(o)){
-		case OT_STRING:	printf("\"%s\"",_stringval(o));break;
-		case OT_FLOAT: printf("{%f}",_float(o));break;
-		case OT_INTEGER: printf("{" OTTD_PRINTF64 "}",_integer(o));break;
-		case OT_BOOL: printf("%s",_integer(o)?"true":"false");break;
-		default: printf("(%s %p)",GetTypeName(o),(void*)_rawval(o));break; break; //shut up compiler
+		case OT_STRING:	fmt::print("\"{}\"",_stringval(o));break;
+		case OT_FLOAT: fmt::print("{{{}}}",_float(o));break;
+		case OT_INTEGER: fmt::print("{{{}}}",_integer(o));break;
+		case OT_BOOL: fmt::print(_integer(o)?"true":"false");break;
+		default: fmt::print("({} {})",GetTypeName(o),(size_t)(void*)_rawval(o));break; break; //shut up compiler
 	}
 }
+#endif
 
 SQFuncState::SQFuncState(SQSharedState *ss,SQFuncState *parent,CompilerErrorFunc efunc,void *ed)
 {
@@ -562,7 +564,7 @@ void SQFuncState::PopChildState()
 
 SQFuncState::~SQFuncState()
 {
-	while(_childstates.size() > 0)
+	while(!_childstates.empty())
 	{
 		PopChildState();
 	}

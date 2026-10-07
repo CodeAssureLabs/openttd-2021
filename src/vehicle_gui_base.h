@@ -10,40 +10,59 @@
 #ifndef VEHICLE_GUI_BASE_H
 #define VEHICLE_GUI_BASE_H
 
-#include "core/smallvec_type.hpp"
-#include "date_type.h"
+#include "cargo_type.h"
+#include "timer/timer_game_calendar.h"
 #include "economy_type.h"
 #include "sortlist_type.h"
+#include "vehicle_base.h"
 #include "vehiclelist.h"
 #include "window_gui.h"
 #include "widgets/dropdown_type.h"
 
-#include <iterator>
-
-typedef GUIList<const Vehicle*> GUIVehicleList;
+typedef GUIList<const Vehicle*, CargoID> GUIVehicleList;
 
 struct GUIVehicleGroup {
 	VehicleList::const_iterator vehicles_begin;    ///< Pointer to beginning element of this vehicle group.
 	VehicleList::const_iterator vehicles_end;      ///< Pointer to past-the-end element of this vehicle group.
-	Money display_profit_this_year;                ///< Total profit for the vehicle group this year.
-	Money display_profit_last_year;                ///< Total profit for the vehicle group laste year.
-	Date age;                                      ///< Age in days of oldest vehicle in the group.
 
-	GUIVehicleGroup(VehicleList::const_iterator vehicles_begin, VehicleList::const_iterator vehicles_end, Money display_profit_this_year, Money display_profit_last_year, Date age)
-		: vehicles_begin(vehicles_begin), vehicles_end(vehicles_end), display_profit_this_year(display_profit_this_year), display_profit_last_year(display_profit_last_year), age(age) {}
+	GUIVehicleGroup(VehicleList::const_iterator vehicles_begin, VehicleList::const_iterator vehicles_end)
+		: vehicles_begin(vehicles_begin), vehicles_end(vehicles_end) {}
 
 	std::ptrdiff_t NumVehicles() const
 	{
-		return std::distance(vehicles_begin, vehicles_end);
+		return std::distance(this->vehicles_begin, this->vehicles_end);
 	}
+
 	const Vehicle *GetSingleVehicle() const
 	{
-		assert(NumVehicles() == 1);
-		return vehicles_begin[0];
+		assert(this->NumVehicles() == 1);
+		return this->vehicles_begin[0];
+	}
+
+	Money GetDisplayProfitThisYear() const
+	{
+		return std::accumulate(this->vehicles_begin, this->vehicles_end, (Money)0, [](Money acc, const Vehicle *v) {
+			return acc + v->GetDisplayProfitThisYear();
+		});
+	}
+
+	Money GetDisplayProfitLastYear() const
+	{
+		return std::accumulate(this->vehicles_begin, this->vehicles_end, (Money)0, [](Money acc, const Vehicle *v) {
+			return acc + v->GetDisplayProfitLastYear();
+		});
+	}
+
+	TimerGameCalendar::Date GetOldestVehicleAge() const
+	{
+		const Vehicle *oldest = *std::max_element(this->vehicles_begin, this->vehicles_end, [](const Vehicle *v_a, const Vehicle *v_b) {
+			return v_a->age < v_b->age;
+		});
+		return oldest->age;
 	}
 };
 
-typedef GUIList<GUIVehicleGroup> GUIVehicleGroupList;
+typedef GUIList<GUIVehicleGroup, CargoID> GUIVehicleGroupList;
 
 struct BaseVehicleListWindow : public Window {
 
@@ -54,13 +73,23 @@ struct BaseVehicleListWindow : public Window {
 		GB_END,
 	};
 
-	GroupBy grouping;                         ///< How we want to group the list.
-	VehicleList vehicles;                     ///< List of vehicles.  This is the buffer for `vehgroups` to point into; if this is structurally modified, `vehgroups` must be rebuilt.
-	GUIVehicleGroupList vehgroups;            ///< List of (groups of) vehicles.  This stores iterators of `vehicles`, and should be rebuilt if `vehicles` is structurally changed.
-	Listing *sorting;                         ///< Pointer to the vehicle type related sorting.
-	byte unitnumber_digits;                   ///< The number of digits of the highest unit number.
+	/** Special cargo filter criteria */
+	enum CargoFilterSpecialType {
+		CF_NONE = CT_INVALID,       ///< Show only vehicles which do not carry cargo (e.g. train engines)
+		CF_ANY = CT_NO_REFIT,       ///< Show all vehicles independent of carried cargo (i.e. no filtering)
+		CF_FREIGHT = CT_AUTO_REFIT, ///< Show only vehicles which carry any freight (non-passenger) cargo
+	};
+
+	GroupBy grouping;                           ///< How we want to group the list.
+	VehicleList vehicles;                       ///< List of vehicles.  This is the buffer for `vehgroups` to point into; if this is structurally modified, `vehgroups` must be rebuilt.
+	GUIVehicleGroupList vehgroups;              ///< List of (groups of) vehicles.  This stores iterators of `vehicles`, and should be rebuilt if `vehicles` is structurally changed.
+	Listing *sorting;                           ///< Pointer to the vehicle type related sorting.
+	byte unitnumber_digits;                     ///< The number of digits of the highest unit number.
 	Scrollbar *vscroll;
-	VehicleListIdentifier vli;                ///< Identifier of the vehicle list we want to currently show.
+	VehicleListIdentifier vli;                  ///< Identifier of the vehicle list we want to currently show.
+	VehicleID vehicle_sel;                      ///< Selected vehicle
+	byte cargo_filter_criteria;                 ///< Selected cargo filter index
+	uint order_arrow_width;                     ///< Width of the arrow in the small order list.
 
 	typedef GUIVehicleGroupList::SortFunction VehicleGroupSortFunction;
 	typedef GUIVehicleList::SortFunction VehicleIndividualSortFunction;
@@ -71,6 +100,7 @@ struct BaseVehicleListWindow : public Window {
 		ADI_DEPOT,
 		ADI_ADD_SHARED,
 		ADI_REMOVE_ALL,
+		ADI_CREATE_GROUP,
 	};
 
 	static const StringID vehicle_depot_name[];
@@ -82,14 +112,21 @@ struct BaseVehicleListWindow : public Window {
 
 	BaseVehicleListWindow(WindowDesc *desc, WindowNumber wno);
 
+	void OnInit() override;
+
 	void UpdateSortingFromGrouping();
 
 	void DrawVehicleListItems(VehicleID selected_vehicle, int line_height, const Rect &r) const;
 	void UpdateVehicleGroupBy(GroupBy group_by);
 	void SortVehicleList();
 	void BuildVehicleList();
-	Dimension GetActionDropdownSize(bool show_autoreplace, bool show_group);
-	DropDownList BuildActionDropdownList(bool show_autoreplace, bool show_group);
+	void SetCargoFilterIndex(byte index);
+	void SetCargoFilterArray();
+	void FilterVehicleList();
+	StringID GetCargoFilterLabel(CargoID cid) const;
+	DropDownList BuildCargoDropDownList() const;
+	Dimension GetActionDropdownSize(bool show_autoreplace, bool show_group, bool show_create);
+	DropDownList BuildActionDropdownList(bool show_autoreplace, bool show_group, bool show_create);
 
 	const StringID *GetVehicleSorterNames()
 	{

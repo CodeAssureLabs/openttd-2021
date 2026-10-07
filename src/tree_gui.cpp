@@ -19,6 +19,7 @@
 #include "strings_func.h"
 #include "zoom_func.h"
 #include "tree_map.h"
+#include "tree_cmd.h"
 
 #include "widgets/tree_widget.h"
 
@@ -29,7 +30,7 @@
 #include "safeguards.h"
 
 void PlaceTreesRandomly();
-uint PlaceTreeGroupAroundTile(TileIndex tile, TreeType treetype, uint radius, uint count);
+uint PlaceTreeGroupAroundTile(TileIndex tile, TreeType treetype, uint radius, uint count, bool set_zone);
 
 /** Tree Sprites with their palettes */
 const PalSpriteID tree_sprites[] = {
@@ -51,22 +52,22 @@ const PalSpriteID tree_sprites[] = {
  */
 static Dimension GetMaxTreeSpriteSize()
 {
-	const uint16 base = _tree_base_by_landscape[_settings_game.game_creation.landscape];
-	const uint16 count = _tree_count_by_landscape[_settings_game.game_creation.landscape];
+	const uint16_t base = _tree_base_by_landscape[_settings_game.game_creation.landscape];
+	const uint16_t count = _tree_count_by_landscape[_settings_game.game_creation.landscape];
 
 	Dimension size, this_size;
 	Point offset;
 	/* Avoid to use it uninitialized */
-	size.width = 32; // default width - WD_FRAMERECT_LEFT
-	size.height = 39; // default height - BUTTON_BOTTOM_OFFSET
+	size.width = ScaleGUITrad(32); // default width - WD_FRAMERECT_LEFT
+	size.height = ScaleGUITrad(39); // default height - BUTTON_BOTTOM_OFFSET
 	offset.x = 0;
 	offset.y = 0;
 
 	for (int i = base; i < base + count; i++) {
 		if (i >= (int)lengthof(tree_sprites)) return size;
 		this_size = GetSpriteSize(tree_sprites[i].sprite, &offset);
-		size.width = max<int>(size.width, 2 * max<int>(this_size.width, -offset.x));
-		size.height = max<int>(size.height, max<int>(this_size.height, -offset.y));
+		size.width = std::max<int>(size.width, 2 * std::max<int>(this_size.width, -offset.x));
+		size.height = std::max<int>(size.height, std::max<int>(this_size.height, -offset.y));
 	}
 
 	return size;
@@ -102,7 +103,7 @@ class BuildTreesWindow : public Window
 		if (this->tree_to_plant >= 0) {
 			/* Activate placement */
 			if (_settings_client.sound.confirm) SndPlayFx(SND_15_BEEP);
-			SetObjectToPlace(SPR_CURSOR_TREE, PAL_NONE, HT_RECT, this->window_class, this->window_number);
+			SetObjectToPlace(SPR_CURSOR_TREE, PAL_NONE, HT_RECT | HT_DIAGONAL, this->window_class, this->window_number);
 			this->tree_to_plant = current_tree; // SetObjectToPlace may call ResetObjectToPlace which may reset tree_to_plant to -1
 		} else {
 			/* Deactivate placement */
@@ -133,7 +134,8 @@ class BuildTreesWindow : public Window
 		}
 		const uint radius = this->mode == PM_FOREST_LG ? 12 : 5;
 		const uint count = this->mode == PM_FOREST_LG ? 12 : 5;
-		PlaceTreeGroupAroundTile(tile, treetype, radius, count);
+		// Create tropic zones only when the tree type is selected by the user and not picked randomly.
+		PlaceTreeGroupAroundTile(tile, treetype, radius, count, this->tree_to_plant != TREE_INVALID);
 	}
 
 public:
@@ -152,13 +154,13 @@ public:
 		}
 	}
 
-	void UpdateWidgetSize(int widget, Dimension *size, const Dimension &padding, Dimension *fill, Dimension *resize) override
+	void UpdateWidgetSize(int widget, Dimension *size, [[maybe_unused]] const Dimension &padding, [[maybe_unused]] Dimension *fill, [[maybe_unused]] Dimension *resize) override
 	{
 		if (widget >= WID_BT_TYPE_BUTTON_FIRST) {
 			/* Ensure tree type buttons are sized after the largest tree type */
 			Dimension d = GetMaxTreeSpriteSize();
-			size->width = d.width + WD_FRAMERECT_LEFT + WD_FRAMERECT_RIGHT;
-			size->height = d.height + WD_FRAMERECT_RIGHT + WD_FRAMERECT_BOTTOM + ScaleGUITrad(BUTTON_BOTTOM_OFFSET); // we need some more space
+			size->width = d.width + padding.width;
+			size->height = d.height + padding.height + ScaleGUITrad(BUTTON_BOTTOM_OFFSET); // we need some more space
 		}
 	}
 
@@ -167,11 +169,11 @@ public:
 		if (widget >= WID_BT_TYPE_BUTTON_FIRST) {
 			const int index = widget - WID_BT_TYPE_BUTTON_FIRST;
 			/* Trees "grow" in the centre on the bottom line of the buttons */
-			DrawSprite(tree_sprites[index].sprite, tree_sprites[index].pal, (r.left + r.right) / 2 + WD_FRAMERECT_LEFT, r.bottom - ScaleGUITrad(BUTTON_BOTTOM_OFFSET));
+			DrawSprite(tree_sprites[index].sprite, tree_sprites[index].pal, CenterBounds(r.left, r.right, 0), r.bottom - ScaleGUITrad(BUTTON_BOTTOM_OFFSET));
 		}
 	}
 
-	void OnClick(Point pt, int widget, int click_count) override
+	void OnClick([[maybe_unused]] Point pt, int widget, [[maybe_unused]] int click_count) override
 	{
 		switch (widget) {
 			case WID_BT_TYPE_RANDOM: // tree of random type.
@@ -212,7 +214,7 @@ public:
 		}
 	}
 
-	void OnPlaceObject(Point pt, TileIndex tile) override
+	void OnPlaceObject([[maybe_unused]] Point pt, TileIndex tile) override
 	{
 		if (_game_mode != GM_EDITOR && this->mode == PM_NORMAL) {
 			VpStartPlaceSizing(tile, VPM_X_AND_Y, DDSP_PLANT_TREES);
@@ -221,7 +223,7 @@ public:
 		}
 	}
 
-	void OnPlaceDrag(ViewportPlaceMethod select_method, ViewportDragDropSelectionProcess select_proc, Point pt) override
+	void OnPlaceDrag(ViewportPlaceMethod select_method, [[maybe_unused]] ViewportDragDropSelectionProcess select_proc, [[maybe_unused]] Point pt) override
 	{
 		if (_game_mode != GM_EDITOR && this->mode == PM_NORMAL) {
 			VpSelectTilesWithMethod(pt.x, pt.y, select_method);
@@ -229,17 +231,17 @@ public:
 			TileIndex tile = TileVirtXY(pt.x, pt.y);
 
 			if (this->mode == PM_NORMAL) {
-				DoCommandP(tile, this->tree_to_plant, tile, CMD_PLANT_TREE);
+				Command<CMD_PLANT_TREE>::Post(tile, tile, this->tree_to_plant, false);
 			} else {
 				this->DoPlantForest(tile);
 			}
 		}
 	}
 
-	void OnPlaceMouseUp(ViewportPlaceMethod select_method, ViewportDragDropSelectionProcess select_proc, Point pt, TileIndex start_tile, TileIndex end_tile) override
+	void OnPlaceMouseUp([[maybe_unused]] ViewportPlaceMethod select_method, ViewportDragDropSelectionProcess select_proc, [[maybe_unused]] Point pt, TileIndex start_tile, TileIndex end_tile) override
 	{
 		if (_game_mode != GM_EDITOR && this->mode == PM_NORMAL && pt.x != -1 && select_proc == DDSP_PLANT_TREES) {
-			DoCommandP(end_tile, this->tree_to_plant, start_tile, CMD_PLANT_TREE | CMD_MSG(STR_ERROR_CAN_T_PLANT_TREE_HERE));
+			Command<CMD_PLANT_TREE>::Post(STR_ERROR_CAN_T_PLANT_TREE_HERE, end_tile, start_tile, this->tree_to_plant, _ctrl_pressed);
 		}
 	}
 
@@ -314,11 +316,11 @@ static const NWidgetPart _nested_build_trees_widgets[] = {
 	EndContainer(),
 };
 
-static WindowDesc _build_trees_desc(
+static WindowDesc _build_trees_desc(__FILE__, __LINE__,
 	WDP_AUTO, "build_tree", 0, 0,
 	WC_BUILD_TREES, WC_NONE,
 	WDF_CONSTRUCTION,
-	_nested_build_trees_widgets, lengthof(_nested_build_trees_widgets)
+	std::begin(_nested_build_trees_widgets), std::end(_nested_build_trees_widgets)
 );
 
 void ShowBuildTreesToolbar()

@@ -14,25 +14,24 @@
 #include "gfx_type.h"
 #include "core/bitmath_func.hpp"
 #include "strings_type.h"
-#include "date_type.h"
+#include "timer/timer_game_calendar.h"
 #include "core/enum_type.hpp"
 #include "newgrf.h"
 #include "economy_func.h"
 
-#include <vector>
 
 enum RoadTramType : bool {
 	RTT_ROAD,
 	RTT_TRAM,
 };
 
-enum RoadTramTypes : uint8 {
+enum RoadTramTypes : uint8_t {
 	RTTB_ROAD = 1 << RTT_ROAD,
 	RTTB_TRAM = 1 << RTT_TRAM,
 };
 DECLARE_ENUM_AS_BIT_SET(RoadTramTypes)
 
-#define FOR_ALL_ROADTRAMTYPES(x) for (RoadTramType x : { RTT_ROAD, RTT_TRAM })
+static const RoadTramType _roadtramtypes[] = { RTT_ROAD, RTT_TRAM };
 
 /** Roadtype flags. Starts with RO instead of R because R is used for rails */
 enum RoadTypeFlags {
@@ -58,14 +57,15 @@ enum RoadTypeSpriteGroup {
 	ROTSG_CURSORS,        ///< Optional: Cursor and toolbar icon images
 	ROTSG_OVERLAY,        ///< Optional: Images for overlaying track
 	ROTSG_GROUND,         ///< Required: Main group of ground images
-	ROTSG_reserved1,      ///<           Placeholder, if we need specific tunnel sprites.
+	ROTSG_TUNNEL,         ///< Optional: Ground images for tunnels
 	ROTSG_CATENARY_FRONT, ///< Optional: Catenary front
 	ROTSG_CATENARY_BACK,  ///< Optional: Catenary back
 	ROTSG_BRIDGE,         ///< Required: Bridge surface images
 	ROTSG_reserved2,      ///<           Placeholder, if we need specific level crossing sprites.
 	ROTSG_DEPOT,          ///< Optional: Depot images
 	ROTSG_reserved3,      ///<           Placeholder, if we add road fences (for highways).
-	ROTSG_ROADSTOP,       ///< Required: Drive-in stop surface
+	ROTSG_ROADSTOP,       ///< Required: Bay stop surface
+	ROTSG_ONEWAY,         ///< Optional: One-way indicator images
 	ROTSG_END,
 };
 
@@ -126,17 +126,17 @@ public:
 	/**
 	 * Cost multiplier for building this road type
 	 */
-	uint16 cost_multiplier;
+	uint16_t cost_multiplier;
 
 	/**
 	 * Cost multiplier for maintenance of this road type
 	 */
-	uint16 maintenance_multiplier;
+	uint16_t maintenance_multiplier;
 
 	/**
 	 * Maximum speed for vehicles travelling on this road type
 	 */
-	uint16 max_speed;
+	uint16_t max_speed;
 
 	/**
 	 * Unique 32 bit road type identifier
@@ -160,7 +160,7 @@ public:
 	 * The introduction at this date is furthermore limited by the
 	 * #introduction_required_types.
 	 */
-	Date introduction_date;
+	TimerGameCalendar::Date introduction_date;
 
 	/**
 	 * Bitmask of roadtypes that are required for this roadtype to be introduced
@@ -304,11 +304,5 @@ bool HasAnyRoadTypesAvail(CompanyID company, RoadTramType rtt);
 
 extern std::vector<RoadType> _sorted_roadtypes;
 extern RoadTypes _roadtypes_hidden_mask;
-
-/**
- * Loop header for iterating over roadtypes, sorted by sortorder.
- * @param var Roadtype.
- */
-#define FOR_ALL_SORTED_ROADTYPES(var) for (uint8 index = 0; index < _sorted_roadtypes.size() && (var = _sorted_roadtypes[index], true) ; index++)
 
 #endif /* ROAD_H */
