@@ -2,7 +2,7 @@
  * This file is part of OpenTTD.
  * OpenTTD is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, version 2.
  * OpenTTD is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with OpenTTD. If not, see <http://www.gnu.org/licenses/>.
+ * See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with OpenTTD. If not, see <https://www.gnu.org/licenses/old-licenses/gpl-2.0>.
  */
 
 /** @file cargotype.h Types/functions related to cargoes. */
@@ -13,59 +13,83 @@
 #include "economy_type.h"
 #include "cargo_type.h"
 #include "gfx_type.h"
+#include "newgrf_callbacks.h"
 #include "strings_type.h"
 #include "landscape_type.h"
-#include <vector>
-
-/** Globally unique label of a cargo type. */
-typedef uint32 CargoLabel;
+#include "core/bitmath_func.hpp"
 
 /** Town growth effect when delivering cargo. */
-enum TownEffect {
-	TE_BEGIN = 0,
-	TE_NONE = TE_BEGIN, ///< Cargo has no effect.
-	TE_PASSENGERS,      ///< Cargo behaves passenger-like.
-	TE_MAIL,            ///< Cargo behaves mail-like.
-	TE_GOODS,           ///< Cargo behaves goods/candy-like.
-	TE_WATER,           ///< Cargo behaves water-like.
-	TE_FOOD,            ///< Cargo behaves food/fizzy-drinks-like.
-	TE_END,             ///< End of town effects.
-	NUM_TE = TE_END,    ///< Amount of town effects.
+enum class TownAcceptanceEffect : uint8_t {
+	Begin = 0, ///< Used for iteration.
+	None = TownAcceptanceEffect::Begin, ///< Cargo has no effect.
+	Passengers, ///< Cargo behaves passenger-like.
+	Mail, ///< Cargo behaves mail-like.
+	Goods, ///< Cargo behaves goods/candy-like.
+	Water, ///< Cargo behaves water-like.
+	Food, ///< Cargo behaves food/fizzy-drinks-like.
+	End, ///< End of town effects.
+};
+
+DECLARE_INCREMENT_DECREMENT_OPERATORS(TownAcceptanceEffect)
+
+/** Town effect when producing cargo. */
+enum class TownProductionEffect : uint8_t {
+	None, ///< Town will not produce this cargo type.
+	Passengers, ///< Cargo behaves passenger-like for production.
+	Mail, ///< Cargo behaves mail-like for production.
+	End, ///< End marker.
+
+	/**
+	 * Invalid town production effect. Used as a sentinel to indicate if a NewGRF has explicitly set an effect.
+	 * This does not 'exist' after cargo types are finalised.
+	 */
+	Invalid,
 };
 
 /** Cargo classes. */
-enum CargoClass {
-	CC_NOAVAILABLE  = 0,       ///< No cargo class has been specified
-	CC_PASSENGERS   = 1 <<  0, ///< Passengers
-	CC_MAIL         = 1 <<  1, ///< Mail
-	CC_EXPRESS      = 1 <<  2, ///< Express cargo (Goods, Food, Candy, but also possible for passengers)
-	CC_ARMOURED     = 1 <<  3, ///< Armoured cargo (Valuables, Gold, Diamonds)
-	CC_BULK         = 1 <<  4, ///< Bulk cargo (Coal, Grain etc., Ores, Fruit)
-	CC_PIECE_GOODS  = 1 <<  5, ///< Piece goods (Livestock, Wood, Steel, Paper)
-	CC_LIQUID       = 1 <<  6, ///< Liquids (Oil, Water, Rubber)
-	CC_REFRIGERATED = 1 <<  7, ///< Refrigerated cargo (Food, Fruit)
-	CC_HAZARDOUS    = 1 <<  8, ///< Hazardous cargo (Nuclear Fuel, Explosives, etc.)
-	CC_COVERED      = 1 <<  9, ///< Covered/Sheltered Freight (Transportation in Box Vans, Silo Wagons, etc.)
-	CC_SPECIAL      = 1 << 15, ///< Special bit used for livery refit tricks instead of normal cargoes.
+enum class CargoClass : uint8_t {
+	Passengers   =  0, ///< Passengers
+	Mail         =  1, ///< Mail
+	Express      =  2, ///< Express cargo (Goods, Food, Candy, but also possible for passengers)
+	Armoured     =  3, ///< Armoured cargo (Valuables, Gold, Diamonds)
+	Bulk         =  4, ///< Bulk cargo (Coal, Grain etc., Ores, Fruit)
+	PieceGoods   =  5, ///< Piece goods (Livestock, Wood, Steel, Paper)
+	Liquid       =  6, ///< Liquids (Oil, Water, Rubber)
+	Refrigerated =  7, ///< Refrigerated cargo (Food, Fruit)
+	Hazardous    =  8, ///< Hazardous cargo (Nuclear Fuel, Explosives, etc.)
+	Covered      =  9, ///< Covered/Sheltered Freight (Transportation in Box Vans, Silo Wagons, etc.)
+	Oversized    = 10, ///< Oversized (stake/flatbed wagon)
+	Powderized   = 11, ///< Powderized, moist protected (powder/silo wagon)
+	NotPourable  = 12, ///< Not Pourable (open wagon, but not hopper wagon)
+	Potable      = 13, ///< Potable / food / clean.
+	NonPotable   = 14, ///< Non-potable / non-food / dirty.
+	Special      = 15, ///< Special bit used for livery refit tricks instead of normal cargoes.
 };
 
-static const byte INVALID_CARGO = 0xFF; ///< Constant representing invalid cargo
+/** Bitset of \c CargoClass elements. */
+using CargoClasses = EnumBitSet<CargoClass, uint16_t>;
+
+static const uint8_t INVALID_CARGO_BITNUM = 0xFF; ///< Constant representing invalid cargo
+
+static const uint TOWN_PRODUCTION_DIVISOR = 256;
 
 /** Specification of a cargo type. */
 struct CargoSpec {
-	uint8 bitnum;                    ///< Cargo bit number, is #INVALID_CARGO for a non-used spec.
 	CargoLabel label;                ///< Unique label of the cargo type.
-	uint8 legend_colour;
-	uint8 rating_colour;
-	uint8 weight;                    ///< Weight of a single unit of this cargo type in 1/16 ton (62.5 kg).
-	uint16 multiplier;               ///< Capacity multiplier for vehicles. (8 fractional bits)
-	uint16 initial_payment;
-	uint8 transit_days[2];
+	uint8_t bitnum = INVALID_CARGO_BITNUM; ///< Cargo bit number, is #INVALID_CARGO_BITNUM for a non-used spec.
+	PixelColour legend_colour;
+	PixelColour rating_colour;
+	uint8_t weight;                    ///< Weight of a single unit of this cargo type in 1/16 ton (62.5 kg).
+	uint16_t multiplier = 0x100; ///< Capacity multiplier for vehicles. (8 fractional bits)
+	CargoClasses classes; ///< Classes of this cargo type. @see CargoClass
+	int32_t initial_payment;           ///< Initial payment rate before inflation is applied.
+	uint8_t transit_periods[2];
 
 	bool is_freight;                 ///< Cargo type is considered to be freight (affects train freight multiplier).
-	TownEffect town_effect;          ///< The effect that delivering this cargo type has on towns. Also affects destination of subsidies.
-	uint16 multipliertowngrowth;     ///< Size of the effect.
-	uint8 callback_mask;             ///< Bitmask of cargo callbacks that have to be called
+	TownAcceptanceEffect town_acceptance_effect; ///< The effect that delivering this cargo type has on towns. Also affects destination of subsidies.
+	TownProductionEffect town_production_effect = TownProductionEffect::Invalid; ///< The effect on town cargo production.
+	uint16_t town_production_multiplier = TOWN_PRODUCTION_DIVISOR; ///< Town production multiplier, if commanded by TownProductionEffect.
+	CargoCallbackMasks callback_mask;             ///< Bitmask of cargo callbacks that have to be called
 
 	StringID name;                   ///< Name of this type of cargo.
 	StringID name_single;            ///< Name of a single entity of this type of cargo.
@@ -75,7 +99,6 @@ struct CargoSpec {
 
 	SpriteID sprite;                 ///< Icon to display this cargo type, may be \c 0xFFF (which means to resolve an action123 chain).
 
-	uint16 classes;                  ///< Classes of this cargo type. @see CargoClass
 	const struct GRFFile *grffile;   ///< NewGRF where #group belongs to.
 	const struct SpriteGroup *group;
 
@@ -85,9 +108,9 @@ struct CargoSpec {
 	 * Determines index of this cargospec
 	 * @return index (in the CargoSpec::array array)
 	 */
-	inline CargoID Index() const
+	inline CargoType Index() const
 	{
-		return this - CargoSpec::array;
+		return static_cast<CargoType>(this - CargoSpec::array);
 	}
 
 	/**
@@ -97,7 +120,7 @@ struct CargoSpec {
 	 */
 	inline bool IsValid() const
 	{
-		return this->bitnum != INVALID_CARGO;
+		return this->bitnum != INVALID_CARGO_BITNUM;
 	}
 
 	/**
@@ -110,9 +133,10 @@ struct CargoSpec {
 	}
 
 	/**
-	 * Retrieve cargo details for the given cargo ID
-	 * @param index ID of cargo
-	 * @pre index is a valid cargo ID
+	 * Retrieve cargo details for the given cargo type.
+	 * @param index ID of cargo.
+	 * @pre index is a valid cargo type.
+	 * @return The cargo specification.
 	 */
 	static inline CargoSpec *Get(size_t index)
 	{
@@ -122,52 +146,103 @@ struct CargoSpec {
 
 	SpriteID GetCargoIcon() const;
 
+	inline uint64_t WeightOfNUnits(uint32_t n) const
+	{
+		return n * this->weight / 16u;
+	}
+
+	uint64_t WeightOfNUnitsInTrain(uint32_t n) const;
+
+	/**
+	 * Iterator to iterate all valid CargoSpec
+	 */
+	struct Iterator {
+		typedef CargoSpec value_type;
+		typedef CargoSpec *pointer;
+		typedef CargoSpec &reference;
+		typedef size_t difference_type;
+		typedef std::forward_iterator_tag iterator_category;
+
+		explicit Iterator(size_t index) : index(index)
+		{
+			this->ValidateIndex();
+		};
+
+		bool operator==(const Iterator &other) const { return this->index == other.index; }
+		CargoSpec * operator*() const { return CargoSpec::Get(this->index); }
+		Iterator & operator++() { this->index++; this->ValidateIndex(); return *this; }
+
+	private:
+		size_t index;
+		void ValidateIndex() { while (this->index < CargoSpec::GetArraySize() && !(CargoSpec::Get(this->index)->IsValid())) this->index++; }
+	};
+
+	/** Iterable ensemble of all valid CargoSpec. */
+	struct IterateWrapper {
+		size_t from;
+		IterateWrapper(size_t from = 0) : from(from) {}
+		Iterator begin() { return Iterator(this->from); }
+		Iterator end() { return Iterator(CargoSpec::GetArraySize()); }
+		bool empty() { return this->begin() == this->end(); }
+	};
+
+	/**
+	 * Returns an iterable ensemble of all valid CargoSpec
+	 * @param from index of the first CargoSpec to consider
+	 * @return an iterable ensemble of all valid CargoSpec
+	 */
+	static IterateWrapper Iterate(size_t from = 0) { return IterateWrapper(from); }
+
+	/** List of cargo specs for each Town Product Effect. */
+	static inline EnumIndexArray<std::vector<const CargoSpec *>, TownProductionEffect, TownProductionEffect::End> town_production_cargoes{};
+
 private:
 	static CargoSpec array[NUM_CARGO]; ///< Array holding all CargoSpecs
+	static inline std::map<CargoLabel, CargoType> label_map{}; ///< Translation map from CargoLabel to Cargo type.
 
-	friend void SetupCargoForClimate(LandscapeID l);
+	friend void SetupCargoForClimate(LandscapeType l);
+	friend void BuildCargoLabelMap();
+	friend inline CargoType GetCargoTypeByLabel(CargoLabel ct);
+	friend void FinaliseCargoArray();
 };
 
 extern CargoTypes _cargo_mask;
 extern CargoTypes _standard_cargo_mask;
 
-void SetupCargoForClimate(LandscapeID l);
-CargoID GetCargoIDByLabel(CargoLabel cl);
-CargoID GetCargoIDByBitnum(uint8 bitnum);
+void SetupCargoForClimate(LandscapeType l);
+bool IsDefaultCargo(CargoType cargo_type);
+void BuildCargoLabelMap();
+
+std::optional<std::string> BuildCargoAcceptanceString(const CargoArray &acceptance, StringID label);
+
+inline CargoType GetCargoTypeByLabel(CargoLabel label)
+{
+	auto found = CargoSpec::label_map.find(label);
+	if (found != std::end(CargoSpec::label_map)) return found->second;
+	return INVALID_CARGO;
+}
+
+Dimension GetLargestCargoIconSize();
 
 void InitializeSortedCargoSpecs();
+extern std::array<uint8_t, NUM_CARGO> _sorted_cargo_types;
 extern std::vector<const CargoSpec *> _sorted_cargo_specs;
-extern uint8 _sorted_standard_cargo_specs_size;
+extern std::span<const CargoSpec *> _sorted_standard_cargo_specs;
 
 /**
  * Does cargo \a c have cargo class \a cc?
- * @param c  Cargo type.
+ * @param cargo Cargo type.
  * @param cc Cargo class.
  * @return The type fits in the class.
  */
-static inline bool IsCargoInClass(CargoID c, CargoClass cc)
+inline bool IsCargoInClass(CargoType cargo, CargoClasses cc)
 {
-	return (CargoSpec::Get(c)->classes & cc) != 0;
+	return CargoSpec::Get(cargo)->classes.Any(cc);
 }
 
-#define FOR_ALL_CARGOSPECS_FROM(var, start) for (size_t cargospec_index = start; var = nullptr, cargospec_index < CargoSpec::GetArraySize(); cargospec_index++) \
-		if ((var = CargoSpec::Get(cargospec_index))->IsValid())
-#define FOR_ALL_CARGOSPECS(var) FOR_ALL_CARGOSPECS_FROM(var, 0)
-
-#define FOR_EACH_SET_CARGO_ID(var, cargo_bits) FOR_EACH_SET_BIT_EX(CargoID, var, CargoTypes, cargo_bits)
-
-/**
- * Loop header for iterating over cargoes, sorted by name. This includes phony cargoes like regearing cargoes.
- * @param var Reference getting the cargospec.
- * @see CargoSpec
- */
-#define FOR_ALL_SORTED_CARGOSPECS(var) for (uint8 index = 0; index < _sorted_cargo_specs.size() && (var = _sorted_cargo_specs[index], true) ; index++)
-
-/**
- * Loop header for iterating over 'real' cargoes, sorted by name. Phony cargoes like regearing cargoes are skipped.
- * @param var Reference getting the cargospec.
- * @see CargoSpec
- */
-#define FOR_ALL_SORTED_STANDARD_CARGOSPECS(var) for (uint8 index = 0; index < _sorted_standard_cargo_specs_size && (var = _sorted_cargo_specs[index], true); index++)
+/** Comparator to sort CargoType by according to desired order. */
+struct CargoTypeComparator {
+	bool operator() (const CargoType &lhs, const CargoType &rhs) const { return _sorted_cargo_types[lhs] < _sorted_cargo_types[rhs]; }
+};
 
 #endif /* CARGOTYPE_H */
