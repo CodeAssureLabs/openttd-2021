@@ -10,12 +10,15 @@
 #ifndef STATION_TYPE_H
 #define STATION_TYPE_H
 
+#include "core/pool_type.hpp"
 #include "core/smallstack_type.hpp"
 #include "tilearea_type.h"
-#include <set>
 
-typedef uint16 StationID;
-typedef uint16 RoadStopID;
+using StationID = PoolID<uint16_t, struct StationIDTag, 64000, 0xFFFF>;
+static constexpr StationID NEW_STATION{0xFFFD};
+static constexpr StationID ADJACENT_STATION{0xFFFE};
+
+using RoadStopID = PoolID<uint16_t, struct RoadStopIDTag, 64000, 0xFFFF>;
 
 struct BaseStation;
 struct Station;
@@ -23,43 +26,45 @@ struct RoadStop;
 struct StationSpec;
 struct Waypoint;
 
-static const StationID NEW_STATION = 0xFFFE;
-static const StationID INVALID_STATION = 0xFFFF;
-
-typedef SmallStack<StationID, StationID, INVALID_STATION, 8, 0xFFFD> StationIDStack;
+using StationIDStack = SmallStack<StationID, StationID::BaseType, StationID::Invalid().base(), 8, StationID::End().base()>;
 
 /** Station types */
-enum StationType {
-	STATION_RAIL,
-	STATION_AIRPORT,
-	STATION_TRUCK,
-	STATION_BUS,
-	STATION_OILRIG,
-	STATION_DOCK,
-	STATION_BUOY,
-	STATION_WAYPOINT,
+enum class StationType : uint8_t {
+	Rail,
+	Airport,
+	Truck,
+	Bus,
+	Oilrig,
+	Dock,
+	Buoy,
+	RailWaypoint,
+	RoadWaypoint,
+	End,
 };
 
 /** Types of RoadStops */
-enum RoadStopType {
-	ROADSTOP_BUS,    ///< A standard stop for buses
-	ROADSTOP_TRUCK,  ///< A standard stop for trucks
+enum class RoadStopType : uint8_t {
+	Bus, ///< A standard stop for buses
+	Truck, ///< A standard stop for trucks
+	End, ///< End of valid types
 };
 
 /** The facilities a station might be having */
-enum StationFacility : byte {
-	FACIL_NONE       = 0,      ///< The station has no facilities at all
-	FACIL_TRAIN      = 1 << 0, ///< Station with train station
-	FACIL_TRUCK_STOP = 1 << 1, ///< Station with truck stops
-	FACIL_BUS_STOP   = 1 << 2, ///< Station with bus stops
-	FACIL_AIRPORT    = 1 << 3, ///< Station with an airport
-	FACIL_DOCK       = 1 << 4, ///< Station with a dock
-	FACIL_WAYPOINT   = 1 << 7, ///< Station is a waypoint
+enum class StationFacility : uint8_t {
+	Train     = 0, ///< Station with train station
+	TruckStop = 1, ///< Station with truck stops
+	BusStop   = 2, ///< Station with bus stops
+	Airport   = 3, ///< Station with an airport
+	Dock      = 4, ///< Station with a dock
+	Waypoint  = 7, ///< Station is a waypoint
 };
-DECLARE_ENUM_AS_BIT_SET(StationFacility)
+using StationFacilities = EnumBitSet<StationFacility, uint8_t>;
+
+/** Fake 'facility' to allow toggling display of recently-removed station signs. */
+static constexpr StationFacility STATION_FACILITY_GHOST{6};
 
 /** The vehicles that may have visited a station */
-enum StationHadVehicleOfType : byte {
+enum StationHadVehicleOfType : uint8_t {
 	HVOT_NONE     = 0,      ///< Station has seen no vehicles
 	HVOT_TRAIN    = 1 << 1, ///< Station has seen a train
 	HVOT_BUS      = 1 << 2, ///< Station has seen a bus
@@ -71,18 +76,53 @@ enum StationHadVehicleOfType : byte {
 };
 DECLARE_ENUM_AS_BIT_SET(StationHadVehicleOfType)
 
-/** The different catchment areas used */
-enum CatchmentArea {
-	CA_NONE            =  0, ///< Catchment when the station has no facilities
-	CA_BUS             =  3, ///< Catchment for bus stops with "modified catchment" enabled
-	CA_TRUCK           =  3, ///< Catchment for truck stops with "modified catchment" enabled
-	CA_TRAIN           =  4, ///< Catchment for train stations with "modified catchment" enabled
-	CA_DOCK            =  5, ///< Catchment for docks with "modified catchment" enabled
-
-	CA_UNMODIFIED      =  4, ///< Catchment for all stations with "modified catchment" disabled
-
-	MAX_CATCHMENT      = 10, ///< Maximum catchment for airports with "modified catchment" enabled
+/** Randomisation triggers for stations and roadstops */
+enum class StationRandomTrigger : uint8_t {
+	NewCargo, ///< Trigger station on new cargo arrival.
+	CargoTaken, ///< Trigger station when cargo is completely taken.
+	VehicleArrives, ///< Trigger platform when train arrives.
+	VehicleDeparts, ///< Trigger platform when train leaves.
+	VehicleLoads, ///< Trigger platform when train loads/unloads.
+	PathReservation, ///< Trigger platform when train reserves path.
 };
+using StationRandomTriggers = EnumBitSet<StationRandomTrigger, uint8_t>;
+
+/** Animation triggers for stations and roadstops. */
+enum class StationAnimationTrigger : uint8_t {
+	Built, ///< Trigger tile when built.
+	NewCargo, ///< Trigger station on new cargo arrival.
+	CargoTaken, ///< Trigger station when cargo is completely taken.
+	VehicleArrives, ///< Trigger platform when train arrives.
+	VehicleDeparts, ///< Trigger platform when train leaves.
+	VehicleLoads, ///< Trigger platform when train loads/unloads.
+	AcceptanceTick, ///< Trigger station every 250 ticks.
+	TileLoop, ///< Trigger in the periodic tile loop.
+	PathReservation, ///< Trigger platform when train reserves path.
+	End
+};
+using StationAnimationTriggers = EnumBitSet<StationAnimationTrigger, uint16_t>;
+
+/** Animation triggers for airport tiles */
+enum class AirportAnimationTrigger : uint8_t {
+	Built, ///< Triggered when the airport is built (for all tiles at the same time).
+	TileLoop, ///< Triggered in the periodic tile loop.
+	NewCargo, ///< Triggered when new cargo arrives at the station (for all tiles at the same time).
+	CargoTaken, ///< Triggered when a cargo type is completely removed from the station (for all tiles at the same time).
+	AcceptanceTick, ///< Triggered every 250 ticks (for all tiles at the same time).
+	AirplaneTouchdown, ///< Triggered when an airplane (not a helicopter) touches down at the airport (for single tile).
+};
+using AirportAnimationTriggers = EnumBitSet<AirportAnimationTrigger, uint8_t>;
+
+/* The different catchment area sizes. */
+static constexpr uint CA_NONE = 0; ///< Catchment when the station has no facilities
+static constexpr uint CA_BUS = 3; ///< Catchment for bus stops with "modified catchment" enabled
+static constexpr uint CA_TRUCK = 3; ///< Catchment for truck stops with "modified catchment" enabled
+static constexpr uint CA_TRAIN = 4; ///< Catchment for train stations with "modified catchment" enabled
+static constexpr uint CA_DOCK = 5; ///< Catchment for docks with "modified catchment" enabled
+
+static constexpr uint CA_UNMODIFIED = 4; ///< Catchment for all stations with "modified catchment" disabled
+
+static constexpr uint MAX_CATCHMENT = 10; ///< Maximum catchment for airports with "modified catchment" enabled
 
 static const uint MAX_LENGTH_STATION_NAME_CHARS = 32; ///< The maximum length of a station name in characters including '\0'
 
@@ -105,7 +145,7 @@ public:
 	 * @param area the area to search from
 	 */
 	StationFinder(const TileArea &area) : TileArea(area) {}
-	const StationList *GetStations();
+	const StationList &GetStations();
 };
 
 #endif /* STATION_TYPE_H */

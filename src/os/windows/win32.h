@@ -10,34 +10,12 @@
 #ifndef WIN32_H
 #define WIN32_H
 
-#include <windows.h>
 bool MyShowCursor(bool show, bool toggle = false);
 
-typedef void (*Function)(int);
-bool LoadLibraryList(Function proc[], const char *dll);
+std::string_view convert_from_fs(const std::wstring_view src, std::span<char> dst_buf);
+wchar_t *convert_to_fs(std::string_view src, std::span<wchar_t> dst_buf);
 
-char *convert_from_fs(const TCHAR *name, char *utf8_buf, size_t buflen);
-TCHAR *convert_to_fs(const char *name, TCHAR *utf16_buf, size_t buflen, bool console_cp = false);
-
-/* Function shortcuts for UTF-8 <> UNICODE conversion. When unicode is not
- * defined these macros return the string passed to them, with UNICODE
- * they return a pointer to the converted string. These functions use an
- * internal buffer of max 512 characters. */
-#if defined(UNICODE)
-# define MB_TO_WIDE(str) OTTD2FS(str)
-# define WIDE_TO_MB(str) FS2OTTD(str)
-#else
-# define MB_TO_WIDE(str) (str)
-# define WIDE_TO_MB(str) (str)
-#endif
-
-HRESULT OTTDSHGetFolderPath(HWND, int, HANDLE, DWORD, LPTSTR);
-
-#if defined(__MINGW32__) && !defined(__MINGW64__)
-#define SHGFP_TYPE_CURRENT 0
-#endif /* __MINGW32__ */
-
-void Win32SetCurrentLocaleName(const char *iso_code);
-int OTTDStringCompare(const char *s1, const char *s2);
+int OTTDStringCompare(std::string_view s1, std::string_view s2);
+int Win32StringContains(std::string_view str, std::string_view value, bool case_insensitive);
 
 #endif /* WIN32_H */
