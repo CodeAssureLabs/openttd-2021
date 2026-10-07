@@ -10,65 +10,6 @@
 #ifndef MATH_FUNC_HPP
 #define MATH_FUNC_HPP
 
-/**
- * Returns the maximum of two values.
- *
- * This function returns the greater value of two given values.
- * If they are equal the value of a is returned.
- *
- * @param a The first value
- * @param b The second value
- * @return The greater value or a if equals
- */
-template <typename T>
-static inline T max(const T a, const T b)
-{
-	return (a >= b) ? a : b;
-}
-
-/**
- * Returns the minimum of two values.
- *
- * This function returns the smaller value of two given values.
- * If they are equal the value of b is returned.
- *
- * @param a The first value
- * @param b The second value
- * @return The smaller value or b if equals
- */
-template <typename T>
-static inline T min(const T a, const T b)
-{
-	return (a < b) ? a : b;
-}
-
-/**
- * Returns the minimum of two integer.
- *
- * This function returns the smaller value of two given integers.
- *
- * @param a The first integer
- * @param b The second integer
- * @return The smaller value
- */
-static inline int min(const int a, const int b)
-{
-	return min<int>(a, b);
-}
-
-/**
- * Returns the minimum of two unsigned integers.
- *
- * This function returns the smaller value of two given unsigned integers.
- *
- * @param a The first unsigned integer
- * @param b The second unsigned integer
- * @return The smaller value
- */
-static inline uint minu(const uint a, const uint b)
-{
-	return min<uint>(a, b);
-}
 
 /**
  * Returns the absolute value of (scalar) variable.
@@ -143,6 +84,32 @@ static inline T Clamp(const T a, const T min, const T max)
 }
 
 /**
+ * Clamp a value between an interval.
+ *
+ * This function returns a value which is between the given interval of
+ * min and max. If the given value is in this interval the value itself
+ * is returned otherwise the border of the interval is returned, according
+ * which side of the interval was 'left'.
+ *
+ * @note If the min value is greater than the max, return value is the average of the min and max.
+ * @param a The value to clamp/truncate.
+ * @param min The minimum of the interval.
+ * @param max the maximum of the interval.
+ * @returns A value between min and max which is closest to a.
+ */
+template <typename T>
+static inline T SoftClamp(const T a, const T min, const T max)
+{
+	if (min > max) {
+		using U = std::make_unsigned_t<T>;
+		return min - (U(min) - max) / 2;
+	}
+	if (a <= min) return min;
+	if (a >= max) return max;
+	return a;
+}
+
+/**
  * Clamp an integer between an interval.
  *
  * This function returns a value which is between the given interval of
@@ -185,38 +152,65 @@ static inline uint ClampU(const uint a, const uint min, const uint max)
 }
 
 /**
- * Reduce a signed 64-bit int to a signed 32-bit one
+ * Clamp the given value down to lie within the requested type.
  *
- * This function clamps a 64-bit integer to a 32-bit integer.
- * If the 64-bit value is smaller than the smallest 32-bit integer
- * value 0x80000000 this value is returned (the left one bit is the sign bit).
- * If the 64-bit value is greater than the greatest 32-bit integer value 0x7FFFFFFF
- * this value is returned. In all other cases the 64-bit value 'fits' in a
- * 32-bits integer field and so the value is casted to int32 and returned.
+ * For example ClampTo<uint8_t> will return a value clamped to the range of 0
+ * to 255. Anything smaller will become 0, anything larger will become 255.
  *
- * @param a The 64-bit value to clamps
- * @return The 64-bit value reduced to a 32-bit value
+ * @param a The 64-bit value to clamp.
+ * @return The 64-bit value reduced to a value within the given allowed range
+ * for the return type.
  * @see Clamp(int, int, int)
  */
-static inline int32 ClampToI32(const int64 a)
+template <typename To, typename From>
+constexpr To ClampTo(From value)
 {
-	return static_cast<int32>(Clamp<int64>(a, INT32_MIN, INT32_MAX));
-}
+	static_assert(std::numeric_limits<To>::is_integer, "Do not clamp from non-integer values");
+	static_assert(std::numeric_limits<From>::is_integer, "Do not clamp to non-integer values");
 
-/**
- * Reduce an unsigned 64-bit int to an unsigned 16-bit one
- *
- * @param a The 64-bit value to clamp
- * @return The 64-bit value reduced to a 16-bit value
- * @see ClampU(uint, uint, uint)
- */
-static inline uint16 ClampToU16(const uint64 a)
-{
-	/* MSVC thinks, in its infinite wisdom, that int min(int, int) is a better
-	 * match for min(uint64, uint) than uint64 min(uint64, uint64). As such we
-	 * need to cast the UINT16_MAX to prevent MSVC from displaying its
-	 * infinite loads of warnings. */
-	return static_cast<uint16>(min<uint64>(a, static_cast<uint64>(UINT16_MAX)));
+	if (sizeof(To) >= sizeof(From) && std::numeric_limits<To>::is_signed == std::numeric_limits<From>::is_signed) {
+		/* Same signedness and To type is larger or equal than From type, no clamping is required. */
+		return static_cast<To>(value);
+	}
+
+	if (sizeof(To) > sizeof(From) && std::numeric_limits<To>::is_signed) {
+		/* Signed destination and a larger To type, no clamping is required. */
+		return static_cast<To>(value);
+	}
+
+	/* Get the bigger of the two types based on essentially the number of bits. */
+	using BiggerType = typename std::conditional<sizeof(From) >= sizeof(To), From, To>::type;
+
+	if constexpr (std::numeric_limits<To>::is_signed) {
+		/* The output is a signed number. */
+		if constexpr (std::numeric_limits<From>::is_signed) {
+			/* Both input and output are signed. */
+			return static_cast<To>(std::clamp<BiggerType>(value,
+					std::numeric_limits<To>::lowest(), std::numeric_limits<To>::max()));
+		}
+
+		/* The input is unsigned, so skip the minimum check and use unsigned variant of the biggest type as intermediate type. */
+		using BiggerUnsignedType = typename std::make_unsigned<BiggerType>::type;
+		return static_cast<To>(std::min<BiggerUnsignedType>(std::numeric_limits<To>::max(), value));
+	}
+
+	/* The output is unsigned. */
+
+	if constexpr (std::numeric_limits<From>::is_signed) {
+		/* Input is signed; account for the negative numbers in the input. */
+		if constexpr (sizeof(To) >= sizeof(From)) {
+			/* If the output type is larger or equal to the input type, then only clamp the negative numbers. */
+			return static_cast<To>(std::max<From>(value, 0));
+		}
+
+		/* The output type is smaller than the input type. */
+		using BiggerSignedType = typename std::make_signed<BiggerType>::type;
+		return static_cast<To>(std::clamp<BiggerSignedType>(value,
+				std::numeric_limits<To>::lowest(), std::numeric_limits<To>::max()));
+	}
+
+	/* The input and output are unsigned, just clamp at the high side. */
+	return static_cast<To>(std::min<BiggerType>(value, std::numeric_limits<To>::max()));
 }
 
 /**
@@ -261,7 +255,7 @@ static inline bool IsInsideBS(const T x, const size_t base, const size_t size)
  * @see IsInsideBS()
  */
 template <typename T>
-static inline bool IsInsideMM(const T x, const size_t min, const size_t max)
+static constexpr inline bool IsInsideMM(const T x, const size_t min, const size_t max) noexcept
 {
 	return (size_t)(x - min) < (max - min);
 }

@@ -12,11 +12,12 @@
 #include "company_func.h"
 #include "debug.h"
 #include "genworld.h"
-#include "newgrf_class_func.h"
 #include "newgrf_object.h"
+#include "newgrf_class_func.h"
 #include "newgrf_sound.h"
 #include "object_base.h"
 #include "object_map.h"
+#include "timer/timer_game_calendar.h"
 #include "tile_cmd.h"
 #include "town.h"
 #include "water.h"
@@ -29,7 +30,17 @@ ObjectOverrideManager _object_mngr(NEW_OBJECT_OFFSET, NUM_OBJECTS, INVALID_OBJEC
 
 extern const ObjectSpec _original_objects[NEW_OBJECT_OFFSET];
 /** All the object specifications. */
-ObjectSpec _object_specs[NUM_OBJECTS];
+std::vector<ObjectSpec> _object_specs;
+
+const std::vector<ObjectSpec> &ObjectSpec::Specs()
+{
+	return _object_specs;
+}
+
+size_t ObjectSpec::Count()
+{
+	return _object_specs.size();
+}
 
 /**
  * Get the specification associated with a specific ObjectType.
@@ -38,7 +49,11 @@ ObjectSpec _object_specs[NUM_OBJECTS];
  */
 /* static */ const ObjectSpec *ObjectSpec::Get(ObjectType index)
 {
+	/* Empty object if index is out of range -- this might happen if NewGRFs are changed. */
+	static ObjectSpec empty = {};
+
 	assert(index < NUM_OBJECTS);
+	if (index >= _object_specs.size()) return &empty;
 	return &_object_specs[index];
 }
 
@@ -58,7 +73,7 @@ ObjectSpec _object_specs[NUM_OBJECTS];
  */
 bool ObjectSpec::IsEverAvailable() const
 {
-	return this->enabled && HasBit(this->climate, _settings_game.game_creation.landscape) &&
+	return this->IsEnabled() && HasBit(this->climate, _settings_game.game_creation.landscape) &&
 			(this->flags & ((_game_mode != GM_EDITOR && !_generating_world) ? OBJECT_FLAG_ONLY_IN_SCENEDIT : OBJECT_FLAG_ONLY_IN_GAME)) == 0;
 }
 
@@ -68,7 +83,7 @@ bool ObjectSpec::IsEverAvailable() const
  */
 bool ObjectSpec::WasEverAvailable() const
 {
-	return this->IsEverAvailable() && _date > this->introduction_date;
+	return this->IsEverAvailable() && TimerGameCalendar::date > this->introduction_date;
 }
 
 /**
@@ -78,7 +93,7 @@ bool ObjectSpec::WasEverAvailable() const
 bool ObjectSpec::IsAvailable() const
 {
 	return this->WasEverAvailable() &&
-			(_date < this->end_of_life_date || this->end_of_life_date < this->introduction_date + 365);
+			(TimerGameCalendar::date < this->end_of_life_date || this->end_of_life_date < this->introduction_date + 365);
 }
 
 /**
@@ -87,37 +102,45 @@ bool ObjectSpec::IsAvailable() const
  */
 uint ObjectSpec::Index() const
 {
-	return this - _object_specs;
+	return this - _object_specs.data();
+}
+
+/**
+ * Tie all ObjectSpecs to their class.
+ */
+/* static */ void ObjectSpec::BindToClasses()
+{
+	for (auto &spec : _object_specs) {
+		if (spec.IsEnabled() && spec.cls_id != INVALID_OBJECT_CLASS) {
+			ObjectClass::Assign(&spec);
+		}
+	}
 }
 
 /** This function initialize the spec arrays of objects. */
 void ResetObjects()
 {
 	/* Clean the pool. */
-	for (uint16 i = 0; i < NUM_OBJECTS; i++) {
-		_object_specs[i] = {};
-	}
+	_object_specs.clear();
 
 	/* And add our originals. */
-	MemCpyT(_object_specs, _original_objects, lengthof(_original_objects));
+	_object_specs.reserve(lengthof(_original_objects));
 
 	for (uint16 i = 0; i < lengthof(_original_objects); i++) {
-		_object_specs[i].grf_prop.local_id = i;
+		ObjectSpec &spec = _object_specs.emplace_back(_original_objects[i]);
+		spec.grf_prop.local_id = i;
 	}
+
+	/* Set class for originals. */
+	_object_specs[OBJECT_LIGHTHOUSE].cls_id = ObjectClass::Allocate('LTHS');
+	_object_specs[OBJECT_TRANSMITTER].cls_id = ObjectClass::Allocate('TRNS');
 }
 
 template <typename Tspec, typename Tid, Tid Tmax>
 /* static */ void NewGRFClass<Tspec, Tid, Tmax>::InsertDefaults()
 {
-	ObjectClassID cls = ObjectClass::Allocate('LTHS');
-	ObjectClass::Get(cls)->name = STR_OBJECT_CLASS_LTHS;
-	_object_specs[OBJECT_LIGHTHOUSE].cls_id = cls;
-	ObjectClass::Assign(&_object_specs[OBJECT_LIGHTHOUSE]);
-
-	cls = ObjectClass::Allocate('TRNS');
-	ObjectClass::Get(cls)->name = STR_OBJECT_CLASS_TRNS;
-	_object_specs[OBJECT_TRANSMITTER].cls_id = cls;
-	ObjectClass::Assign(&_object_specs[OBJECT_TRANSMITTER]);
+	ObjectClass::Get(ObjectClass::Allocate('LTHS'))->name = STR_OBJECT_CLASS_LTHS;
+	ObjectClass::Get(ObjectClass::Allocate('TRNS'))->name = STR_OBJECT_CLASS_TRNS;
 }
 
 template <typename Tspec, typename Tid, Tid Tmax>
@@ -189,7 +212,7 @@ static uint32 GetClosestObject(TileIndex tile, ObjectType type, const Object *cu
 	for (const Object *o : Object::Iterate()) {
 		if (o->type != type || o == current) continue;
 
-		best_dist = min(best_dist, DistanceManhattan(tile, o->location.tile));
+		best_dist = std::min(best_dist, DistanceManhattan(tile, o->location.tile));
 	}
 
 	return best_dist;
@@ -226,7 +249,7 @@ static uint32 GetCountAndDistanceOfClosestInstance(byte local_id, uint32 grfid, 
 	/* If the object type is invalid, there is none and the closest is far away. */
 	if (idx >= NUM_OBJECTS) return 0 | 0xFFFF;
 
-	return Object::GetTypeCount(idx) << 16 | min(GetClosestObject(tile, idx, current), 0xFFFF);
+	return Object::GetTypeCount(idx) << 16 | ClampTo<uint16_t>(GetClosestObject(tile, idx, current));
 }
 
 /** Used by the resolver to get values for feature 0F deterministic spritegroups. */
@@ -254,7 +277,7 @@ static uint32 GetCountAndDistanceOfClosestInstance(byte local_id, uint32 grfid, 
 				break;
 
 			/* Construction date */
-			case 0x42: return _date;
+			case 0x42: return TimerGameCalendar::date;
 
 			/* Object founder information */
 			case 0x44: return _current_company;
@@ -301,10 +324,10 @@ static uint32 GetCountAndDistanceOfClosestInstance(byte local_id, uint32 grfid, 
 		case 0x44: return GetTileOwner(this->tile);
 
 		/* Get town zone and Manhattan distance of closest town */
-		case 0x45: return GetTownRadiusGroup(t, this->tile) << 16 | min(DistanceManhattan(this->tile, t->xy), 0xFFFF);
+		case 0x45: return GetTownRadiusGroup(t, this->tile) << 16 | ClampTo<uint16_t>(DistanceManhattan(this->tile, t->xy));
 
-		/* Get square of Euclidian distance of closes town */
-		case 0x46: return GetTownRadiusGroup(t, this->tile) << 16 | min(DistanceSquare(this->tile, t->xy), 0xFFFF);
+		/* Get square of Euclidian distance of closest town */
+		case 0x46: return DistanceSquare(this->tile, t->xy);
 
 		/* Object colour */
 		case 0x47: return this->obj->colour;
@@ -335,7 +358,7 @@ static uint32 GetCountAndDistanceOfClosestInstance(byte local_id, uint32 grfid, 
 	}
 
 unhandled:
-	DEBUG(grf, 1, "Unhandled object variable 0x%X", variable);
+	Debug(grf, 1, "Unhandled object variable 0x{:X}", variable);
 
 	*available = false;
 	return UINT_MAX;
@@ -355,8 +378,8 @@ ObjectResolverObject::ObjectResolverObject(const ObjectSpec *spec, Object *obj, 
 	: ResolverObject(spec->grf_prop.grffile, callback, param1, param2), object_scope(*this, obj, spec, tile, view)
 {
 	this->town_scope = nullptr;
-	this->root_spritegroup = (obj == nullptr && spec->grf_prop.spritegroup[CT_PURCHASE_OBJECT] != nullptr) ?
-			spec->grf_prop.spritegroup[CT_PURCHASE_OBJECT] : spec->grf_prop.spritegroup[0];
+	this->root_spritegroup = (obj == nullptr && spec->grf_prop.spritegroup[OBJECT_SPRITE_GROUP_PURCHASE] != nullptr) ?
+			spec->grf_prop.spritegroup[OBJECT_SPRITE_GROUP_PURCHASE] : spec->grf_prop.spritegroup[OBJECT_SPRITE_GROUP_DEFAULT];
 }
 
 ObjectResolverObject::~ObjectResolverObject()
@@ -510,7 +533,7 @@ uint16 StubGetObjectCallback(CallbackID callback, uint32 param1, uint32 param2, 
 }
 
 /** Helper class for animation control. */
-struct ObjectAnimationBase : public AnimationBase<ObjectAnimationBase, ObjectSpec, Object, int, StubGetObjectCallback> {
+struct ObjectAnimationBase : public AnimationBase<ObjectAnimationBase, ObjectSpec, Object, int, StubGetObjectCallback, TileAnimationFrameAnimationHelper<Object> > {
 	static const CallbackID cb_animation_speed      = CBID_OBJECT_ANIMATION_SPEED;
 	static const CallbackID cb_animation_next_frame = CBID_OBJECT_ANIMATION_NEXT_FRAME;
 
@@ -554,7 +577,7 @@ void TriggerObjectAnimation(Object *o, ObjectAnimationTrigger trigger, const Obj
 {
 	if (!HasBit(spec->animation.triggers, trigger)) return;
 
-	TILE_AREA_LOOP(tile, o->location) {
+	for (TileIndex tile : o->location) {
 		TriggerObjectTileAnimation(o, tile, trigger, spec);
 	}
 }

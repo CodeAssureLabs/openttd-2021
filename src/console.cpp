@@ -16,16 +16,23 @@
 #include "console_func.h"
 #include "settings_type.h"
 
-#include <stdarg.h>
-
 #include "safeguards.h"
 
 static const uint ICON_TOKEN_COUNT = 20;     ///< Maximum number of tokens in one command
 static const uint ICON_MAX_RECURSE = 10;     ///< Maximum number of recursion
 
 /* console parser */
-IConsoleCmd   *_iconsole_cmds;    ///< list of registered commands
-IConsoleAlias *_iconsole_aliases; ///< list of registered aliases
+/* static */ IConsole::CommandList &IConsole::Commands()
+{
+	static IConsole::CommandList cmds;
+	return cmds;
+}
+
+/* static */ IConsole::AliasList &IConsole::Aliases()
+{
+	static IConsole::AliasList aliases;
+	return aliases;
+}
 
 FILE *_iconsole_output_file;
 
@@ -40,17 +47,17 @@ void IConsoleInit()
 	IConsoleStdLibRegister();
 }
 
-static void IConsoleWriteToLogFile(const char *string)
+static void IConsoleWriteToLogFile(const std::string &string)
 {
 	if (_iconsole_output_file != nullptr) {
 		/* if there is an console output file ... also print it there */
 		const char *header = GetLogPrefix();
 		if ((strlen(header) != 0 && fwrite(header, strlen(header), 1, _iconsole_output_file) != 1) ||
-				fwrite(string, strlen(string), 1, _iconsole_output_file) != 1 ||
+				fwrite(string.c_str(), string.size(), 1, _iconsole_output_file) != 1 ||
 				fwrite("\n", 1, 1, _iconsole_output_file) != 1) {
 			fclose(_iconsole_output_file);
 			_iconsole_output_file = nullptr;
-			IConsolePrintF(CC_DEFAULT, "cannot write to log file");
+			IConsolePrint(CC_ERROR, "Cannot write to console log file; closing the log file.");
 		}
 	}
 }
@@ -58,7 +65,7 @@ static void IConsoleWriteToLogFile(const char *string)
 bool CloseConsoleLogIfActive()
 {
 	if (_iconsole_output_file != nullptr) {
-		IConsolePrintF(CC_DEFAULT, "file output complete");
+		IConsolePrint(CC_INFO, "Console log file closed.");
 		fclose(_iconsole_output_file);
 		_iconsole_output_file = nullptr;
 		return true;
@@ -79,14 +86,13 @@ void IConsoleFree()
  * as well as to a logfile. If the network server is a dedicated server, all activities
  * are also logged. All lines to print are added to a temporary buffer which can be
  * used as a history to print them onscreen
- * @param colour_code the colour of the command. Red in case of errors, etc.
- * @param string the message entered or output on the console (notice, error, etc.)
+ * @param colour_code The colour of the command.
+ * @param string The message to output on the console (notice, error, etc.)
  */
-void IConsolePrint(TextColour colour_code, const char *string)
+void IConsolePrint(TextColour colour_code, const std::string &string)
 {
 	assert(IsValidConsoleColour(colour_code));
 
-	char *str;
 	if (_redirect_console_to_client != INVALID_CLIENT_ID) {
 		/* Redirect the string to the client */
 		NetworkServerSendRcon(_redirect_console_to_client, colour_code, string);
@@ -98,76 +104,20 @@ void IConsolePrint(TextColour colour_code, const char *string)
 		return;
 	}
 
-	/* Create a copy of the string, strip if of colours and invalid
+	/* Create a copy of the string, strip it of colours and invalid
 	 * characters and (when applicable) assign it to the console buffer */
-	str = stredup(string);
-	str_strip_colours(str);
-	str_validate(str, str + strlen(str));
+	std::string str = StrMakeValid(string);
 
 	if (_network_dedicated) {
 		NetworkAdminConsole("console", str);
-		fprintf(stdout, "%s%s\n", GetLogPrefix(), str);
+		fmt::print("{}{}\n", GetLogPrefix(), str);
 		fflush(stdout);
 		IConsoleWriteToLogFile(str);
-		free(str); // free duplicated string since it's not used anymore
 		return;
 	}
 
 	IConsoleWriteToLogFile(str);
 	IConsoleGUIPrint(colour_code, str);
-}
-
-/**
- * Handle the printing of text entered into the console or redirected there
- * by any other means. Uses printf() style format, for more information look
- * at IConsolePrint()
- */
-void CDECL IConsolePrintF(TextColour colour_code, const char *format, ...)
-{
-	assert(IsValidConsoleColour(colour_code));
-
-	va_list va;
-	char buf[ICON_MAX_STREAMSIZE];
-
-	va_start(va, format);
-	vseprintf(buf, lastof(buf), format, va);
-	va_end(va);
-
-	IConsolePrint(colour_code, buf);
-}
-
-/**
- * It is possible to print debugging information to the console,
- * which is achieved by using this function. Can only be used by
- * debug() in debug.cpp. You need at least a level 2 (developer) for debugging
- * messages to show up
- * @param dbg debugging category
- * @param string debugging message
- */
-void IConsoleDebug(const char *dbg, const char *string)
-{
-	if (_settings_client.gui.developer <= 1) return;
-	IConsolePrintF(CC_DEBUG, "dbg: [%s] %s", dbg, string);
-}
-
-/**
- * It is possible to print warnings to the console. These are mostly
- * errors or mishaps, but non-fatal. You need at least a level 1 (developer) for
- * debugging messages to show up
- */
-void IConsoleWarning(const char *string)
-{
-	if (_settings_client.gui.developer == 0) return;
-	IConsolePrintF(CC_WARNING, "WARNING: %s", string);
-}
-
-/**
- * It is possible to print error information to the console. This can include
- * game errors, or errors in general you would want the user to notice
- */
-void IConsoleError(const char *string)
-{
-	IConsolePrintF(CC_ERROR, "ERROR: %s", string);
 }
 
 /**
@@ -190,54 +140,18 @@ bool GetArgumentInteger(uint32 *value, const char *arg)
 		return true;
 	}
 
-	*value = strtoul(arg, &endptr, 0);
+	*value = std::strtoul(arg, &endptr, 0);
 	return arg != endptr;
 }
 
 /**
- * Add an item to an alphabetically sorted list.
- * @param base first item of the list
- * @param item_new the item to add
+ * Creates a copy of a string with underscores removed from it
+ * @param name String to remove the underscores from.
+ * @return A copy of \a name, without underscores.
  */
-template<class T>
-void IConsoleAddSorted(T **base, T *item_new)
+static std::string RemoveUnderscores(std::string name)
 {
-	if (*base == nullptr) {
-		*base = item_new;
-		return;
-	}
-
-	T *item_before = nullptr;
-	T *item = *base;
-	/* The list is alphabetically sorted, insert the new item at the correct location */
-	while (item != nullptr) {
-		if (strcmp(item->name, item_new->name) > 0) break; // insert here
-
-		item_before = item;
-		item = item->next;
-	}
-
-	if (item_before == nullptr) {
-		*base = item_new;
-	} else {
-		item_before->next = item_new;
-	}
-
-	item_new->next = item;
-}
-
-/**
- * Remove underscores from a string; the string will be modified!
- * @param[in,out] name String to remove the underscores from.
- * @return \a name, with its contents modified.
- */
-char *RemoveUnderscores(char *name)
-{
-	char *q = name;
-	for (const char *p = name; *p != '\0'; p++) {
-		if (*p != '_') *q++ = *p;
-	}
-	*q = '\0';
+	name.erase(std::remove(name.begin(), name.end(), '_'), name.end());
 	return name;
 }
 
@@ -246,15 +160,9 @@ char *RemoveUnderscores(char *name)
  * @param name name of the command that will be used
  * @param proc function that will be called upon execution of command
  */
-void IConsoleCmdRegister(const char *name, IConsoleCmdProc *proc, IConsoleHook *hook)
+/* static */ void IConsole::CmdRegister(const std::string &name, IConsoleCmdProc *proc, IConsoleHook *hook)
 {
-	IConsoleCmd *item_new = MallocT<IConsoleCmd>(1);
-	item_new->name = RemoveUnderscores(stredup(name));
-	item_new->next = nullptr;
-	item_new->proc = proc;
-	item_new->hook = hook;
-
-	IConsoleAddSorted(&_iconsole_cmds, item_new);
+	IConsole::Commands().try_emplace(RemoveUnderscores(name), name, proc, hook);
 }
 
 /**
@@ -262,13 +170,10 @@ void IConsoleCmdRegister(const char *name, IConsoleCmdProc *proc, IConsoleHook *
  * @param name command to be found
  * @return return Cmdstruct of the found command, or nullptr on failure
  */
-IConsoleCmd *IConsoleCmdGet(const char *name)
+/* static */ IConsoleCmd *IConsole::CmdGet(const std::string &name)
 {
-	IConsoleCmd *item;
-
-	for (item = _iconsole_cmds; item != nullptr; item = item->next) {
-		if (strcmp(item->name, name) == 0) return item;
-	}
+	auto item = IConsole::Commands().find(RemoveUnderscores(name));
+	if (item != IConsole::Commands().end()) return &item->second;
 	return nullptr;
 }
 
@@ -277,22 +182,10 @@ IConsoleCmd *IConsoleCmdGet(const char *name)
  * @param name name of the alias that will be used
  * @param cmd name of the command that 'name' will be alias of
  */
-void IConsoleAliasRegister(const char *name, const char *cmd)
+/* static */ void IConsole::AliasRegister(const std::string &name, const std::string &cmd)
 {
-	if (IConsoleAliasGet(name) != nullptr) {
-		IConsoleError("an alias with this name already exists; insertion aborted");
-		return;
-	}
-
-	char *new_alias = RemoveUnderscores(stredup(name));
-	char *cmd_aliased = stredup(cmd);
-	IConsoleAlias *item_new = MallocT<IConsoleAlias>(1);
-
-	item_new->next = nullptr;
-	item_new->cmdline = cmd_aliased;
-	item_new->name = new_alias;
-
-	IConsoleAddSorted(&_iconsole_aliases, item_new);
+	auto result = IConsole::Aliases().try_emplace(RemoveUnderscores(name), name, cmd);
+	if (!result.second) IConsolePrint(CC_ERROR, "An alias with the name '{}' already exists.", name);
 }
 
 /**
@@ -300,16 +193,13 @@ void IConsoleAliasRegister(const char *name, const char *cmd)
  * @param name alias to be found
  * @return return Aliasstruct of the found alias, or nullptr on failure
  */
-IConsoleAlias *IConsoleAliasGet(const char *name)
+/* static */ IConsoleAlias *IConsole::AliasGet(const std::string &name)
 {
-	IConsoleAlias *item;
-
-	for (item = _iconsole_aliases; item != nullptr; item = item->next) {
-		if (strcmp(item->name, name) == 0) return item;
-	}
-
+	auto item = IConsole::Aliases().find(RemoveUnderscores(name));
+	if (item != IConsole::Aliases().end()) return &item->second;
 	return nullptr;
 }
+
 /**
  * An alias is just another name for a command, or for more commands
  * Execute it as well.
@@ -319,27 +209,25 @@ IConsoleAlias *IConsoleAliasGet(const char *name)
  */
 static void IConsoleAliasExec(const IConsoleAlias *alias, byte tokencount, char *tokens[ICON_TOKEN_COUNT], const uint recurse_count)
 {
-	char  alias_buffer[ICON_MAX_STREAMSIZE] = { '\0' };
-	char *alias_stream = alias_buffer;
+	std::string alias_buffer;
 
-	DEBUG(console, 6, "Requested command is an alias; parsing...");
+	Debug(console, 6, "Requested command is an alias; parsing...");
 
 	if (recurse_count > ICON_MAX_RECURSE) {
-		IConsoleError("Too many alias expansions, recursion limit reached. Aborting");
+		IConsolePrint(CC_ERROR, "Too many alias expansions, recursion limit reached.");
 		return;
 	}
 
-	for (const char *cmdptr = alias->cmdline; *cmdptr != '\0'; cmdptr++) {
+	for (const char *cmdptr = alias->cmdline.c_str(); *cmdptr != '\0'; cmdptr++) {
 		switch (*cmdptr) {
 			case '\'': // ' will double for ""
-				alias_stream = strecpy(alias_stream, "\"", lastof(alias_buffer));
+				alias_buffer += '\"';
 				break;
 
 			case ';': // Cmd separator; execute previous and start new command
-				IConsoleCmdExec(alias_buffer, recurse_count);
+				IConsoleCmdExec(alias_buffer.c_str(), recurse_count);
 
-				alias_stream = alias_buffer;
-				*alias_stream = '\0'; // Make sure the new command is terminated.
+				alias_buffer.clear();
 
 				cmdptr++;
 				break;
@@ -349,21 +237,21 @@ static void IConsoleAliasExec(const IConsoleAlias *alias, byte tokencount, char 
 				switch (*cmdptr) {
 					case '+': { // All parameters separated: "[param 1]" "[param 2]"
 						for (uint i = 0; i != tokencount; i++) {
-							if (i != 0) alias_stream = strecpy(alias_stream, " ", lastof(alias_buffer));
-							alias_stream = strecpy(alias_stream, "\"", lastof(alias_buffer));
-							alias_stream = strecpy(alias_stream, tokens[i], lastof(alias_buffer));
-							alias_stream = strecpy(alias_stream, "\"", lastof(alias_buffer));
+							if (i != 0) alias_buffer += ' ';
+							alias_buffer += '\"';
+							alias_buffer += tokens[i];
+							alias_buffer += '\"';
 						}
 						break;
 					}
 
 					case '!': { // Merge the parameters to one: "[param 1] [param 2] [param 3...]"
-						alias_stream = strecpy(alias_stream, "\"", lastof(alias_buffer));
+						alias_buffer += '\"';
 						for (uint i = 0; i != tokencount; i++) {
-							if (i != 0) alias_stream = strecpy(alias_stream, " ", lastof(alias_buffer));
-							alias_stream = strecpy(alias_stream, tokens[i], lastof(alias_buffer));
+							if (i != 0) alias_buffer += " ";
+							alias_buffer += tokens[i];
 						}
-						alias_stream = strecpy(alias_stream, "\"", lastof(alias_buffer));
+						alias_buffer += '\"';
 						break;
 					}
 
@@ -371,32 +259,31 @@ static void IConsoleAliasExec(const IConsoleAlias *alias, byte tokencount, char 
 						int param = *cmdptr - 'A';
 
 						if (param < 0 || param >= tokencount) {
-							IConsoleError("too many or wrong amount of parameters passed to alias, aborting");
-							IConsolePrintF(CC_WARNING, "Usage of alias '%s': %s", alias->name, alias->cmdline);
+							IConsolePrint(CC_ERROR, "Too many or wrong amount of parameters passed to alias.");
+							IConsolePrint(CC_HELP, "Usage of alias '{}': '{}'.", alias->name, alias->cmdline);
 							return;
 						}
 
-						alias_stream = strecpy(alias_stream, "\"", lastof(alias_buffer));
-						alias_stream = strecpy(alias_stream, tokens[param], lastof(alias_buffer));
-						alias_stream = strecpy(alias_stream, "\"", lastof(alias_buffer));
+						alias_buffer += '\"';
+						alias_buffer += tokens[param];
+						alias_buffer += '\"';
 						break;
 					}
 				}
 				break;
 
 			default:
-				*alias_stream++ = *cmdptr;
-				*alias_stream = '\0';
+				alias_buffer += *cmdptr;
 				break;
 		}
 
-		if (alias_stream >= lastof(alias_buffer) - 1) {
-			IConsoleError("Requested alias execution would overflow execution buffer");
+		if (alias_buffer.size() >= ICON_MAX_STREAMSIZE - 1) {
+			IConsolePrint(CC_ERROR, "Requested alias execution would overflow execution buffer.");
 			return;
 		}
 	}
 
-	IConsoleCmdExec(alias_buffer, recurse_count);
+	IConsoleCmdExec(alias_buffer.c_str(), recurse_count);
 }
 
 /**
@@ -417,13 +304,12 @@ void IConsoleCmdExec(const char *cmdstr, const uint recurse_count)
 
 	for (cmdptr = cmdstr; *cmdptr != '\0'; cmdptr++) {
 		if (!IsValidChar(*cmdptr, CS_ALPHANUMERAL)) {
-			IConsoleError("command contains malformed characters, aborting");
-			IConsolePrintF(CC_ERROR, "ERROR: command was: '%s'", cmdstr);
+			IConsolePrint(CC_ERROR, "Command '{}' contains malformed characters.", cmdstr);
 			return;
 		}
 	}
 
-	DEBUG(console, 4, "Executing cmdline: '%s'", cmdstr);
+	Debug(console, 4, "Executing cmdline: '{}'", cmdstr);
 
 	memset(&tokens, 0, sizeof(tokens));
 	memset(&tokenstream, 0, sizeof(tokenstream));
@@ -433,7 +319,7 @@ void IConsoleCmdExec(const char *cmdstr, const uint recurse_count)
 	 * of characters in our stream or the max amount of tokens we can handle */
 	for (cmdptr = cmdstr, t_index = 0, tstream_i = 0; *cmdptr != '\0'; cmdptr++) {
 		if (tstream_i >= lengthof(tokenstream)) {
-			IConsoleError("command line too long");
+			IConsolePrint(CC_ERROR, "Command line too long.");
 			return;
 		}
 
@@ -454,7 +340,7 @@ void IConsoleCmdExec(const char *cmdstr, const uint recurse_count)
 			longtoken = !longtoken;
 			if (!foundtoken) {
 				if (t_index >= lengthof(tokens)) {
-					IConsoleError("command line too long");
+					IConsolePrint(CC_ERROR, "Command line too long.");
 					return;
 				}
 				tokens[t_index++] = &tokenstream[tstream_i];
@@ -472,7 +358,7 @@ void IConsoleCmdExec(const char *cmdstr, const uint recurse_count)
 
 			if (!foundtoken) {
 				if (t_index >= lengthof(tokens)) {
-					IConsoleError("command line too long");
+					IConsolePrint(CC_ERROR, "Command line too long.");
 					return;
 				}
 				tokens[t_index++] = &tokenstream[tstream_i - 1];
@@ -483,7 +369,7 @@ void IConsoleCmdExec(const char *cmdstr, const uint recurse_count)
 	}
 
 	for (uint i = 0; i < lengthof(tokens) && tokens[i] != nullptr; i++) {
-		DEBUG(console, 8, "Token %d is: '%s'", i, tokens[i]);
+		Debug(console, 8, "Token {} is: '{}'", i, tokens[i]);
 	}
 
 	if (StrEmpty(tokens[0])) return; // don't execute empty commands
@@ -491,8 +377,7 @@ void IConsoleCmdExec(const char *cmdstr, const uint recurse_count)
 	 * First try commands, then aliases. Execute
 	 * the found action taking into account its hooking code
 	 */
-	RemoveUnderscores(tokens[0]);
-	IConsoleCmd *cmd = IConsoleCmdGet(tokens[0]);
+	IConsoleCmd *cmd = IConsole::CmdGet(tokens[0]);
 	if (cmd != nullptr) {
 		ConsoleHookResult chr = (cmd->hook == nullptr ? CHR_ALLOW : cmd->hook(true));
 		switch (chr) {
@@ -508,11 +393,11 @@ void IConsoleCmdExec(const char *cmdstr, const uint recurse_count)
 	}
 
 	t_index--;
-	IConsoleAlias *alias = IConsoleAliasGet(tokens[0]);
+	IConsoleAlias *alias = IConsole::AliasGet(tokens[0]);
 	if (alias != nullptr) {
 		IConsoleAliasExec(alias, t_index, &tokens[1], recurse_count + 1);
 		return;
 	}
 
-	IConsoleError("command not found");
+	IConsolePrint(CC_ERROR, "Command '{}' not found.", tokens[0]);
 }

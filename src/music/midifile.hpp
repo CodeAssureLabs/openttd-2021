@@ -11,10 +11,7 @@
 #define MUSIC_MIDIFILE_HPP
 
 #include "../stdafx.h"
-#include "../core/smallvec_type.hpp"
 #include "midi.h"
-#include <vector>
-#include <string>
 
 struct MusicSongInfo;
 
@@ -38,15 +35,15 @@ struct MidiFile {
 	MidiFile();
 	~MidiFile();
 
-	bool LoadFile(const char *filename);
+	bool LoadFile(const std::string &filename);
 	bool LoadMpsData(const byte *data, size_t length);
 	bool LoadSong(const MusicSongInfo &song);
 	void MoveFrom(MidiFile &other);
 
-	bool WriteSMF(const char *filename);
+	bool WriteSMF(const std::string &filename);
 
 	static std::string GetSMFFile(const MusicSongInfo &song);
-	static bool ReadSMFHeader(const char *filename, SMFHeader &header);
+	static bool ReadSMFHeader(const std::string &filename, SMFHeader &header);
 	static bool ReadSMFHeader(FILE *file, SMFHeader &header);
 };
 

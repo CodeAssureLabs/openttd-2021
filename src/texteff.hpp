@@ -24,14 +24,14 @@ enum TextEffectMode {
 	INVALID_TE_ID = 0xFFFF,
 };
 
-typedef uint16 TextEffectID;
+typedef size_t TextEffectID;
 
-void MoveAllTextEffects(uint delta_ms);
 TextEffectID AddTextEffect(StringID msg, int x, int y, uint8 duration, TextEffectMode mode);
 void InitTextEffects();
 void DrawTextEffects(DrawPixelInfo *dpi);
 void UpdateTextEffect(TextEffectID effect_id, StringID msg);
 void RemoveTextEffect(TextEffectID effect_id);
+void UpdateAllTextEffectVirtCoords();
 
 /* misc_gui.cpp */
 TextEffectID ShowFillingPercent(int x, int y, int z, uint8 percent, StringID colour);

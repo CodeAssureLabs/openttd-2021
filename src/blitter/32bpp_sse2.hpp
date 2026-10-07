@@ -16,6 +16,10 @@
 #define SSE_VERSION 2
 #endif
 
+#ifndef SSE_TARGET
+#define SSE_TARGET "sse2"
+#endif
+
 #ifndef FULL_ANIMATION
 #define FULL_ANIMATION 0
 #endif
@@ -25,7 +29,7 @@
 /** Base methods for 32bpp SSE blitters. */
 class Blitter_32bppSSE_Base {
 public:
-	virtual ~Blitter_32bppSSE_Base() {}
+	virtual ~Blitter_32bppSSE_Base() = default;
 
 	struct MapValue {
 		uint8 m;
