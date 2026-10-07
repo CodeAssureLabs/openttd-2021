@@ -65,7 +65,7 @@ void SetRailStationPlatformReservation(TileIndex start, DiagDirection dir, bool 
 	do {
 		SetRailStationReservation(tile, b);
 		MarkTileDirtyByTile(tile);
-		tile = TILE_ADD(tile, diff);
+		tile = TileAdd(tile, diff);
 	} while (IsCompatibleTrainStationTile(tile, start));
 }
 
@@ -105,8 +105,7 @@ bool TryReserveRailTrack(TileIndex tile, Track t, bool trigger_stations)
 		case MP_ROAD:
 			if (IsLevelCrossing(tile) && !HasCrossingReservation(tile)) {
 				SetCrossingReservation(tile, true);
-				BarCrossing(tile);
-				MarkTileDirtyByTile(tile); // crossing barred, make tile dirty
+				UpdateLevelCrossing(tile, false);
 				return true;
 			}
 			break;

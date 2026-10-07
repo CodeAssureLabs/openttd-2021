@@ -12,10 +12,9 @@
 
 #include "core/smallstack_type.hpp"
 #include "tilearea_type.h"
-#include <set>
 
-typedef uint16 StationID;
-typedef uint16 RoadStopID;
+typedef uint16_t StationID;
+typedef uint16_t RoadStopID;
 
 struct BaseStation;
 struct Station;
@@ -29,7 +28,7 @@ static const StationID INVALID_STATION = 0xFFFF;
 typedef SmallStack<StationID, StationID, INVALID_STATION, 8, 0xFFFD> StationIDStack;
 
 /** Station types */
-enum StationType {
+enum StationType : uint8_t {
 	STATION_RAIL,
 	STATION_AIRPORT,
 	STATION_TRUCK,
@@ -38,16 +37,19 @@ enum StationType {
 	STATION_DOCK,
 	STATION_BUOY,
 	STATION_WAYPOINT,
+	STATION_ROADWAYPOINT,
+	STATION_END,
 };
 
 /** Types of RoadStops */
-enum RoadStopType {
+enum RoadStopType : uint8_t {
 	ROADSTOP_BUS,    ///< A standard stop for buses
 	ROADSTOP_TRUCK,  ///< A standard stop for trucks
+	ROADSTOP_END,    ///< End of valid types
 };
 
 /** The facilities a station might be having */
-enum StationFacility : byte {
+enum StationFacility : uint8_t {
 	FACIL_NONE       = 0,      ///< The station has no facilities at all
 	FACIL_TRAIN      = 1 << 0, ///< Station with train station
 	FACIL_TRUCK_STOP = 1 << 1, ///< Station with truck stops
@@ -59,7 +61,7 @@ enum StationFacility : byte {
 DECLARE_ENUM_AS_BIT_SET(StationFacility)
 
 /** The vehicles that may have visited a station */
-enum StationHadVehicleOfType : byte {
+enum StationHadVehicleOfType : uint8_t {
 	HVOT_NONE     = 0,      ///< Station has seen no vehicles
 	HVOT_TRAIN    = 1 << 1, ///< Station has seen a train
 	HVOT_BUS      = 1 << 2, ///< Station has seen a bus

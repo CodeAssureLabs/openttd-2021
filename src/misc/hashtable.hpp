@@ -159,7 +159,7 @@ protected:
 	/** static helper - return hash for the given key modulo number of slots */
 	inline static int CalcHash(const Tkey &key)
 	{
-		uint32 hash = key.CalcHash();
+		uint32_t hash = key.CalcHash();
 		hash -= (hash >> 17);          // hash * 131071 / 131072
 		hash -= (hash >> 5);           //   * 31 / 32
 		hash &= (1 << Thash_bits) - 1; //   modulo slots
@@ -183,6 +183,7 @@ public:
 	inline void Clear()
 	{
 		for (int i = 0; i < Tcapacity; i++) m_slots[i].Clear();
+		this->m_num_items = 0;
 	}
 
 	/** const item search */
@@ -216,7 +217,7 @@ public:
 	}
 
 	/** non-const item search & removal */
-	Titem_& Pop(const Tkey &key)
+	Titem_ &Pop(const Tkey &key)
 	{
 		Titem_ *item = TryPop(key);
 		assert(item != nullptr);
@@ -239,7 +240,7 @@ public:
 	/** non-const item search & removal */
 	void Pop(Titem_ &item)
 	{
-		bool ret = TryPop(item);
+		[[maybe_unused]] bool ret = TryPop(item);
 		assert(ret);
 	}
 
