@@ -14,7 +14,7 @@
 class StringIterator {
 public:
 	/** Type of the iterator. */
-	enum IterType {
+	enum IterType : uint8_t {
 		ITER_CHARACTER, ///< Iterate over characters (or more exactly grapheme clusters).
 		ITER_WORD,      ///< Iterate over words.
 	};
@@ -26,16 +26,16 @@ public:
 	 * Create a new iterator instance.
 	 * @return New iterator instance.
 	 */
-	static StringIterator *Create();
+	static std::unique_ptr<StringIterator> Create();
 
-	virtual ~StringIterator() {}
+	virtual ~StringIterator() = default;
 
 	/**
 	 * Set a new iteration string. Must also be called if the string contents
 	 * changed. The cursor is reset to the start of the string.
 	 * @param s New string.
 	 */
-	virtual void SetString(const char *s) = 0;
+	virtual void SetString(std::string_view s) = 0;
 
 	/**
 	 * Change the current string cursor.
