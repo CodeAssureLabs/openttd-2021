@@ -100,7 +100,7 @@ void ScriptInstance::Initialize(const char *main_script, const char *instance_na
 		ScriptObject::SetAllowDoCommand(true);
 	} catch (Script_FatalError &e) {
 		this->is_dead = true;
-		this->engine->ThrowError(e.GetErrorMessage());
+		this->engine->ThrowError(e.GetErrorMessage().c_str());
 		this->engine->ResumeError();
 		this->Died();
 	}
@@ -116,8 +116,7 @@ bool ScriptInstance::LoadCompatibilityScripts(const char *api_version, Subdirect
 {
 	char script_name[32];
 	seprintf(script_name, lastof(script_name), "compat_%s.nut", api_version);
-	Searchpath sp;
-	FOR_ALL_SEARCHPATHS(sp) {
+	for (Searchpath sp : _valid_searchpaths) {
 		std::string buf = FioGetDirectory(sp, dir);
 		buf += script_name;
 		if (!FileExists(buf)) continue;
@@ -228,7 +227,7 @@ void ScriptInstance::GameLoop()
 			this->callback = e.GetSuspendCallback();
 		} catch (Script_FatalError &e) {
 			this->is_dead = true;
-			this->engine->ThrowError(e.GetErrorMessage());
+			this->engine->ThrowError(e.GetErrorMessage().c_str());
 			this->engine->ResumeError();
 			this->Died();
 		}
@@ -249,7 +248,7 @@ void ScriptInstance::GameLoop()
 		this->callback = e.GetSuspendCallback();
 	} catch (Script_FatalError &e) {
 		this->is_dead = true;
-		this->engine->ThrowError(e.GetErrorMessage());
+		this->engine->ThrowError(e.GetErrorMessage().c_str());
 		this->engine->ResumeError();
 		this->Died();
 	}
@@ -344,7 +343,6 @@ static byte _script_sl_byte; ///< Used as source/target by the script saveload c
 /** SaveLoad array that saves/loads exactly one byte. */
 static const SaveLoad _script_byte[] = {
 	SLEG_VAR(_script_sl_byte, SLE_UINT8),
-	SLE_END()
 };
 
 /* static */ bool ScriptInstance::SaveObject(HSQUIRRELVM vm, SQInteger index, int max_depth, bool test)
@@ -505,7 +503,7 @@ void ScriptInstance::Save()
 			/* If we don't mark the script as dead here cleaning up the squirrel
 			 * stack could throw Script_FatalError again. */
 			this->is_dead = true;
-			this->engine->ThrowError(e.GetErrorMessage());
+			this->engine->ThrowError(e.GetErrorMessage().c_str());
 			this->engine->ResumeError();
 			SaveEmpty();
 			/* We can't kill the script here, so mark it as crashed (not dead) and

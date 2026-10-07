@@ -83,7 +83,7 @@
  * some of the variables itself are private.
  * @return the saveload description for CargoPackets.
  */
-const SaveLoad *GetCargoPacketDesc()
+SaveLoadTable GetCargoPacketDesc()
 {
 	static const SaveLoad _cargopacket_desc[] = {
 		     SLE_VAR(CargoPacket, source,          SLE_UINT16),
@@ -97,8 +97,6 @@ const SaveLoad *GetCargoPacketDesc()
 
 		/* Used to be paid_for, but that got changed. */
 		SLE_CONDNULL(1, SL_MIN_VERSION, SLV_121),
-
-		SLE_END()
 	};
 	return _cargopacket_desc;
 }
@@ -128,6 +126,8 @@ static void Load_CAPA()
 }
 
 /** Chunk handlers related to cargo packets. */
-extern const ChunkHandler _cargopacket_chunk_handlers[] = {
-	{ 'CAPA', Save_CAPA, Load_CAPA, nullptr, nullptr, CH_ARRAY | CH_LAST},
+static const ChunkHandler cargopacket_chunk_handlers[] = {
+	{ 'CAPA', Save_CAPA, Load_CAPA, nullptr, nullptr, CH_ARRAY },
 };
+
+extern const ChunkHandlerTable _cargopacket_chunk_handlers(cargopacket_chunk_handlers);

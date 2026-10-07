@@ -445,21 +445,21 @@ void AfterLoadVehicles(bool part_of_load)
 			case VEH_ROAD:
 			case VEH_TRAIN:
 			case VEH_SHIP:
-				v->GetImage(v->direction, EIT_ON_MAP, &v->sprite_seq);
+				v->GetImage(v->direction, EIT_ON_MAP, &v->sprite_cache.sprite_seq);
 				break;
 
 			case VEH_AIRCRAFT:
 				if (Aircraft::From(v)->IsNormalAircraft()) {
-					v->GetImage(v->direction, EIT_ON_MAP, &v->sprite_seq);
+					v->GetImage(v->direction, EIT_ON_MAP, &v->sprite_cache.sprite_seq);
 
 					/* The plane's shadow will have the same image as the plane, but no colour */
 					Vehicle *shadow = v->Next();
-					shadow->sprite_seq.CopyWithoutPalette(v->sprite_seq);
+					shadow->sprite_cache.sprite_seq.CopyWithoutPalette(v->sprite_cache.sprite_seq);
 
 					/* In the case of a helicopter we will update the rotor sprites */
 					if (v->subtype == AIR_HELICOPTER) {
 						Vehicle *rotor = shadow->Next();
-						GetRotorImage(Aircraft::From(v), EIT_ON_MAP, &rotor->sprite_seq);
+						GetRotorImage(Aircraft::From(v), EIT_ON_MAP, &rotor->sprite_cache.sprite_seq);
 					}
 
 					UpdateAircraftCache(Aircraft::From(v), true);
@@ -470,6 +470,7 @@ void AfterLoadVehicles(bool part_of_load)
 
 		v->UpdateDeltaXY();
 		v->coord.left = INVALID_COORD;
+		v->sprite_cache.old_coord.left = INVALID_COORD;
 		v->UpdatePosition();
 		v->UpdateViewport(false);
 	}
@@ -577,7 +578,7 @@ static uint32 _cargo_loaded_at_xy;
  * @param vt the vehicle type. Can be VEH_END for the common vehicle description data
  * @return the saveload description
  */
-const SaveLoad *GetVehicleDescription(VehicleType vt)
+SaveLoadTable GetVehicleDescription(VehicleType vt)
 {
 	/** Save and load of vehicles */
 	static const SaveLoad _common_veh_desc[] = {
@@ -611,6 +612,7 @@ const SaveLoad *GetVehicleDescription(VehicleType vt)
 		     SLE_VAR(Vehicle, cur_speed,             SLE_UINT16),
 		     SLE_VAR(Vehicle, subspeed,              SLE_UINT8),
 		     SLE_VAR(Vehicle, acceleration,          SLE_UINT8),
+		 SLE_CONDVAR(Vehicle, motion_counter,        SLE_UINT32,                   SLV_VEH_MOTION_COUNTER, SL_MAX_VERSION),
 		     SLE_VAR(Vehicle, progress,              SLE_UINT8),
 
 		     SLE_VAR(Vehicle, vehstatus,             SLE_UINT8),
@@ -710,10 +712,7 @@ const SaveLoad *GetVehicleDescription(VehicleType vt)
 		 SLE_CONDVAR(Vehicle, lateness_counter,      SLE_INT32,                   SLV_67, SL_MAX_VERSION),
 
 		SLE_CONDNULL(10,                                                           SLV_2, SLV_144), // old reserved space
-
-		     SLE_END()
 	};
-
 
 	static const SaveLoad _train_desc[] = {
 		SLE_WRITEBYTE(Vehicle, type),
@@ -732,8 +731,6 @@ const SaveLoad *GetVehicleDescription(VehicleType vt)
 		SLE_CONDNULL(2, SLV_2, SLV_20),
 		 SLE_CONDVAR(Train, gv_flags,            SLE_UINT16,                 SLV_139, SL_MAX_VERSION),
 		SLE_CONDNULL(11, SLV_2, SLV_144), // old reserved space
-
-		     SLE_END()
 	};
 
 	static const SaveLoad _roadveh_desc[] = {
@@ -754,8 +751,6 @@ const SaveLoad *GetVehicleDescription(VehicleType vt)
 		 SLE_CONDNULL(4,                                                              SLV_69, SLV_131),
 		 SLE_CONDNULL(2,                                                               SLV_6, SLV_131),
 		 SLE_CONDNULL(16,                                                              SLV_2, SLV_144), // old reserved space
-
-		      SLE_END()
 	};
 
 	static const SaveLoad _ship_desc[] = {
@@ -766,8 +761,6 @@ const SaveLoad *GetVehicleDescription(VehicleType vt)
 		  SLE_CONDVAR(Ship, rotation,                  SLE_UINT8,                  SLV_SHIP_ROTATION, SL_MAX_VERSION),
 
 		SLE_CONDNULL(16, SLV_2, SLV_144), // old reserved space
-
-		     SLE_END()
 	};
 
 	static const SaveLoad _aircraft_desc[] = {
@@ -789,8 +782,6 @@ const SaveLoad *GetVehicleDescription(VehicleType vt)
 		 SLE_CONDVAR(Aircraft, flags,                 SLE_UINT8,                  SLV_167, SL_MAX_VERSION),
 
 		SLE_CONDNULL(13,                                                           SLV_2, SLV_144), // old reserved space
-
-		     SLE_END()
 	};
 
 	static const SaveLoad _special_desc[] = {
@@ -808,7 +799,7 @@ const SaveLoad *GetVehicleDescription(VehicleType vt)
 		 SLE_CONDVAR(Vehicle, z_pos,                 SLE_FILE_U8  | SLE_VAR_I32,   SL_MIN_VERSION, SLV_164),
 		 SLE_CONDVAR(Vehicle, z_pos,                 SLE_INT32,                  SLV_164, SL_MAX_VERSION),
 
-		     SLE_VAR(Vehicle, sprite_seq.seq[0].sprite, SLE_FILE_U16 | SLE_VAR_U32),
+		     SLE_VAR(Vehicle, sprite_cache.sprite_seq.seq[0].sprite, SLE_FILE_U16 | SLE_VAR_U32),
 		SLE_CONDNULL(5,                                                            SL_MIN_VERSION,  SLV_59),
 		     SLE_VAR(Vehicle, progress,              SLE_UINT8),
 		     SLE_VAR(Vehicle, vehstatus,             SLE_UINT8),
@@ -819,8 +810,6 @@ const SaveLoad *GetVehicleDescription(VehicleType vt)
 		 SLE_CONDVAR(Vehicle, spritenum,             SLE_UINT8,                    SLV_2, SL_MAX_VERSION),
 
 		SLE_CONDNULL(15,                                                           SLV_2, SLV_144), // old reserved space
-
-		     SLE_END()
 	};
 
 	static const SaveLoad _disaster_desc[] = {
@@ -848,7 +837,7 @@ const SaveLoad *GetVehicleDescription(VehicleType vt)
 		 SLE_CONDVAR(Vehicle, current_order.dest,    SLE_FILE_U8 | SLE_VAR_U16,    SL_MIN_VERSION,   SLV_5),
 		 SLE_CONDVAR(Vehicle, current_order.dest,    SLE_UINT16,                   SLV_5, SL_MAX_VERSION),
 
-		     SLE_VAR(Vehicle, sprite_seq.seq[0].sprite, SLE_FILE_U16 | SLE_VAR_U32),
+		     SLE_VAR(Vehicle, sprite_cache.sprite_seq.seq[0].sprite, SLE_FILE_U16 | SLE_VAR_U32),
 		 SLE_CONDVAR(Vehicle, age,                   SLE_FILE_U16 | SLE_VAR_I32,   SL_MIN_VERSION,  SLV_31),
 		 SLE_CONDVAR(Vehicle, age,                   SLE_INT32,                   SLV_31, SL_MAX_VERSION),
 		     SLE_VAR(Vehicle, tick_counter,          SLE_UINT8),
@@ -860,12 +849,10 @@ const SaveLoad *GetVehicleDescription(VehicleType vt)
 		 SLE_CONDVAR(DisasterVehicle, flags,                     SLE_UINT8,                  SLV_194, SL_MAX_VERSION),
 
 		SLE_CONDNULL(16,                                                           SLV_2, SLV_144), // old reserved space
-
-		     SLE_END()
 	};
 
 
-	static const SaveLoad * const _veh_descs[] = {
+	static const SaveLoadTable _veh_descs[] = {
 		_train_desc,
 		_roadveh_desc,
 		_ship_desc,
@@ -944,6 +931,8 @@ static void Ptrs_VEHS()
 	}
 }
 
-extern const ChunkHandler _veh_chunk_handlers[] = {
-	{ 'VEHS', Save_VEHS, Load_VEHS, Ptrs_VEHS, nullptr, CH_SPARSE_ARRAY | CH_LAST},
+static const ChunkHandler veh_chunk_handlers[] = {
+	{ 'VEHS', Save_VEHS, Load_VEHS, Ptrs_VEHS, nullptr, CH_SPARSE_ARRAY },
 };
+
+extern const ChunkHandlerTable _veh_chunk_handlers(veh_chunk_handlers);

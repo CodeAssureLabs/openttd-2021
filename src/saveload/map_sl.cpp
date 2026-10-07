@@ -20,10 +20,9 @@
 static uint32 _map_dim_x;
 static uint32 _map_dim_y;
 
-static const SaveLoadGlobVarList _map_dimensions[] = {
+static const SaveLoad _map_dimensions[] = {
 	SLEG_CONDVAR(_map_dim_x, SLE_UINT32, SLV_6, SL_MAX_VERSION),
 	SLEG_CONDVAR(_map_dim_y, SLE_UINT32, SLV_6, SL_MAX_VERSION),
-	    SLEG_END()
 };
 
 static void Save_MAPS()
@@ -295,7 +294,7 @@ static void Save_MAP8()
 }
 
 
-extern const ChunkHandler _map_chunk_handlers[] = {
+static const ChunkHandler map_chunk_handlers[] = {
 	{ 'MAPS', Save_MAPS, Load_MAPS, nullptr, Check_MAPS, CH_RIFF },
 	{ 'MAPT', Save_MAPT, Load_MAPT, nullptr, nullptr,    CH_RIFF },
 	{ 'MAPH', Save_MAPH, Load_MAPH, nullptr, nullptr,    CH_RIFF },
@@ -306,5 +305,7 @@ extern const ChunkHandler _map_chunk_handlers[] = {
 	{ 'MAP5', Save_MAP5, Load_MAP5, nullptr, nullptr,    CH_RIFF },
 	{ 'MAPE', Save_MAP6, Load_MAP6, nullptr, nullptr,    CH_RIFF },
 	{ 'MAP7', Save_MAP7, Load_MAP7, nullptr, nullptr,    CH_RIFF },
-	{ 'MAP8', Save_MAP8, Load_MAP8, nullptr, nullptr,    CH_RIFF | CH_LAST },
+	{ 'MAP8', Save_MAP8, Load_MAP8, nullptr, nullptr,    CH_RIFF },
 };
+
+extern const ChunkHandlerTable _map_chunk_handlers(map_chunk_handlers);

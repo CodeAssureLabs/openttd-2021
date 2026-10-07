@@ -13,6 +13,7 @@
 #include "engine_func.h"
 #include "landscape.h"
 #include "saveload/saveload.h"
+#include "network/core/game_info.h"
 #include "network/network.h"
 #include "network/network_func.h"
 #include "network/network_base.h"
@@ -36,14 +37,16 @@
 #include "newgrf_profiling.h"
 #include "console_func.h"
 #include "engine_base.h"
+#include "road.h"
+#include "rail.h"
 #include "game/game.hpp"
 #include "table/strings.h"
-#include <time.h>
+#include "walltime_func.h"
 
 #include "safeguards.h"
 
 /* scriptfile handling */
-static bool _script_running; ///< Script is running (used to abort execution when #ConReturn is encountered).
+static uint _script_current_depth; ///< Depth of scripts running (used to abort execution when #ConReturn is encountered).
 
 /** File list storage for the console, for caching the last 'ls' command. */
 class ConsoleFileList : public FileList {
@@ -56,7 +59,7 @@ public:
 	/** Declare the file storage cache as being invalid, also clears all stored files. */
 	void InvalidateFileList()
 	{
-		this->Clear();
+		this->clear();
 		this->file_list_valid = false;
 	}
 
@@ -145,7 +148,7 @@ DEF_CONSOLE_HOOK(ConHookNeedNetwork)
 }
 
 /**
- * Check whether we are in single player mode.
+ * Check whether we are in singleplayer mode.
  * @return True when no network is active.
  */
 DEF_CONSOLE_HOOK(ConHookNoNetwork)
@@ -400,7 +403,7 @@ DEF_CONSOLE_CMD(ConListFiles)
 	}
 
 	_console_file_list.ValidateFileList(true);
-	for (uint i = 0; i < _console_file_list.Length(); i++) {
+	for (uint i = 0; i < _console_file_list.size(); i++) {
 		IConsolePrintF(CC_DEFAULT, "%d) %s", i, _console_file_list[i].title);
 	}
 
@@ -470,7 +473,7 @@ DEF_CONSOLE_CMD(ConClearBuffer)
  * Network Core Console Commands
  **********************************/
 
-static bool ConKickOrBan(const char *argv, bool ban, const char *reason)
+static bool ConKickOrBan(const char *argv, bool ban, const std::string &reason)
 {
 	uint n;
 
@@ -482,7 +485,7 @@ static bool ConKickOrBan(const char *argv, bool ban, const char *reason)
 		 * would be reading from and writing to after returning. So we would read or write data
 		 * from freed memory up till the segfault triggers. */
 		if (client_id == CLIENT_ID_SERVER || client_id == _redirect_console_to_client) {
-			IConsolePrintF(CC_ERROR, "ERROR: Silly boy, you can not %s yourself!", ban ? "ban" : "kick");
+			IConsolePrintF(CC_ERROR, "ERROR: You can not %s yourself!", ban ? "ban" : "kick");
 			return true;
 		}
 
@@ -524,7 +527,7 @@ DEF_CONSOLE_CMD(ConKick)
 	if (argc != 2 && argc != 3) return false;
 
 	/* No reason supplied for kicking */
-	if (argc == 2) return ConKickOrBan(argv[1], false, nullptr);
+	if (argc == 2) return ConKickOrBan(argv[1], false, {});
 
 	/* Reason for kicking supplied */
 	size_t kick_message_length = strlen(argv[2]);
@@ -541,14 +544,14 @@ DEF_CONSOLE_CMD(ConBan)
 	if (argc == 0) {
 		IConsoleHelp("Ban a client from a network game. Usage: 'ban <ip | client-id> [<ban-reason>]'");
 		IConsoleHelp("For client-id's, see the command 'clients'");
-		IConsoleHelp("If the client is no longer online, you can still ban his/her IP");
+		IConsoleHelp("If the client is no longer online, you can still ban their IP");
 		return true;
 	}
 
 	if (argc != 2 && argc != 3) return false;
 
 	/* No reason supplied for kicking */
-	if (argc == 2) return ConKickOrBan(argv[1], true, nullptr);
+	if (argc == 2) return ConKickOrBan(argv[1], true, {});
 
 	/* Reason for kicking supplied */
 	size_t kick_message_length = strlen(argv[2]);
@@ -714,7 +717,14 @@ DEF_CONSOLE_CMD(ConClientNickChange)
 		return true;
 	}
 
-	if (!NetworkServerChangeClientName(client_id, argv[2])) {
+	std::string client_name(argv[2]);
+	StrTrimInPlace(client_name);
+	if (!NetworkIsValidClientName(client_name)) {
+		IConsoleError("Cannot give a client an empty name");
+		return true;
+	}
+
+	if (!NetworkServerChangeClientName(client_id, client_name)) {
 		IConsoleError("Cannot give a client a duplicate name");
 	}
 
@@ -796,12 +806,12 @@ DEF_CONSOLE_CMD(ConMoveClient)
 	}
 
 	if (ci->client_id == CLIENT_ID_SERVER && _network_dedicated) {
-		IConsoleError("Silly boy, you cannot move the server!");
+		IConsoleError("You cannot move the server!");
 		return true;
 	}
 
 	if (ci->client_playas == company_id) {
-		IConsoleError("You cannot move someone to where he/she already is!");
+		IConsoleError("You cannot move someone to where they already are!");
 		return true;
 	}
 
@@ -883,16 +893,15 @@ DEF_CONSOLE_CMD(ConNetworkReconnect)
 			break;
 	}
 
-	if (StrEmpty(_settings_client.network.last_host)) {
+	if (_settings_client.network.last_joined.empty()) {
 		IConsolePrint(CC_DEFAULT, "No server for reconnecting.");
 		return true;
 	}
 
 	/* Don't resolve the address first, just print it directly as it comes from the config file. */
-	IConsolePrintF(CC_DEFAULT, "Reconnecting to %s:%d...", _settings_client.network.last_host, _settings_client.network.last_port);
+	IConsolePrintF(CC_DEFAULT, "Reconnecting to %s ...", _settings_client.network.last_joined.c_str());
 
-	NetworkClientConnectGame(NetworkAddress(_settings_client.network.last_host, _settings_client.network.last_port), playas);
-	return true;
+	return NetworkClientConnectGame(_settings_client.network.last_joined, playas);
 }
 
 DEF_CONSOLE_CMD(ConNetworkConnect)
@@ -905,37 +914,8 @@ DEF_CONSOLE_CMD(ConNetworkConnect)
 	}
 
 	if (argc < 2) return false;
-	if (_networking) NetworkDisconnect(); // we are in network-mode, first close it!
 
-	const char *port = nullptr;
-	const char *company = nullptr;
-	char *ip = argv[1];
-	/* Default settings: default port and new company */
-	uint16 rport = NETWORK_DEFAULT_PORT;
-	CompanyID join_as = COMPANY_NEW_COMPANY;
-
-	ParseConnectionString(&company, &port, ip);
-
-	IConsolePrintF(CC_DEFAULT, "Connecting to %s...", ip);
-	if (company != nullptr) {
-		join_as = (CompanyID)atoi(company);
-		IConsolePrintF(CC_DEFAULT, "    company-no: %d", join_as);
-
-		/* From a user pov 0 is a new company, internally it's different and all
-		 * companies are offset by one to ease up on users (eg companies 1-8 not 0-7) */
-		if (join_as != COMPANY_SPECTATOR) {
-			if (join_as > MAX_COMPANIES) return false;
-			join_as--;
-		}
-	}
-	if (port != nullptr) {
-		rport = atoi(port);
-		IConsolePrintF(CC_DEFAULT, "    port: %s", port);
-	}
-
-	NetworkClientConnectGame(NetworkAddress(ip, rport), join_as);
-
-	return true;
+	return NetworkClientConnectGame(argv[1], COMPANY_NEW_COMPANY);
 }
 
 /*********************************
@@ -958,10 +938,17 @@ DEF_CONSOLE_CMD(ConExec)
 		return true;
 	}
 
-	_script_running = true;
+	if (_script_current_depth == 11) {
+		FioFCloseFile(script_file);
+		IConsoleError("Maximum 'exec' depth reached; script A is calling script B is calling script C ... more than 10 times.");
+		return true;
+	}
+
+	_script_current_depth++;
+	uint script_depth = _script_current_depth;
 
 	char cmdline[ICON_CMDLN_SIZE];
-	while (_script_running && fgets(cmdline, sizeof(cmdline), script_file) != nullptr) {
+	while (fgets(cmdline, sizeof(cmdline), script_file) != nullptr) {
 		/* Remove newline characters from the executing script */
 		for (char *cmdptr = cmdline; *cmdptr != '\0'; cmdptr++) {
 			if (*cmdptr == '\n' || *cmdptr == '\r') {
@@ -970,13 +957,18 @@ DEF_CONSOLE_CMD(ConExec)
 			}
 		}
 		IConsoleCmdExec(cmdline);
+		/* Ensure that we are still on the same depth or that we returned via 'return'. */
+		assert(_script_current_depth == script_depth || _script_current_depth == script_depth - 1);
+
+		/* The 'return' command was executed. */
+		if (_script_current_depth == script_depth - 1) break;
 	}
 
 	if (ferror(script_file)) {
 		IConsoleError("Encountered error while trying to read from script file");
 	}
 
-	_script_running = false;
+	if (_script_current_depth == script_depth) _script_current_depth--;
 	FioFCloseFile(script_file);
 	return true;
 }
@@ -988,7 +980,7 @@ DEF_CONSOLE_CMD(ConReturn)
 		return true;
 	}
 
-	_script_running = false;
+	_script_current_depth--;
 	return true;
 }
 
@@ -1070,6 +1062,23 @@ DEF_CONSOLE_CMD(ConRestart)
 	_settings_game.game_creation.map_x = MapLogX();
 	_settings_game.game_creation.map_y = FindFirstBit(MapSizeY());
 	_switch_mode = SM_RESTARTGAME;
+	return true;
+}
+
+DEF_CONSOLE_CMD(ConReload)
+{
+	if (argc == 0) {
+		IConsoleHelp("Reload game. Usage: 'reload'");
+		IConsoleHelp("Reloads a game.");
+		IConsoleHelp(" * if you started from a savegame / scenario / heightmap, that exact same savegame / scenario / heightmap will be loaded.");
+		IConsoleHelp(" * if you started from a new game, this acts the same as 'restart'.");
+		return true;
+	}
+
+	/* Don't copy the _newgame pointers to the real pointers, so call SwitchToMode directly */
+	_settings_game.game_creation.map_x = MapLogX();
+	_settings_game.game_creation.map_y = FindFirstBit(MapSizeY());
+	_switch_mode = SM_RELOADGAME;
 	return true;
 }
 
@@ -1229,13 +1238,14 @@ DEF_CONSOLE_CMD(ConReloadAI)
 		return true;
 	}
 
-	if (Company::IsHumanID(company_id)) {
+	/* In singleplayer mode the player can be in an AI company, after cheating or loading network save with an AI in first slot. */
+	if (Company::IsHumanID(company_id) || company_id == _local_company) {
 		IConsoleWarning("Company is not controlled by an AI.");
 		return true;
 	}
 
 	/* First kill the company of the AI, then start a new one. This should start the current AI again */
-	DoCommandP(0, CCA_DELETE | company_id << 16 | CRR_MANUAL << 24, 0,CMD_COMPANY_CTRL);
+	DoCommandP(0, CCA_DELETE | company_id << 16 | CRR_MANUAL << 24, 0, CMD_COMPANY_CTRL);
 	DoCommandP(0, CCA_NEW_AI | company_id << 16, 0, CMD_COMPANY_CTRL);
 	IConsolePrint(CC_DEFAULT, "AI reloaded.");
 
@@ -1266,6 +1276,7 @@ DEF_CONSOLE_CMD(ConStopAI)
 		return true;
 	}
 
+	/* In singleplayer mode the player can be in an AI company, after cheating or loading network save with an AI in first slot. */
 	if (Company::IsHumanID(company_id) || company_id == _local_company) {
 		IConsoleWarning("Company is not controlled by an AI.");
 		return true;
@@ -1319,7 +1330,9 @@ DEF_CONSOLE_CMD(ConRescanNewGRF)
 		return true;
 	}
 
-	ScanNewGRFFiles(nullptr);
+	if (!RequestNewGRFScan()) {
+		IConsoleWarning("NewGRF scanning is already running. Please wait until completed to run again.");
+	}
 
 	return true;
 }
@@ -1356,10 +1369,9 @@ DEF_CONSOLE_CMD(ConGetSysDate)
 		return true;
 	}
 
-	time_t t;
-	time(&t);
-	auto timeinfo = localtime(&t);
-	IConsolePrintF(CC_DEFAULT, "System Date: %04d-%02d-%02d %02d:%02d:%02d", timeinfo->tm_year + 1900, timeinfo->tm_mon + 1, timeinfo->tm_mday, timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
+	char buffer[lengthof("2000-01-02 03:04:05")];
+	LocalTime::Format(buffer, lastof(buffer), "%Y-%m-%d %H:%M:%S");
+	IConsolePrintF(CC_DEFAULT, "System Date: %s", buffer);
 	return true;
 }
 
@@ -1375,12 +1387,11 @@ DEF_CONSOLE_CMD(ConAlias)
 
 	if (argc < 3) return false;
 
-	alias = IConsoleAliasGet(argv[1]);
+	alias = IConsole::AliasGet(argv[1]);
 	if (alias == nullptr) {
-		IConsoleAliasRegister(argv[1], argv[2]);
+		IConsole::AliasRegister(argv[1], argv[2]);
 	} else {
-		free(alias->cmdline);
-		alias->cmdline = stredup(argv[2]);
+		alias->cmdline = argv[2];
 	}
 	return true;
 }
@@ -1388,46 +1399,80 @@ DEF_CONSOLE_CMD(ConAlias)
 DEF_CONSOLE_CMD(ConScreenShot)
 {
 	if (argc == 0) {
-		IConsoleHelp("Create a screenshot of the game. Usage: 'screenshot [big | giant | no_con | minimap] [file name]'");
-		IConsoleHelp("'big' makes a zoomed-in screenshot of the visible area, 'giant' makes a screenshot of the "
-				"whole map, 'no_con' hides the console to create the screenshot. 'big' or 'giant' "
-				"screenshots are always drawn without console. "
-				"'minimap' makes a top-viewed minimap screenshot of whole world which represents one tile by one pixel.");
+		IConsoleHelp("Create a screenshot of the game. Usage: 'screenshot [viewport | normal | big | giant | heightmap | minimap] [no_con] [size <width> <height>] [<filename>]'");
+		IConsoleHelp("'viewport' (default) makes a screenshot of the current viewport (including menus, windows, ..), "
+				"'normal' makes a screenshot of the visible area, "
+				"'big' makes a zoomed-in screenshot of the visible area, "
+				"'giant' makes a screenshot of the whole map, "
+				"'heightmap' makes a heightmap screenshot of the map that can be loaded in as heightmap, "
+				"'minimap' makes a top-viewed minimap screenshot of the whole world which represents one tile by one pixel. "
+				"'no_con' hides the console to create the screenshot (only useful in combination with 'viewport'). "
+				"'size' sets the width and height of the viewport to make a screenshot of (only useful in combination with 'normal' or 'big').");
 		return true;
 	}
 
-	if (argc > 3) return false;
+	if (argc > 7) return false;
 
 	ScreenshotType type = SC_VIEWPORT;
-	const char *name = nullptr;
+	uint32 width = 0;
+	uint32 height = 0;
+	std::string name{};
+	uint32 arg_index = 1;
 
-	if (argc > 1) {
-		if (strcmp(argv[1], "big") == 0) {
-			/* screenshot big [filename] */
+	if (argc > arg_index) {
+		if (strcmp(argv[arg_index], "viewport") == 0) {
+			type = SC_VIEWPORT;
+			arg_index += 1;
+		} else if (strcmp(argv[arg_index], "normal") == 0) {
+			type = SC_DEFAULTZOOM;
+			arg_index += 1;
+		} else if (strcmp(argv[arg_index], "big") == 0) {
 			type = SC_ZOOMEDIN;
-			if (argc > 2) name = argv[2];
-		} else if (strcmp(argv[1], "giant") == 0) {
-			/* screenshot giant [filename] */
+			arg_index += 1;
+		} else if (strcmp(argv[arg_index], "giant") == 0) {
 			type = SC_WORLD;
-			if (argc > 2) name = argv[2];
-		} else if (strcmp(argv[1], "minimap") == 0) {
-			/* screenshot minimap [filename] */
+			arg_index += 1;
+		} else if (strcmp(argv[arg_index], "heightmap") == 0) {
+			type = SC_HEIGHTMAP;
+			arg_index += 1;
+		} else if (strcmp(argv[arg_index], "minimap") == 0) {
 			type = SC_MINIMAP;
-			if (argc > 2) name = argv[2];
-		} else if (strcmp(argv[1], "no_con") == 0) {
-			/* screenshot no_con [filename] */
-			IConsoleClose();
-			if (argc > 2) name = argv[2];
-		} else if (argc == 2) {
-			/* screenshot filename */
-			name = argv[1];
-		} else {
-			/* screenshot argv[1] argv[2] - invalid */
-			return false;
+			arg_index += 1;
 		}
 	}
 
-	MakeScreenshot(type, name);
+	if (argc > arg_index && strcmp(argv[arg_index], "no_con") == 0) {
+		if (type != SC_VIEWPORT) {
+			IConsoleError("'no_con' can only be used in combination with 'viewport'");
+			return true;
+		}
+		IConsoleClose();
+		arg_index += 1;
+	}
+
+	if (argc > arg_index + 2 && strcmp(argv[arg_index], "size") == 0) {
+		/* size <width> <height> */
+		if (type != SC_DEFAULTZOOM && type != SC_ZOOMEDIN) {
+			IConsoleError("'size' can only be used in combination with 'normal' or 'big'");
+			return true;
+		}
+		GetArgumentInteger(&width, argv[arg_index + 1]);
+		GetArgumentInteger(&height, argv[arg_index + 2]);
+		arg_index += 3;
+	}
+
+	if (argc > arg_index) {
+		/* Last parameter that was not one of the keywords must be the filename. */
+		name = argv[arg_index];
+		arg_index += 1;
+	}
+
+	if (argc > arg_index) {
+		/* We have parameters we did not process; means we misunderstood any of the above. */
+		return false;
+	}
+
+	MakeScreenshot(type, name, width, height);
 	return true;
 }
 
@@ -1440,13 +1485,13 @@ DEF_CONSOLE_CMD(ConInfoCmd)
 
 	if (argc < 2) return false;
 
-	const IConsoleCmd *cmd = IConsoleCmdGet(argv[1]);
+	const IConsoleCmd *cmd = IConsole::CmdGet(argv[1]);
 	if (cmd == nullptr) {
 		IConsoleError("the given command was not found");
 		return true;
 	}
 
-	IConsolePrintF(CC_DEFAULT, "command name: %s", cmd->name);
+	IConsolePrintF(CC_DEFAULT, "command name: %s", cmd->name.c_str());
 	IConsolePrintF(CC_DEFAULT, "command proc: %p", cmd->proc);
 
 	if (cmd->hook != nullptr) IConsoleWarning("command is hooked");
@@ -1505,21 +1550,20 @@ DEF_CONSOLE_CMD(ConHelp)
 		const IConsoleCmd *cmd;
 		const IConsoleAlias *alias;
 
-		RemoveUnderscores(argv[1]);
-		cmd = IConsoleCmdGet(argv[1]);
+		cmd = IConsole::CmdGet(argv[1]);
 		if (cmd != nullptr) {
 			cmd->proc(0, nullptr);
 			return true;
 		}
 
-		alias = IConsoleAliasGet(argv[1]);
+		alias = IConsole::AliasGet(argv[1]);
 		if (alias != nullptr) {
-			cmd = IConsoleCmdGet(alias->cmdline);
+			cmd = IConsole::CmdGet(alias->cmdline);
 			if (cmd != nullptr) {
 				cmd->proc(0, nullptr);
 				return true;
 			}
-			IConsolePrintF(CC_ERROR, "ERROR: alias is of special type, please see its execution-line: '%s'", alias->cmdline);
+			IConsolePrintF(CC_ERROR, "ERROR: alias is of special type, please see its execution-line: '%s'", alias->cmdline.c_str());
 			return true;
 		}
 
@@ -1546,9 +1590,10 @@ DEF_CONSOLE_CMD(ConListCommands)
 		return true;
 	}
 
-	for (const IConsoleCmd *cmd = _iconsole_cmds; cmd != nullptr; cmd = cmd->next) {
-		if (argv[1] == nullptr || strstr(cmd->name, argv[1]) != nullptr) {
-			if (cmd->hook == nullptr || cmd->hook(false) != CHR_HIDE) IConsolePrintF(CC_DEFAULT, "%s", cmd->name);
+	for (auto &it : IConsole::Commands()) {
+		const IConsoleCmd *cmd = &it.second;
+		if (argv[1] == nullptr || cmd->name.find(argv[1]) != std::string::npos) {
+			if (cmd->hook == nullptr || cmd->hook(false) != CHR_HIDE) IConsolePrintF(CC_DEFAULT, "%s", cmd->name.c_str());
 		}
 	}
 
@@ -1562,9 +1607,10 @@ DEF_CONSOLE_CMD(ConListAliases)
 		return true;
 	}
 
-	for (const IConsoleAlias *alias = _iconsole_aliases; alias != nullptr; alias = alias->next) {
-		if (argv[1] == nullptr || strstr(alias->name, argv[1]) != nullptr) {
-			IConsolePrintF(CC_DEFAULT, "%s => %s", alias->name, alias->cmdline);
+	for (auto &it : IConsole::Aliases()) {
+		const IConsoleAlias *alias = &it.second;
+		if (argv[1] == nullptr || alias->name.find(argv[1]) != std::string::npos) {
+			IConsolePrintF(CC_DEFAULT, "%s => %s", alias->name.c_str(), alias->cmdline.c_str());
 		}
 	}
 
@@ -1588,7 +1634,7 @@ DEF_CONSOLE_CMD(ConCompanies)
 		if (c->is_ai) {
 			password_state = "AI";
 		} else if (_network_server) {
-				password_state = StrEmpty(_network_company_states[c->index].password) ? "unprotected" : "protected";
+			password_state = _network_company_states[c->index].password.empty() ? "unprotected" : "protected";
 		}
 
 		char colour[512];
@@ -1690,7 +1736,7 @@ DEF_CONSOLE_CMD(ConCompanyPassword)
 	}
 
 	CompanyID company_id;
-	const char *password;
+	std::string password;
 	const char *errormsg;
 
 	if (argc == 2) {
@@ -1712,10 +1758,10 @@ DEF_CONSOLE_CMD(ConCompanyPassword)
 
 	password = NetworkChangeCompanyPassword(company_id, password);
 
-	if (StrEmpty(password)) {
+	if (password.empty()) {
 		IConsolePrintF(CC_WARNING, "Company password cleared");
 	} else {
-		IConsolePrintF(CC_WARNING, "Company password changed to: %s", password);
+		IConsolePrintF(CC_WARNING, "Company password changed to: %s", password.c_str());
 	}
 
 	return true;
@@ -1813,7 +1859,7 @@ DEF_CONSOLE_CMD(ConContent)
 			 * to download every available package on BaNaNaS. This is not in
 			 * the spirit of this service. Additionally, these few people were
 			 * good for 70% of the consumed bandwidth of BaNaNaS. */
-			IConsolePrintF(CC_ERROR, "'select all' is no longer supported since 1.11");
+			IConsoleError("'select all' is no longer supported since 1.11");
 		} else {
 			_network_content_client.Select((ContentID)atoi(argv[2]));
 		}
@@ -2015,7 +2061,7 @@ DEF_CONSOLE_CMD(ConNewGRFProfile)
 		if (started > 0) {
 			IConsolePrintF(CC_DEBUG, "Started profiling for GRFID%s %s", (started > 1) ? "s" : "", grfids.c_str());
 			if (argc >= 3) {
-				int days = max(atoi(argv[2]), 1);
+				int days = std::max(atoi(argv[2]), 1);
 				_newgrf_profile_end_date = _date + days;
 
 				char datestrbuf[32]{ 0 };
@@ -2058,9 +2104,9 @@ DEF_CONSOLE_CMD(ConNewGRFProfile)
 
 static void IConsoleDebugLibRegister()
 {
-	IConsoleCmdRegister("resettile",        ConResetTile);
-	IConsoleAliasRegister("dbg_echo",       "echo %A; echo %B");
-	IConsoleAliasRegister("dbg_echo2",      "echo %!");
+	IConsole::CmdRegister("resettile",        ConResetTile);
+	IConsole::AliasRegister("dbg_echo",       "echo %A; echo %B");
+	IConsole::AliasRegister("dbg_echo2",      "echo %!");
 }
 #endif
 
@@ -2095,140 +2141,296 @@ DEF_CONSOLE_CMD(ConFramerateWindow)
 	return true;
 }
 
+static void ConDumpRoadTypes()
+{
+	IConsolePrintF(CC_DEFAULT, "  Flags:");
+	IConsolePrintF(CC_DEFAULT, "    c = catenary");
+	IConsolePrintF(CC_DEFAULT, "    l = no level crossings");
+	IConsolePrintF(CC_DEFAULT, "    X = no houses");
+	IConsolePrintF(CC_DEFAULT, "    h = hidden");
+	IConsolePrintF(CC_DEFAULT, "    T = buildable by towns");
+
+	std::map<uint32, const GRFFile *> grfs;
+	for (RoadType rt = ROADTYPE_BEGIN; rt < ROADTYPE_END; rt++) {
+		const RoadTypeInfo *rti = GetRoadTypeInfo(rt);
+		if (rti->label == 0) continue;
+		uint32 grfid = 0;
+		const GRFFile *grf = rti->grffile[ROTSG_GROUND];
+		if (grf != nullptr) {
+			grfid = grf->grfid;
+			grfs.emplace(grfid, grf);
+		}
+		IConsolePrintF(CC_DEFAULT, "  %02u %s %c%c%c%c, Flags: %c%c%c%c%c, GRF: %08X, %s",
+				(uint)rt,
+				RoadTypeIsTram(rt) ? "Tram" : "Road",
+				rti->label >> 24, rti->label >> 16, rti->label >> 8, rti->label,
+				HasBit(rti->flags, ROTF_CATENARY)          ? 'c' : '-',
+				HasBit(rti->flags, ROTF_NO_LEVEL_CROSSING) ? 'l' : '-',
+				HasBit(rti->flags, ROTF_NO_HOUSES)         ? 'X' : '-',
+				HasBit(rti->flags, ROTF_HIDDEN)            ? 'h' : '-',
+				HasBit(rti->flags, ROTF_TOWN_BUILD)        ? 'T' : '-',
+				BSWAP32(grfid),
+				GetStringPtr(rti->strings.name)
+		);
+	}
+	for (const auto &grf : grfs) {
+		IConsolePrintF(CC_DEFAULT, "  GRF: %08X = %s", BSWAP32(grf.first), grf.second->filename);
+	}
+}
+
+static void ConDumpRailTypes()
+{
+	IConsolePrintF(CC_DEFAULT, "  Flags:");
+	IConsolePrintF(CC_DEFAULT, "    c = catenary");
+	IConsolePrintF(CC_DEFAULT, "    l = no level crossings");
+	IConsolePrintF(CC_DEFAULT, "    h = hidden");
+	IConsolePrintF(CC_DEFAULT, "    s = no sprite combine");
+	IConsolePrintF(CC_DEFAULT, "    a = always allow 90 degree turns");
+	IConsolePrintF(CC_DEFAULT, "    d = always disallow 90 degree turns");
+
+	std::map<uint32, const GRFFile *> grfs;
+	for (RailType rt = RAILTYPE_BEGIN; rt < RAILTYPE_END; rt++) {
+		const RailtypeInfo *rti = GetRailTypeInfo(rt);
+		if (rti->label == 0) continue;
+		uint32 grfid = 0;
+		const GRFFile *grf = rti->grffile[RTSG_GROUND];
+		if (grf != nullptr) {
+			grfid = grf->grfid;
+			grfs.emplace(grfid, grf);
+		}
+		IConsolePrintF(CC_DEFAULT, "  %02u %c%c%c%c, Flags: %c%c%c%c%c%c, GRF: %08X, %s",
+				(uint)rt,
+				rti->label >> 24, rti->label >> 16, rti->label >> 8, rti->label,
+				HasBit(rti->flags, RTF_CATENARY)          ? 'c' : '-',
+				HasBit(rti->flags, RTF_NO_LEVEL_CROSSING) ? 'l' : '-',
+				HasBit(rti->flags, RTF_HIDDEN)            ? 'h' : '-',
+				HasBit(rti->flags, RTF_NO_SPRITE_COMBINE) ? 's' : '-',
+				HasBit(rti->flags, RTF_ALLOW_90DEG)       ? 'a' : '-',
+				HasBit(rti->flags, RTF_DISALLOW_90DEG)    ? 'd' : '-',
+				BSWAP32(grfid),
+				GetStringPtr(rti->strings.name)
+		);
+	}
+	for (const auto &grf : grfs) {
+		IConsolePrintF(CC_DEFAULT, "  GRF: %08X = %s", BSWAP32(grf.first), grf.second->filename);
+	}
+}
+
+static void ConDumpCargoTypes()
+{
+	IConsolePrintF(CC_DEFAULT, "  Cargo classes:");
+	IConsolePrintF(CC_DEFAULT, "    p = passenger");
+	IConsolePrintF(CC_DEFAULT, "    m = mail");
+	IConsolePrintF(CC_DEFAULT, "    x = express");
+	IConsolePrintF(CC_DEFAULT, "    a = armoured");
+	IConsolePrintF(CC_DEFAULT, "    b = bulk");
+	IConsolePrintF(CC_DEFAULT, "    g = piece goods");
+	IConsolePrintF(CC_DEFAULT, "    l = liquid");
+	IConsolePrintF(CC_DEFAULT, "    r = refrigerated");
+	IConsolePrintF(CC_DEFAULT, "    h = hazardous");
+	IConsolePrintF(CC_DEFAULT, "    c = covered/sheltered");
+	IConsolePrintF(CC_DEFAULT, "    S = special");
+
+	std::map<uint32, const GRFFile *> grfs;
+	for (CargoID i = 0; i < NUM_CARGO; i++) {
+		const CargoSpec *spec = CargoSpec::Get(i);
+		if (!spec->IsValid()) continue;
+		uint32 grfid = 0;
+		const GRFFile *grf = spec->grffile;
+		if (grf != nullptr) {
+			grfid = grf->grfid;
+			grfs.emplace(grfid, grf);
+		}
+		IConsolePrintF(CC_DEFAULT, "  %02u Bit: %2u, Label: %c%c%c%c, Callback mask: 0x%02X, Cargo class: %c%c%c%c%c%c%c%c%c%c%c, GRF: %08X, %s",
+				(uint)i,
+				spec->bitnum,
+				spec->label >> 24, spec->label >> 16, spec->label >> 8, spec->label,
+				spec->callback_mask,
+				(spec->classes & CC_PASSENGERS)   != 0 ? 'p' : '-',
+				(spec->classes & CC_MAIL)         != 0 ? 'm' : '-',
+				(spec->classes & CC_EXPRESS)      != 0 ? 'x' : '-',
+				(spec->classes & CC_ARMOURED)     != 0 ? 'a' : '-',
+				(spec->classes & CC_BULK)         != 0 ? 'b' : '-',
+				(spec->classes & CC_PIECE_GOODS)  != 0 ? 'g' : '-',
+				(spec->classes & CC_LIQUID)       != 0 ? 'l' : '-',
+				(spec->classes & CC_REFRIGERATED) != 0 ? 'r' : '-',
+				(spec->classes & CC_HAZARDOUS)    != 0 ? 'h' : '-',
+				(spec->classes & CC_COVERED)      != 0 ? 'c' : '-',
+				(spec->classes & CC_SPECIAL)      != 0 ? 'S' : '-',
+				BSWAP32(grfid),
+				GetStringPtr(spec->name)
+		);
+	}
+	for (const auto &grf : grfs) {
+		IConsolePrintF(CC_DEFAULT, "  GRF: %08X = %s", BSWAP32(grf.first), grf.second->filename);
+	}
+}
+
+
+DEF_CONSOLE_CMD(ConDumpInfo)
+{
+	if (argc != 2) {
+		IConsoleHelp("Dump debugging information.");
+		IConsoleHelp("Usage: dump_info roadtypes|railtypes|cargotypes");
+		IConsoleHelp("  Show information about road/tram types, rail types or cargo types.");
+		return true;
+	}
+
+	if (strcasecmp(argv[1], "roadtypes") == 0) {
+		ConDumpRoadTypes();
+		return true;
+	}
+
+	if (strcasecmp(argv[1], "railtypes") == 0) {
+		ConDumpRailTypes();
+		return true;
+	}
+
+	if (strcasecmp(argv[1], "cargotypes") == 0) {
+		ConDumpCargoTypes();
+		return true;
+	}
+
+	return false;
+}
+
 /*******************************
  * console command registration
  *******************************/
 
 void IConsoleStdLibRegister()
 {
-	IConsoleCmdRegister("debug_level",  ConDebugLevel);
-	IConsoleCmdRegister("echo",         ConEcho);
-	IConsoleCmdRegister("echoc",        ConEchoC);
-	IConsoleCmdRegister("exec",         ConExec);
-	IConsoleCmdRegister("exit",         ConExit);
-	IConsoleCmdRegister("part",         ConPart);
-	IConsoleCmdRegister("help",         ConHelp);
-	IConsoleCmdRegister("info_cmd",     ConInfoCmd);
-	IConsoleCmdRegister("list_cmds",    ConListCommands);
-	IConsoleCmdRegister("list_aliases", ConListAliases);
-	IConsoleCmdRegister("newgame",      ConNewGame);
-	IConsoleCmdRegister("restart",      ConRestart);
-	IConsoleCmdRegister("getseed",      ConGetSeed);
-	IConsoleCmdRegister("getdate",      ConGetDate);
-	IConsoleCmdRegister("getsysdate",   ConGetSysDate);
-	IConsoleCmdRegister("quit",         ConExit);
-	IConsoleCmdRegister("resetengines", ConResetEngines, ConHookNoNetwork);
-	IConsoleCmdRegister("reset_enginepool", ConResetEnginePool, ConHookNoNetwork);
-	IConsoleCmdRegister("return",       ConReturn);
-	IConsoleCmdRegister("screenshot",   ConScreenShot);
-	IConsoleCmdRegister("script",       ConScript);
-	IConsoleCmdRegister("scrollto",     ConScrollToTile);
-	IConsoleCmdRegister("alias",        ConAlias);
-	IConsoleCmdRegister("load",         ConLoad);
-	IConsoleCmdRegister("rm",           ConRemove);
-	IConsoleCmdRegister("save",         ConSave);
-	IConsoleCmdRegister("saveconfig",   ConSaveConfig);
-	IConsoleCmdRegister("ls",           ConListFiles);
-	IConsoleCmdRegister("cd",           ConChangeDirectory);
-	IConsoleCmdRegister("pwd",          ConPrintWorkingDirectory);
-	IConsoleCmdRegister("clear",        ConClearBuffer);
-	IConsoleCmdRegister("setting",      ConSetting);
-	IConsoleCmdRegister("setting_newgame", ConSettingNewgame);
-	IConsoleCmdRegister("list_settings",ConListSettings);
-	IConsoleCmdRegister("gamelog",      ConGamelogPrint);
-	IConsoleCmdRegister("rescan_newgrf", ConRescanNewGRF);
+	IConsole::CmdRegister("debug_level",             ConDebugLevel);
+	IConsole::CmdRegister("echo",                    ConEcho);
+	IConsole::CmdRegister("echoc",                   ConEchoC);
+	IConsole::CmdRegister("exec",                    ConExec);
+	IConsole::CmdRegister("exit",                    ConExit);
+	IConsole::CmdRegister("part",                    ConPart);
+	IConsole::CmdRegister("help",                    ConHelp);
+	IConsole::CmdRegister("info_cmd",                ConInfoCmd);
+	IConsole::CmdRegister("list_cmds",               ConListCommands);
+	IConsole::CmdRegister("list_aliases",            ConListAliases);
+	IConsole::CmdRegister("newgame",                 ConNewGame);
+	IConsole::CmdRegister("restart",                 ConRestart);
+	IConsole::CmdRegister("reload",                  ConReload);
+	IConsole::CmdRegister("getseed",                 ConGetSeed);
+	IConsole::CmdRegister("getdate",                 ConGetDate);
+	IConsole::CmdRegister("getsysdate",              ConGetSysDate);
+	IConsole::CmdRegister("quit",                    ConExit);
+	IConsole::CmdRegister("resetengines",            ConResetEngines,     ConHookNoNetwork);
+	IConsole::CmdRegister("reset_enginepool",        ConResetEnginePool,  ConHookNoNetwork);
+	IConsole::CmdRegister("return",                  ConReturn);
+	IConsole::CmdRegister("screenshot",              ConScreenShot);
+	IConsole::CmdRegister("script",                  ConScript);
+	IConsole::CmdRegister("scrollto",                ConScrollToTile);
+	IConsole::CmdRegister("alias",                   ConAlias);
+	IConsole::CmdRegister("load",                    ConLoad);
+	IConsole::CmdRegister("rm",                      ConRemove);
+	IConsole::CmdRegister("save",                    ConSave);
+	IConsole::CmdRegister("saveconfig",              ConSaveConfig);
+	IConsole::CmdRegister("ls",                      ConListFiles);
+	IConsole::CmdRegister("cd",                      ConChangeDirectory);
+	IConsole::CmdRegister("pwd",                     ConPrintWorkingDirectory);
+	IConsole::CmdRegister("clear",                   ConClearBuffer);
+	IConsole::CmdRegister("setting",                 ConSetting);
+	IConsole::CmdRegister("setting_newgame",         ConSettingNewgame);
+	IConsole::CmdRegister("list_settings",           ConListSettings);
+	IConsole::CmdRegister("gamelog",                 ConGamelogPrint);
+	IConsole::CmdRegister("rescan_newgrf",           ConRescanNewGRF);
 
-	IConsoleAliasRegister("dir",          "ls");
-	IConsoleAliasRegister("del",          "rm %+");
-	IConsoleAliasRegister("newmap",       "newgame");
-	IConsoleAliasRegister("patch",        "setting %+");
-	IConsoleAliasRegister("set",          "setting %+");
-	IConsoleAliasRegister("set_newgame",  "setting_newgame %+");
-	IConsoleAliasRegister("list_patches", "list_settings %+");
-	IConsoleAliasRegister("developer",    "setting developer %+");
+	IConsole::AliasRegister("dir",                   "ls");
+	IConsole::AliasRegister("del",                   "rm %+");
+	IConsole::AliasRegister("newmap",                "newgame");
+	IConsole::AliasRegister("patch",                 "setting %+");
+	IConsole::AliasRegister("set",                   "setting %+");
+	IConsole::AliasRegister("set_newgame",           "setting_newgame %+");
+	IConsole::AliasRegister("list_patches",          "list_settings %+");
+	IConsole::AliasRegister("developer",             "setting developer %+");
 
-	IConsoleCmdRegister("list_ai_libs", ConListAILibs);
-	IConsoleCmdRegister("list_ai",      ConListAI);
-	IConsoleCmdRegister("reload_ai",    ConReloadAI);
-	IConsoleCmdRegister("rescan_ai",    ConRescanAI);
-	IConsoleCmdRegister("start_ai",     ConStartAI);
-	IConsoleCmdRegister("stop_ai",      ConStopAI);
+	IConsole::CmdRegister("list_ai_libs",            ConListAILibs);
+	IConsole::CmdRegister("list_ai",                 ConListAI);
+	IConsole::CmdRegister("reload_ai",               ConReloadAI);
+	IConsole::CmdRegister("rescan_ai",               ConRescanAI);
+	IConsole::CmdRegister("start_ai",                ConStartAI);
+	IConsole::CmdRegister("stop_ai",                 ConStopAI);
 
-	IConsoleCmdRegister("list_game",    ConListGame);
-	IConsoleCmdRegister("list_game_libs", ConListGameLibs);
-	IConsoleCmdRegister("rescan_game",    ConRescanGame);
+	IConsole::CmdRegister("list_game",               ConListGame);
+	IConsole::CmdRegister("list_game_libs",          ConListGameLibs);
+	IConsole::CmdRegister("rescan_game",             ConRescanGame);
 
-	IConsoleCmdRegister("companies",       ConCompanies);
-	IConsoleAliasRegister("players",       "companies");
+	IConsole::CmdRegister("companies",               ConCompanies);
+	IConsole::AliasRegister("players",               "companies");
 
 	/* networking functions */
 
 /* Content downloading is only available with ZLIB */
 #if defined(WITH_ZLIB)
-	IConsoleCmdRegister("content",         ConContent);
+	IConsole::CmdRegister("content",                 ConContent);
 #endif /* defined(WITH_ZLIB) */
 
 	/*** Networking commands ***/
-	IConsoleCmdRegister("say",             ConSay, ConHookNeedNetwork);
-	IConsoleCmdRegister("say_company",     ConSayCompany, ConHookNeedNetwork);
-	IConsoleAliasRegister("say_player",    "say_company %+");
-	IConsoleCmdRegister("say_client",      ConSayClient, ConHookNeedNetwork);
+	IConsole::CmdRegister("say",                     ConSay,              ConHookNeedNetwork);
+	IConsole::CmdRegister("say_company",             ConSayCompany,       ConHookNeedNetwork);
+	IConsole::AliasRegister("say_player",            "say_company %+");
+	IConsole::CmdRegister("say_client",              ConSayClient,        ConHookNeedNetwork);
 
-	IConsoleCmdRegister("connect",         ConNetworkConnect, ConHookClientOnly);
-	IConsoleCmdRegister("clients",         ConNetworkClients, ConHookNeedNetwork);
-	IConsoleCmdRegister("status",          ConStatus, ConHookServerOnly);
-	IConsoleCmdRegister("server_info",     ConServerInfo, ConHookServerOnly);
-	IConsoleAliasRegister("info",          "server_info");
-	IConsoleCmdRegister("reconnect",       ConNetworkReconnect, ConHookClientOnly);
-	IConsoleCmdRegister("rcon",            ConRcon, ConHookNeedNetwork);
+	IConsole::CmdRegister("connect",                 ConNetworkConnect,   ConHookClientOnly);
+	IConsole::CmdRegister("clients",                 ConNetworkClients,   ConHookNeedNetwork);
+	IConsole::CmdRegister("status",                  ConStatus,           ConHookServerOnly);
+	IConsole::CmdRegister("server_info",             ConServerInfo,       ConHookServerOnly);
+	IConsole::AliasRegister("info",                  "server_info");
+	IConsole::CmdRegister("reconnect",               ConNetworkReconnect, ConHookClientOnly);
+	IConsole::CmdRegister("rcon",                    ConRcon,             ConHookNeedNetwork);
 
-	IConsoleCmdRegister("join",            ConJoinCompany, ConHookNeedNetwork);
-	IConsoleAliasRegister("spectate",      "join 255");
-	IConsoleCmdRegister("move",            ConMoveClient, ConHookServerOnly);
-	IConsoleCmdRegister("reset_company",   ConResetCompany, ConHookServerOnly);
-	IConsoleAliasRegister("clean_company", "reset_company %A");
-	IConsoleCmdRegister("client_name",     ConClientNickChange, ConHookServerOnly);
-	IConsoleCmdRegister("kick",            ConKick, ConHookServerOnly);
-	IConsoleCmdRegister("ban",             ConBan, ConHookServerOnly);
-	IConsoleCmdRegister("unban",           ConUnBan, ConHookServerOnly);
-	IConsoleCmdRegister("banlist",         ConBanList, ConHookServerOnly);
+	IConsole::CmdRegister("join",                    ConJoinCompany,      ConHookNeedNetwork);
+	IConsole::AliasRegister("spectate",              "join 255");
+	IConsole::CmdRegister("move",                    ConMoveClient,       ConHookServerOnly);
+	IConsole::CmdRegister("reset_company",           ConResetCompany,     ConHookServerOnly);
+	IConsole::AliasRegister("clean_company",         "reset_company %A");
+	IConsole::CmdRegister("client_name",             ConClientNickChange, ConHookServerOnly);
+	IConsole::CmdRegister("kick",                    ConKick,             ConHookServerOnly);
+	IConsole::CmdRegister("ban",                     ConBan,              ConHookServerOnly);
+	IConsole::CmdRegister("unban",                   ConUnBan,            ConHookServerOnly);
+	IConsole::CmdRegister("banlist",                 ConBanList,          ConHookServerOnly);
 
-	IConsoleCmdRegister("pause",           ConPauseGame, ConHookServerOnly);
-	IConsoleCmdRegister("unpause",         ConUnpauseGame, ConHookServerOnly);
+	IConsole::CmdRegister("pause",                   ConPauseGame,        ConHookServerOnly);
+	IConsole::CmdRegister("unpause",                 ConUnpauseGame,      ConHookServerOnly);
 
-	IConsoleCmdRegister("company_pw",      ConCompanyPassword, ConHookNeedNetwork);
-	IConsoleAliasRegister("company_password",      "company_pw %+");
+	IConsole::CmdRegister("company_pw",              ConCompanyPassword,  ConHookNeedNetwork);
+	IConsole::AliasRegister("company_password",      "company_pw %+");
 
-	IConsoleAliasRegister("net_frame_freq",        "setting frame_freq %+");
-	IConsoleAliasRegister("net_sync_freq",         "setting sync_freq %+");
-	IConsoleAliasRegister("server_pw",             "setting server_password %+");
-	IConsoleAliasRegister("server_password",       "setting server_password %+");
-	IConsoleAliasRegister("rcon_pw",               "setting rcon_password %+");
-	IConsoleAliasRegister("rcon_password",         "setting rcon_password %+");
-	IConsoleAliasRegister("name",                  "setting client_name %+");
-	IConsoleAliasRegister("server_name",           "setting server_name %+");
-	IConsoleAliasRegister("server_port",           "setting server_port %+");
-	IConsoleAliasRegister("server_advertise",      "setting server_advertise %+");
-	IConsoleAliasRegister("max_clients",           "setting max_clients %+");
-	IConsoleAliasRegister("max_companies",         "setting max_companies %+");
-	IConsoleAliasRegister("max_spectators",        "setting max_spectators %+");
-	IConsoleAliasRegister("max_join_time",         "setting max_join_time %+");
-	IConsoleAliasRegister("pause_on_join",         "setting pause_on_join %+");
-	IConsoleAliasRegister("autoclean_companies",   "setting autoclean_companies %+");
-	IConsoleAliasRegister("autoclean_protected",   "setting autoclean_protected %+");
-	IConsoleAliasRegister("autoclean_unprotected", "setting autoclean_unprotected %+");
-	IConsoleAliasRegister("restart_game_year",     "setting restart_game_year %+");
-	IConsoleAliasRegister("min_players",           "setting min_active_clients %+");
-	IConsoleAliasRegister("reload_cfg",            "setting reload_cfg %+");
+	IConsole::AliasRegister("net_frame_freq",        "setting frame_freq %+");
+	IConsole::AliasRegister("net_sync_freq",         "setting sync_freq %+");
+	IConsole::AliasRegister("server_pw",             "setting server_password %+");
+	IConsole::AliasRegister("server_password",       "setting server_password %+");
+	IConsole::AliasRegister("rcon_pw",               "setting rcon_password %+");
+	IConsole::AliasRegister("rcon_password",         "setting rcon_password %+");
+	IConsole::AliasRegister("name",                  "setting client_name %+");
+	IConsole::AliasRegister("server_name",           "setting server_name %+");
+	IConsole::AliasRegister("server_port",           "setting server_port %+");
+	IConsole::AliasRegister("server_advertise",      "setting server_advertise %+");
+	IConsole::AliasRegister("max_clients",           "setting max_clients %+");
+	IConsole::AliasRegister("max_companies",         "setting max_companies %+");
+	IConsole::AliasRegister("max_spectators",        "setting max_spectators %+");
+	IConsole::AliasRegister("max_join_time",         "setting max_join_time %+");
+	IConsole::AliasRegister("pause_on_join",         "setting pause_on_join %+");
+	IConsole::AliasRegister("autoclean_companies",   "setting autoclean_companies %+");
+	IConsole::AliasRegister("autoclean_protected",   "setting autoclean_protected %+");
+	IConsole::AliasRegister("autoclean_unprotected", "setting autoclean_unprotected %+");
+	IConsole::AliasRegister("restart_game_year",     "setting restart_game_year %+");
+	IConsole::AliasRegister("min_players",           "setting min_active_clients %+");
+	IConsole::AliasRegister("reload_cfg",            "setting reload_cfg %+");
 
 	/* debugging stuff */
 #ifdef _DEBUG
 	IConsoleDebugLibRegister();
 #endif
-	IConsoleCmdRegister("fps",     ConFramerate);
-	IConsoleCmdRegister("fps_wnd", ConFramerateWindow);
+	IConsole::CmdRegister("fps",                     ConFramerate);
+	IConsole::CmdRegister("fps_wnd",                 ConFramerateWindow);
 
 	/* NewGRF development stuff */
-	IConsoleCmdRegister("reload_newgrfs",  ConNewGRFReload, ConHookNewGRFDeveloperTool);
-	IConsoleCmdRegister("newgrf_profile",  ConNewGRFProfile, ConHookNewGRFDeveloperTool);
+	IConsole::CmdRegister("reload_newgrfs",          ConNewGRFReload,     ConHookNewGRFDeveloperTool);
+	IConsole::CmdRegister("newgrf_profile",          ConNewGRFProfile,    ConHookNewGRFDeveloperTool);
+
+	IConsole::CmdRegister("dump_info",               ConDumpInfo);
 }
