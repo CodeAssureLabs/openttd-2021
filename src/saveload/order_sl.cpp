@@ -2,17 +2,20 @@
  * This file is part of OpenTTD.
  * OpenTTD is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, version 2.
  * OpenTTD is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with OpenTTD. If not, see <http://www.gnu.org/licenses/>.
+ * See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with OpenTTD. If not, see <https://www.gnu.org/licenses/old-licenses/gpl-2.0>.
  */
 
-/** @file order_sl.cpp Code handling saving and loading of orders */
+/** @file order_sl.cpp Code handling saving and loading of orders. */
 
 #include "../stdafx.h"
+
+#include "saveload.h"
+#include "compat/order_sl_compat.h"
+
+#include "saveload_internal.h"
 #include "../order_backup.h"
 #include "../settings_type.h"
 #include "../network/network.h"
-
-#include "saveload_internal.h"
 
 #include "../safeguards.h"
 
@@ -22,15 +25,15 @@
  */
 void Order::ConvertFromOldSavegame()
 {
-	uint8 old_flags = this->flags;
+	uint8_t old_flags = this->flags;
 	this->flags = 0;
 
 	/* First handle non-stop - use value from savegame if possible, else use value from config file */
 	if (_settings_client.gui.sg_new_nonstop || (IsSavegameVersionBefore(SLV_22) && _savegame_type != SGT_TTO && _savegame_type != SGT_TTD && _settings_client.gui.new_nonstop)) {
 		/* OFB_NON_STOP */
-		this->SetNonStopType((old_flags & 8) ? ONSF_NO_STOP_AT_ANY_STATION : ONSF_NO_STOP_AT_INTERMEDIATE_STATIONS);
+		this->SetNonStopType((old_flags & 8) ? OrderNonStopFlags{OrderNonStopFlag::NonStop, OrderNonStopFlag::GoVia} : OrderNonStopFlag::NonStop);
 	} else {
-		this->SetNonStopType((old_flags & 8) ? ONSF_NO_STOP_AT_INTERMEDIATE_STATIONS : ONSF_STOP_EVERYWHERE);
+		this->SetNonStopType((old_flags & 8) ? OrderNonStopFlag::NonStop : OrderNonStopFlags{});
 	}
 
 	switch (this->GetType()) {
@@ -42,32 +45,35 @@ void Order::ConvertFromOldSavegame()
 	if (this->GetType() != OT_GOTO_DEPOT) {
 		/* Then the load flags */
 		if ((old_flags & 2) != 0) { // OFB_UNLOAD
-			this->SetLoadType(OLFB_NO_LOAD);
+			this->SetLoadType(OrderLoadType::NoLoad);
 		} else if ((old_flags & 4) == 0) { // !OFB_FULL_LOAD
-			this->SetLoadType(OLF_LOAD_IF_POSSIBLE);
+			this->SetLoadType(OrderLoadType::LoadIfPossible);
 		} else {
 			/* old OTTD versions stored full_load_any in config file - assume it was enabled when loading */
-			this->SetLoadType(_settings_client.gui.sg_full_load_any || IsSavegameVersionBefore(SLV_22) ? OLF_FULL_LOAD_ANY : OLFB_FULL_LOAD);
+			this->SetLoadType(_settings_client.gui.sg_full_load_any || IsSavegameVersionBefore(SLV_22) ? OrderLoadType::FullLoadAny : OrderLoadType::FullLoad);
 		}
 
-		if (this->IsType(OT_GOTO_STATION)) this->SetStopLocation(OSL_PLATFORM_FAR_END);
+		if (this->IsType(OT_GOTO_STATION)) this->SetStopLocation(OrderStopLocation::FarEnd);
 
 		/* Finally fix the unload flags */
 		if ((old_flags & 1) != 0) { // OFB_TRANSFER
-			this->SetUnloadType(OUFB_TRANSFER);
+			this->SetUnloadType(OrderUnloadType::Transfer);
 		} else if ((old_flags & 2) != 0) { // OFB_UNLOAD
-			this->SetUnloadType(OUFB_UNLOAD);
+			this->SetUnloadType(OrderUnloadType::Unload);
 		} else {
-			this->SetUnloadType(OUF_UNLOAD_IF_POSSIBLE);
+			this->SetUnloadType(OrderUnloadType::UnloadIfPossible);
 		}
 	} else {
 		/* Then the depot action flags */
-		this->SetDepotActionType(((old_flags & 6) == 4) ? ODATFB_HALT : ODATF_SERVICE_ONLY);
+		OrderDepotActionFlags action_flags{};
+		if ((old_flags & 6) == 4) action_flags.Set(OrderDepotActionFlag::Halt);
+		this->SetDepotActionType(action_flags);
 
 		/* Finally fix the depot type flags */
-		uint t = ((old_flags & 6) == 6) ? ODTFB_SERVICE : ODTF_MANUAL;
-		if ((old_flags & 2) != 0) t |= ODTFB_PART_OF_ORDERS;
-		this->SetDepotOrderType((OrderDepotTypeFlags)t);
+		OrderDepotTypeFlags type_flags{};
+		if ((old_flags & 6) == 6) type_flags.Set(OrderDepotTypeFlag::Service);
+		if ((old_flags & 2) != 0) type_flags.Set(OrderDepotTypeFlag::PartOfOrders);
+		this->SetDepotOrderType(type_flags);
 	}
 }
 
@@ -76,9 +82,9 @@ void Order::ConvertFromOldSavegame()
  * @param packed packed order
  * @return unpacked order
  */
-static Order UnpackVersion4Order(uint16 packed)
+static Order UnpackVersion4Order(uint16_t packed)
 {
-	return Order(GB(packed, 8, 8) << 16 | GB(packed, 4, 4) << 8 | GB(packed, 0, 4));
+	return Order(GB(packed, 0, 4), GB(packed, 4, 4), GB(packed, 8, 8));
 }
 
 /**
@@ -86,7 +92,7 @@ static Order UnpackVersion4Order(uint16 packed)
  * @param packed packed order
  * @return unpacked order
  */
-Order UnpackOldOrder(uint16 packed)
+Order UnpackOldOrder(uint16_t packed)
 {
 	Order order = UnpackVersion4Order(packed);
 
@@ -99,141 +105,195 @@ Order UnpackOldOrder(uint16 packed)
 	return order;
 }
 
-const SaveLoad *GetOrderDescription()
+/** Temporary storage for conversion from old order pool. */
+static std::vector<OldOrderSaveLoadItem> _old_order_saveload_pool;
+
+/**
+ * Clear all old orders.
+ */
+void ClearOldOrders()
+{
+	_old_order_saveload_pool.clear();
+	_old_order_saveload_pool.shrink_to_fit();
+}
+
+/**
+ * Get a pointer to an old order with the given reference index.
+ * @param ref_index Reference index (one-based) to get.
+ * @return Pointer to old order, or nullptr if not present.
+ */
+OldOrderSaveLoadItem *GetOldOrder(size_t ref_index)
+{
+	if (ref_index == 0) return nullptr;
+	assert(ref_index <= _old_order_saveload_pool.size());
+	return &_old_order_saveload_pool[ref_index - 1];
+}
+
+/**
+ * Allocate an old order with the given pool index.
+ * @param pool_index Pool index (zero-based) to allocate.
+ * @return Reference to allocated old order.
+ */
+OldOrderSaveLoadItem &AllocateOldOrder(size_t pool_index)
+{
+	assert(pool_index < UINT32_MAX);
+	if (pool_index >= _old_order_saveload_pool.size()) _old_order_saveload_pool.resize(pool_index + 1);
+	return _old_order_saveload_pool[pool_index];
+}
+
+SaveLoadTable GetOrderDescription()
 {
 	static const SaveLoad _order_desc[] = {
-		     SLE_VAR(Order, type,           SLE_UINT8),
-		     SLE_VAR(Order, flags,          SLE_UINT8),
-		     SLE_VAR(Order, dest,           SLE_UINT16),
-		     SLE_REF(Order, next,           REF_ORDER),
-		 SLE_CONDVAR(Order, refit_cargo,    SLE_UINT8,   SLV_36, SL_MAX_VERSION),
-		SLE_CONDNULL(1,                                  SLV_36, SLV_182), // refit_subtype
-		 SLE_CONDVAR(Order, wait_time,      SLE_UINT16,  SLV_67, SL_MAX_VERSION),
-		 SLE_CONDVAR(Order, travel_time,    SLE_UINT16,  SLV_67, SL_MAX_VERSION),
-		 SLE_CONDVAR(Order, max_speed,      SLE_UINT16, SLV_172, SL_MAX_VERSION),
-
-		/* Leftover from the minor savegame version stuff
-		 * We will never use those free bytes, but we have to keep this line to allow loading of old savegames */
-		SLE_CONDNULL(10,                                  SLV_5,  SLV_36),
-		     SLE_END()
+		     SLE_VARNAME(OldOrderSaveLoadItem, order.type,  "type",  SLE_UINT8),
+		     SLE_VARNAME(OldOrderSaveLoadItem, order.flags, "flags", SLE_UINT8),
+		     SLE_VARNAME(OldOrderSaveLoadItem, order.dest,  "dest",  SLE_UINT16),
+		 SLE_CONDVARNAME(OldOrderSaveLoadItem, next,        "next",  SLE_FILE_U16 | SLE_VAR_U32, SL_MIN_VERSION, SLV_69),
+		 SLE_CONDVARNAME(OldOrderSaveLoadItem, next,        "next",  SLE_UINT32,                 SLV_69, SL_MAX_VERSION),
+		 SLE_CONDVARNAME(OldOrderSaveLoadItem, order.refit_cargo, "refit_cargo", SLE_UINT8,   SLV_36, SL_MAX_VERSION),
+		 SLE_CONDVARNAME(OldOrderSaveLoadItem, order.wait_time,   "wait_time",   SLE_UINT16,  SLV_67, SL_MAX_VERSION),
+		 SLE_CONDVARNAME(OldOrderSaveLoadItem, order.travel_time, "travel_time", SLE_UINT16,  SLV_67, SL_MAX_VERSION),
+		 SLE_CONDVARNAME(OldOrderSaveLoadItem, order.max_speed,   "max_speed",   SLE_UINT16, SLV_172, SL_MAX_VERSION),
 	};
 
 	return _order_desc;
 }
 
-static void Save_ORDR()
-{
-	for (Order *order : Order::Iterate()) {
-		SlSetArrayIndex(order->index);
-		SlObject(order, GetOrderDescription());
-	}
-}
+struct ORDRChunkHandler : ChunkHandler {
+	ORDRChunkHandler() : ChunkHandler('ORDR', CH_READONLY) {}
 
-static void Load_ORDR()
-{
-	if (IsSavegameVersionBefore(SLV_5, 2)) {
-		/* Version older than 5.2 did not have a ->next pointer. Convert them
-		 * (in the old days, the orderlist was 5000 items big) */
-		size_t len = SlGetFieldLength();
+	void Load() const override
+	{
+		if (IsSavegameVersionBefore(SLV_5, 2)) {
+			/* Version older than 5.2 did not have a ->next pointer. Convert them
+			 * (in the old days, the orderlist was 5000 items big) */
+			size_t len = SlGetFieldLength();
 
-		if (IsSavegameVersionBefore(SLV_5)) {
-			/* Pre-version 5 had another layout for orders
-			 * (uint16 instead of uint32) */
-			len /= sizeof(uint16);
-			uint16 *orders = MallocT<uint16>(len + 1);
+			if (IsSavegameVersionBefore(SLV_5)) {
+				/* Pre-version 5 had another layout for orders
+				 * (uint16_t instead of uint32_t) */
+				len /= sizeof(uint16_t);
+				std::vector<uint16_t> orders(len);
 
-			SlArray(orders, len, SLE_UINT16);
+				SlCopy(&orders[0], len, SLE_UINT16);
 
-			for (size_t i = 0; i < len; ++i) {
-				Order *o = new (i) Order();
-				o->AssignOrder(UnpackVersion4Order(orders[i]));
+				for (size_t i = 0; i < len; ++i) {
+					auto &item = AllocateOldOrder(i);
+					item.order.AssignOrder(UnpackVersion4Order(orders[i]));
+				}
+			} else if (IsSavegameVersionBefore(SLV_5, 2)) {
+				len /= sizeof(uint32_t);
+				std::vector<uint32_t> orders(len);
+
+				SlCopy(&orders[0], len, SLE_UINT32);
+
+				for (size_t i = 0; i < len; ++i) {
+					auto &item = AllocateOldOrder(i);
+					item.order = Order(GB(orders[i], 0, 8), GB(orders[i], 8, 8), GB(orders[i], 16, 16));
+				}
 			}
 
-			free(orders);
-		} else if (IsSavegameVersionBefore(SLV_5, 2)) {
-			len /= sizeof(uint32);
-			uint32 *orders = MallocT<uint32>(len + 1);
-
-			SlArray(orders, len, SLE_UINT32);
-
-			for (size_t i = 0; i < len; ++i) {
-				new (i) Order(orders[i]);
+			/* Update all the next pointer. The orders were built like this:
+			 * While the order is valid, the previous order will get its next pointer set */
+			for (uint32_t num = 1; const OldOrderSaveLoadItem &item : _old_order_saveload_pool) {
+				if (!item.order.IsType(OT_NOTHING) && num > 1) {
+					OldOrderSaveLoadItem *prev = GetOldOrder(num - 1);
+					if (prev != nullptr) prev->next = num;
+				}
+				++num;
 			}
+		} else {
+			const std::vector<SaveLoad> slt = SlCompatTableHeader(GetOrderDescription(), _order_sl_compat);
 
-			free(orders);
-		}
+			int index;
 
-		/* Update all the next pointer */
-		for (Order *o : Order::Iterate()) {
-			size_t order_index = o->index;
-			/* Delete invalid orders */
-			if (o->IsType(OT_NOTHING)) {
-				delete o;
-				continue;
+			while ((index = SlIterateArray()) != -1) {
+				auto &item = AllocateOldOrder(index);
+				SlObject(&item, slt);
 			}
-			/* The orders were built like this:
-			 * While the order is valid, set the previous will get its next pointer set */
-			Order *prev = Order::GetIfValid(order_index - 1);
-			if (prev != nullptr) prev->next = o;
-		}
-	} else {
-		int index;
-
-		while ((index = SlIterateArray()) != -1) {
-			Order *order = new (index) Order();
-			SlObject(order, GetOrderDescription());
 		}
 	}
-}
+};
 
-static void Ptrs_ORDR()
-{
-	/* Orders from old savegames have pointers corrected in Load_ORDR */
-	if (IsSavegameVersionBefore(SLV_5, 2)) return;
+template <typename T>
+class SlOrders : public VectorSaveLoadHandler<SlOrders<T>, T, Order> {
+public:
+	static inline const SaveLoad description[] = {
+		SLE_VAR(Order, type,        SLE_UINT8),
+		SLE_VAR(Order, flags,       SLE_UINT8),
+		SLE_VAR(Order, dest,        SLE_UINT16),
+		SLE_VAR(Order, refit_cargo, SLE_UINT8),
+		SLE_VAR(Order, wait_time,   SLE_UINT16),
+		SLE_VAR(Order, travel_time, SLE_UINT16),
+		SLE_VAR(Order, max_speed,   SLE_UINT16),
+	};
+	static inline const SaveLoadCompatTable compat_description = {};
 
-	for (Order *o : Order::Iterate()) {
-		SlObject(o, GetOrderDescription());
-	}
-}
+	std::vector<Order> &GetVector(T *container) const override { return container->orders; }
 
-const SaveLoad *GetOrderListDescription()
+	void LoadCheck(T *container) const override { this->Load(container); }
+};
+
+/* Instantiate SlOrders classes. */
+template class SlOrders<OrderList>;
+template class SlOrders<OrderBackup>;
+
+SaveLoadTable GetOrderListDescription()
 {
 	static const SaveLoad _orderlist_desc[] = {
-		SLE_REF(OrderList, first,              REF_ORDER),
-		SLE_END()
+		SLE_CONDVARNAME(OrderList, old_order_index, "first", SLE_FILE_U16 | SLE_VAR_U32, SL_MIN_VERSION, SLV_69),
+		SLE_CONDVARNAME(OrderList, old_order_index, "first", SLE_UINT32,                 SLV_69, SLV_ORDERS_OWNED_BY_ORDERLIST),
+		SLEG_CONDSTRUCTLIST("orders", SlOrders<OrderList>, SLV_ORDERS_OWNED_BY_ORDERLIST, SL_MAX_VERSION),
 	};
 
 	return _orderlist_desc;
 }
 
-static void Save_ORDL()
-{
-	for (OrderList *list : OrderList::Iterate()) {
-		SlSetArrayIndex(list->index);
-		SlObject(list, GetOrderListDescription());
-	}
-}
+struct ORDLChunkHandler : ChunkHandler {
+	ORDLChunkHandler() : ChunkHandler('ORDL', CH_TABLE) {}
 
-static void Load_ORDL()
-{
-	int index;
+	void Save() const override
+	{
+		const SaveLoadTable slt = GetOrderListDescription();
+		SlTableHeader(slt);
 
-	while ((index = SlIterateArray()) != -1) {
-		/* set num_orders to 0 so it's a valid OrderList */
-		OrderList *list = new (index) OrderList(0);
-		SlObject(list, GetOrderListDescription());
+		for (OrderList *list : OrderList::Iterate()) {
+			SlSetArrayIndex(list->index);
+			SlObject(list, slt);
+		}
 	}
 
-}
+	void Load() const override
+	{
+		const std::vector<SaveLoad> slt = SlCompatTableHeader(GetOrderListDescription(), _orderlist_sl_compat);
 
-static void Ptrs_ORDL()
-{
-	for (OrderList *list : OrderList::Iterate()) {
-		SlObject(list, GetOrderListDescription());
+		int index;
+
+		while ((index = SlIterateArray()) != -1) {
+			OrderList *list = OrderList::CreateAtIndex(OrderListID(index));
+			SlObject(list, slt);
+		}
+
 	}
-}
 
-const SaveLoad *GetOrderBackupDescription()
+	void FixPointers() const override
+	{
+		bool migrate_orders = IsSavegameVersionBefore(SLV_ORDERS_OWNED_BY_ORDERLIST);
+
+		for (OrderList *list : OrderList::Iterate()) {
+			SlObject(list, GetOrderListDescription());
+
+			if (migrate_orders) {
+				std::vector<Order> orders;
+				for (OldOrderSaveLoadItem *old_order = GetOldOrder(list->old_order_index); old_order != nullptr; old_order = GetOldOrder(old_order->next)) {
+					orders.push_back(std::move(old_order->order));
+				}
+				list->orders = std::move(orders);
+			}
+		}
+	}
+};
+
+SaveLoadTable GetOrderBackupDescription()
 {
 	static const SaveLoad _order_backup_desc[] = {
 		     SLE_VAR(OrderBackup, user,                     SLE_UINT32),
@@ -242,55 +302,80 @@ const SaveLoad *GetOrderBackupDescription()
 		 SLE_CONDVAR(OrderBackup, service_interval,         SLE_FILE_U32 | SLE_VAR_U16,  SL_MIN_VERSION, SLV_192),
 		 SLE_CONDVAR(OrderBackup, service_interval,         SLE_UINT16,                SLV_192, SL_MAX_VERSION),
 		    SLE_SSTR(OrderBackup, name,                     SLE_STR),
-		SLE_CONDNULL(2,                                                                  SL_MIN_VERSION, SLV_192), // clone (2 bytes of pointer, i.e. garbage)
 		 SLE_CONDREF(OrderBackup, clone,                    REF_VEHICLE,               SLV_192, SL_MAX_VERSION),
 		     SLE_VAR(OrderBackup, cur_real_order_index,     SLE_UINT8),
 		 SLE_CONDVAR(OrderBackup, cur_implicit_order_index, SLE_UINT8,                 SLV_176, SL_MAX_VERSION),
 		 SLE_CONDVAR(OrderBackup, current_order_time,       SLE_UINT32,                SLV_176, SL_MAX_VERSION),
 		 SLE_CONDVAR(OrderBackup, lateness_counter,         SLE_INT32,                 SLV_176, SL_MAX_VERSION),
-		 SLE_CONDVAR(OrderBackup, timetable_start,          SLE_INT32,                 SLV_176, SL_MAX_VERSION),
+		 SLE_CONDVAR(OrderBackup, timetable_start,          SLE_FILE_I32 | SLE_VAR_U64, SLV_176, SLV_TIMETABLE_START_TICKS_FIX),
+		 SLE_CONDVAR(OrderBackup, timetable_start,          SLE_UINT64,                 SLV_TIMETABLE_START_TICKS_FIX, SL_MAX_VERSION),
 		 SLE_CONDVAR(OrderBackup, vehicle_flags,            SLE_FILE_U8 | SLE_VAR_U16, SLV_176, SLV_180),
 		 SLE_CONDVAR(OrderBackup, vehicle_flags,            SLE_UINT16,                SLV_180, SL_MAX_VERSION),
-		     SLE_REF(OrderBackup, orders,                   REF_ORDER),
-		     SLE_END()
+		SLE_CONDVARNAME(OrderBackup, old_order_index, "orders", SLE_FILE_U16 | SLE_VAR_U32, SL_MIN_VERSION, SLV_69),
+		SLE_CONDVARNAME(OrderBackup, old_order_index, "orders", SLE_UINT32,                 SLV_69, SLV_ORDERS_OWNED_BY_ORDERLIST),
+		SLEG_CONDSTRUCTLIST("orders", SlOrders<OrderBackup>, SLV_ORDERS_OWNED_BY_ORDERLIST, SL_MAX_VERSION),
 	};
 
 	return _order_backup_desc;
 }
 
-static void Save_BKOR()
-{
-	/* We only save this when we're a network server
-	 * as we want this information on our clients. For
-	 * normal games this information isn't needed. */
-	if (!_networking || !_network_server) return;
+struct BKORChunkHandler : ChunkHandler {
+	BKORChunkHandler() : ChunkHandler('BKOR', CH_TABLE) {}
 
-	for (OrderBackup *ob : OrderBackup::Iterate()) {
-		SlSetArrayIndex(ob->index);
-		SlObject(ob, GetOrderBackupDescription());
+	void Save() const override
+	{
+		const SaveLoadTable slt = GetOrderBackupDescription();
+		SlTableHeader(slt);
+
+		/* We only save this when we're a network server
+		 * as we want this information on our clients. For
+		 * normal games this information isn't needed. */
+		if (!_networking || !_network_server) return;
+
+		for (OrderBackup *ob : OrderBackup::Iterate()) {
+			SlSetArrayIndex(ob->index);
+			SlObject(ob, slt);
+		}
 	}
-}
 
-void Load_BKOR()
-{
-	int index;
+	void Load() const override
+	{
+		const std::vector<SaveLoad> slt = SlCompatTableHeader(GetOrderBackupDescription(), _order_backup_sl_compat);
 
-	while ((index = SlIterateArray()) != -1) {
-		/* set num_orders to 0 so it's a valid OrderList */
-		OrderBackup *ob = new (index) OrderBackup();
-		SlObject(ob, GetOrderBackupDescription());
+		int index;
+
+		while ((index = SlIterateArray()) != -1) {
+			/* set num_orders to 0 so it's a valid OrderList */
+			OrderBackup *ob = OrderBackup::CreateAtIndex(OrderBackupID(index));
+			SlObject(ob, slt);
+		}
 	}
-}
 
-static void Ptrs_BKOR()
-{
-	for (OrderBackup *ob : OrderBackup::Iterate()) {
-		SlObject(ob, GetOrderBackupDescription());
+	void FixPointers() const override
+	{
+		bool migrate_orders = IsSavegameVersionBefore(SLV_ORDERS_OWNED_BY_ORDERLIST);
+
+		for (OrderBackup *ob : OrderBackup::Iterate()) {
+			SlObject(ob, GetOrderBackupDescription());
+
+			if (migrate_orders) {
+				std::vector<Order> orders;
+				for (OldOrderSaveLoadItem *old_order = GetOldOrder(ob->old_order_index); old_order != nullptr; old_order = GetOldOrder(old_order->next)) {
+					orders.push_back(std::move(old_order->order));
+				}
+				ob->orders = std::move(orders);
+			}
+		}
 	}
-}
-
-extern const ChunkHandler _order_chunk_handlers[] = {
-	{ 'BKOR', Save_BKOR, Load_BKOR, Ptrs_BKOR, nullptr, CH_ARRAY},
-	{ 'ORDR', Save_ORDR, Load_ORDR, Ptrs_ORDR, nullptr, CH_ARRAY},
-	{ 'ORDL', Save_ORDL, Load_ORDL, Ptrs_ORDL, nullptr, CH_ARRAY | CH_LAST},
 };
+
+static const BKORChunkHandler BKOR;
+static const ORDRChunkHandler ORDR;
+static const ORDLChunkHandler ORDL;
+static const ChunkHandlerRef order_chunk_handlers[] = {
+	BKOR,
+	ORDR,
+	ORDL,
+};
+
+extern const ChunkHandlerTable _order_chunk_handlers(order_chunk_handlers);
