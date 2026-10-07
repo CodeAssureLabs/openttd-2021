@@ -17,7 +17,8 @@
 #include "blitter/factory.hpp"
 #include "linkgraph/linkgraph_gui.h"
 #include "widgets/smallmap_widget.h"
-#include "guitimer_func.h"
+#include "timer/timer.h"
+#include "timer/timer_window.h"
 
 /* set up the cargos to be displayed in the smallmap's route legend */
 void BuildLinkStatsLegend();
@@ -26,6 +27,15 @@ void BuildIndustriesLegend();
 void ShowSmallMap();
 void BuildLandLegend();
 void BuildOwnerLegend();
+
+/** Enum for how to include the heightmap pixels/colours in small map related functions */
+enum class IncludeHeightmap {
+	Never,      ///< Never include the heightmap
+	IfEnabled,  ///< Only include the heightmap if its enabled in the gui by the player
+	Always      ///< Always include the heightmap
+};
+
+uint32 GetSmallMapOwnerPixels(TileIndex tile, TileType t, IncludeHeightmap include_heightmap);
 
 /** Structure for holding relevant data for legends in small map */
 struct LegendAndColour {
@@ -62,23 +72,20 @@ protected:
 
 	static SmallMapType map_type; ///< Currently displayed legends.
 	static bool show_towns;       ///< Display town names in the smallmap.
-	static int max_heightlevel;   ///< Currently used/cached maximum heightlevel.
+	static int map_height_limit;  ///< Currently used/cached map height limit.
 
-	static const uint LEGEND_BLOB_WIDTH = 8;              ///< Width of the coloured blob in front of a line text in the #WID_SM_LEGEND widget.
 	static const uint INDUSTRY_MIN_NUMBER_OF_COLUMNS = 2; ///< Minimal number of columns in the #WID_SM_LEGEND widget for the #SMT_INDUSTRY legend.
-	static const uint FORCE_REFRESH_PERIOD = 930; ///< map is redrawn after that many milliseconds.
-	static const uint BLINK_PERIOD         = 450; ///< highlight blinking interval in milliseconds.
 
 	uint min_number_of_columns;    ///< Minimal number of columns in legends.
 	uint min_number_of_fixed_rows; ///< Minimal number of rows in the legends for the fixed layouts only (all except #SMT_INDUSTRY).
 	uint column_width;             ///< Width of a column in the #WID_SM_LEGEND widget.
+	uint legend_width;             ///< Width of legend 'blob'.
 
 	int32 scroll_x;  ///< Horizontal world coordinate of the base tile left of the top-left corner of the smallmap display.
 	int32 scroll_y;  ///< Vertical world coordinate of the base tile left of the top-left corner of the smallmap display.
 	int32 subscroll; ///< Number of pixels (0..3) between the right end of the base tile and the pixel at the top-left corner of the smallmap display.
 	int zoom;        ///< Zoom level. Bigger number means more zoom-out (further away).
 
-	GUITimer refresh; ///< Refresh timer.
 	LinkGraphOverlay *overlay;
 
 	static void BreakIndustryChainLink();
@@ -114,7 +121,7 @@ protected:
 	 */
 	inline uint GetMinLegendWidth() const
 	{
-		return WD_FRAMERECT_LEFT + this->min_number_of_columns * this->column_width;
+		return WidgetDimensions::scaled.framerect.left + this->min_number_of_columns * this->column_width;
 	}
 
 	/**
@@ -133,7 +140,7 @@ protected:
 	 */
 	inline uint GetLegendHeight(uint num_columns) const
 	{
-		return WD_FRAMERECT_TOP + WD_FRAMERECT_BOTTOM +
+		return WidgetDimensions::scaled.framerect.Vertical() +
 				this->GetNumberRowsLegend(num_columns) * FONT_HEIGHT_SMALL;
 	}
 
@@ -142,10 +149,20 @@ protected:
 	 * the _local_company. Spectators get to see all companies' links.
 	 * @return Company mask.
 	 */
-	inline uint32 GetOverlayCompanyMask() const
+	inline CompanyMask GetOverlayCompanyMask() const
 	{
-		return Company::IsValidID(_local_company) ? 1U << _local_company : 0xffffffff;
+		return Company::IsValidID(_local_company) ? 1U << _local_company : MAX_UVALUE(CompanyMask);
 	}
+
+	/** Blink the industries (if selected) on a regular interval. */
+	IntervalTimer<TimerWindow> blink_interval = {std::chrono::milliseconds(450), [this](auto) {
+		Blink();
+	}};
+
+	/** Update the whole map on a regular interval. */
+	IntervalTimer<TimerWindow> refresh_interval = {std::chrono::milliseconds(930), [this](auto) {
+		ForceRefresh();
+	}};
 
 	void RebuildColourIndexIfNecessary();
 	uint GetNumberRowsLegend(uint columns) const;
@@ -169,6 +186,10 @@ protected:
 
 	int GetPositionOnLegend(Point pt);
 
+	void UpdateLinks();
+	void Blink();
+	void ForceRefresh();
+
 public:
 	friend class NWidgetSmallmapDisplay;
 
@@ -178,6 +199,7 @@ public:
 	void SmallMapCenterOnCurrentPos();
 	Point GetStationMiddle(const Station *st) const;
 
+	void Close() override;
 	void SetStringParameters(int widget) const override;
 	void OnInit() override;
 	void OnPaint() override;
@@ -186,7 +208,6 @@ public:
 	void OnInvalidateData(int data = 0, bool gui_scope = true) override;
 	bool OnRightClick(Point pt, int widget) override;
 	void OnMouseWheel(int wheel) override;
-	void OnRealtimeTick(uint delta_ms) override;
 	void OnScroll(Point delta) override;
 	void OnMouseOver(Point pt, int widget) override;
 };

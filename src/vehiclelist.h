@@ -10,13 +10,12 @@
 #ifndef VEHICLELIST_H
 #define VEHICLELIST_H
 
-#include "core/smallvec_type.hpp"
 #include "vehicle_type.h"
 #include "company_type.h"
 #include "tile_type.h"
 
 /** Vehicle List type flags */
-enum VehicleListType {
+enum VehicleListType : byte {
 	VL_STANDARD,
 	VL_SHARED_ORDERS,
 	VL_STATION_LIST,
@@ -35,6 +34,8 @@ struct VehicleListIdentifier {
 	uint32 Pack() const;
 	bool UnpackIfValid(uint32 data);
 	static VehicleListIdentifier UnPack(uint32 data);
+
+	bool Valid() const { return this->type < VLT_END; }
 
 	/**
 	 * Create a simple vehicle list.

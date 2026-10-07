@@ -9,6 +9,8 @@
 
 #include "../stdafx.h"
 #include "../core/endian_func.hpp"
+#include "../core/mem_func.hpp"
+#include "../error_func.h"
 #include "../string_func.h"
 #include "../strings_type.h"
 #include "../misc/getoptdata.h"
@@ -16,8 +18,6 @@
 
 #include "strgen.h"
 
-#include <stdarg.h>
-#include <exception>
 
 #if !defined(_WIN32) || defined(__CYGWIN__)
 #include <unistd.h>
@@ -34,57 +34,41 @@
 
 
 #ifdef _MSC_VER
-# define LINE_NUM_FMT(s) "%s (%d): warning: %s (" s ")\n"
+# define LINE_NUM_FMT(s) "{} ({}): warning: {} (" s ")\n"
 #else
-# define LINE_NUM_FMT(s) "%s:%d: " s ": %s\n"
+# define LINE_NUM_FMT(s) "{}:{}: " s ": {}\n"
 #endif
 
-void CDECL strgen_warning(const char *s, ...)
+void StrgenWarningI(const std::string &msg)
 {
-	char buf[1024];
-	va_list va;
-	va_start(va, s);
-	vseprintf(buf, lastof(buf), s, va);
-	va_end(va);
-	fprintf(stderr, LINE_NUM_FMT("warning"), _file, _cur_line, buf);
+	if (_show_todo > 0) {
+		fmt::print(stderr, LINE_NUM_FMT("warning"), _file, _cur_line, msg);
+	} else {
+		fmt::print(stderr, LINE_NUM_FMT("info"), _file, _cur_line, msg);
+	}
 	_warnings++;
 }
 
-void CDECL strgen_error(const char *s, ...)
+void StrgenErrorI(const std::string &msg)
 {
-	char buf[1024];
-	va_list va;
-	va_start(va, s);
-	vseprintf(buf, lastof(buf), s, va);
-	va_end(va);
-	fprintf(stderr, LINE_NUM_FMT("error"), _file, _cur_line, buf);
+	fmt::print(stderr, LINE_NUM_FMT("error"), _file, _cur_line, msg);
 	_errors++;
 }
 
-void NORETURN CDECL strgen_fatal(const char *s, ...)
+void NORETURN StrgenFatalI(const std::string &msg)
 {
-	char buf[1024];
-	va_list va;
-	va_start(va, s);
-	vseprintf(buf, lastof(buf), s, va);
-	va_end(va);
-	fprintf(stderr, LINE_NUM_FMT("FATAL"), _file, _cur_line, buf);
+	fmt::print(stderr, LINE_NUM_FMT("FATAL"), _file, _cur_line, msg);
 #ifdef _MSC_VER
-	fprintf(stderr, LINE_NUM_FMT("warning"), _file, _cur_line, "language is not compiled");
+	fmt::print(stderr, LINE_NUM_FMT("warning"), _file, _cur_line, "language is not compiled");
 #endif
 	throw std::exception();
 }
 
-void NORETURN CDECL error(const char *s, ...)
+void NORETURN FatalErrorI(const std::string &msg)
 {
-	char buf[1024];
-	va_list va;
-	va_start(va, s);
-	vseprintf(buf, lastof(buf), s, va);
-	va_end(va);
-	fprintf(stderr, LINE_NUM_FMT("FATAL"), _file, _cur_line, buf);
+	fmt::print(stderr, LINE_NUM_FMT("FATAL"), _file, _cur_line, msg);
 #ifdef _MSC_VER
-	fprintf(stderr, LINE_NUM_FMT("warning"), _file, _cur_line, "language is not compiled");
+	fmt::print(stderr, LINE_NUM_FMT("warning"), _file, _cur_line, "language is not compiled");
 #endif
 	exit(2);
 }
@@ -104,7 +88,7 @@ struct FileStringReader : StringReader {
 			StringReader(data, file, master, translation)
 	{
 		this->fh = fopen(file, "rb");
-		if (this->fh == nullptr) error("Could not open %s", file);
+		if (this->fh == nullptr) FatalError("Could not open {}", file);
 	}
 
 	/** Free/close the file. */
@@ -115,7 +99,7 @@ struct FileStringReader : StringReader {
 
 	char *ReadLine(char *buffer, const char *last) override
 	{
-		return fgets(buffer, ClampToU16(last - buffer + 1), this->fh);
+		return fgets(buffer, ClampTo<uint16_t>(last - buffer + 1), this->fh);
 	}
 
 	void HandlePragma(char *str) override;
@@ -125,7 +109,7 @@ struct FileStringReader : StringReader {
 		this->StringReader::ParseFile();
 
 		if (StrEmpty(_lang.name) || StrEmpty(_lang.own_name) || StrEmpty(_lang.isocode)) {
-			error("Language must include ##name, ##ownname and ##isocode");
+			FatalError("Language must include ##name, ##ownname and ##isocode");
 		}
 	}
 };
@@ -133,7 +117,7 @@ struct FileStringReader : StringReader {
 void FileStringReader::HandlePragma(char *str)
 {
 	if (!memcmp(str, "id ", 3)) {
-		this->data.next_string_id = strtoul(str + 3, nullptr, 0);
+		this->data.next_string_id = std::strtoul(str + 3, nullptr, 0);
 	} else if (!memcmp(str, "name ", 5)) {
 		strecpy(_lang.name, str + 5, lastof(_lang.name));
 	} else if (!memcmp(str, "ownname ", 8)) {
@@ -146,7 +130,7 @@ void FileStringReader::HandlePragma(char *str)
 		} else if (!memcmp(str + 8, "rtl", 3)) {
 			_lang.text_dir = TD_RTL;
 		} else {
-			error("Invalid textdir %s", str + 8);
+			FatalError("Invalid textdir {}", str + 8);
 		}
 	} else if (!memcmp(str, "digitsep ", 9)) {
 		str += 9;
@@ -159,39 +143,39 @@ void FileStringReader::HandlePragma(char *str)
 		strecpy(_lang.digit_decimal_separator, strcmp(str, "{NBSP}") == 0 ? NBSP : str, lastof(_lang.digit_decimal_separator));
 	} else if (!memcmp(str, "winlangid ", 10)) {
 		const char *buf = str + 10;
-		long langid = strtol(buf, nullptr, 16);
+		long langid = std::strtol(buf, nullptr, 16);
 		if (langid > (long)UINT16_MAX || langid < 0) {
-			error("Invalid winlangid %s", buf);
+			FatalError("Invalid winlangid {}", buf);
 		}
 		_lang.winlangid = (uint16)langid;
 	} else if (!memcmp(str, "grflangid ", 10)) {
 		const char *buf = str + 10;
-		long langid = strtol(buf, nullptr, 16);
+		long langid = std::strtol(buf, nullptr, 16);
 		if (langid >= 0x7F || langid < 0) {
-			error("Invalid grflangid %s", buf);
+			FatalError("Invalid grflangid {}", buf);
 		}
 		_lang.newgrflangid = (uint8)langid;
 	} else if (!memcmp(str, "gender ", 7)) {
-		if (this->master) error("Genders are not allowed in the base translation.");
+		if (this->master) FatalError("Genders are not allowed in the base translation.");
 		char *buf = str + 7;
 
 		for (;;) {
 			const char *s = ParseWord(&buf);
 
 			if (s == nullptr) break;
-			if (_lang.num_genders >= MAX_NUM_GENDERS) error("Too many genders, max %d", MAX_NUM_GENDERS);
+			if (_lang.num_genders >= MAX_NUM_GENDERS) FatalError("Too many genders, max {}", MAX_NUM_GENDERS);
 			strecpy(_lang.genders[_lang.num_genders], s, lastof(_lang.genders[_lang.num_genders]));
 			_lang.num_genders++;
 		}
 	} else if (!memcmp(str, "case ", 5)) {
-		if (this->master) error("Cases are not allowed in the base translation.");
+		if (this->master) FatalError("Cases are not allowed in the base translation.");
 		char *buf = str + 5;
 
 		for (;;) {
 			const char *s = ParseWord(&buf);
 
 			if (s == nullptr) break;
-			if (_lang.num_cases >= MAX_NUM_CASES) error("Too many cases, max %d", MAX_NUM_CASES);
+			if (_lang.num_cases >= MAX_NUM_CASES) FatalError("Too many cases, max {}", MAX_NUM_CASES);
 			strecpy(_lang.cases[_lang.num_cases], s, lastof(_lang.cases[_lang.num_cases]));
 			_lang.num_cases++;
 		}
@@ -208,7 +192,7 @@ bool CompareFiles(const char *n1, const char *n2)
 	FILE *f1 = fopen(n1, "rb");
 	if (f1 == nullptr) {
 		fclose(f2);
-		error("can't open %s", n1);
+		FatalError("can't open {}", n1);
 	}
 
 	size_t l1, l2;
@@ -245,7 +229,7 @@ struct FileWriter {
 		this->fh = fopen(this->filename, "wb");
 
 		if (this->fh == nullptr) {
-			error("Could not open %s", this->filename);
+			FatalError("Could not open {}", this->filename);
 		}
 	}
 
@@ -273,17 +257,18 @@ struct HeaderFileWriter : HeaderWriter, FileWriter {
 	const char *real_filename;
 	/** The previous string ID that was printed. */
 	int prev;
+	uint total_strings;
 
 	/**
 	 * Open a file to write to.
 	 * @param filename The file to open.
 	 */
 	HeaderFileWriter(const char *filename) : FileWriter("tmp.xxx"),
-		real_filename(stredup(filename)), prev(0)
+		real_filename(stredup(filename)), prev(0), total_strings(0)
 	{
-		fprintf(this->fh, "/* This file is automatically generated. Do not modify */\n\n");
-		fprintf(this->fh, "#ifndef TABLE_STRINGS_H\n");
-		fprintf(this->fh, "#define TABLE_STRINGS_H\n");
+		fmt::print(this->fh, "/* This file is automatically generated. Do not modify */\n\n");
+		fmt::print(this->fh, "#ifndef TABLE_STRINGS_H\n");
+		fmt::print(this->fh, "#define TABLE_STRINGS_H\n");
 	}
 
 	/** Free the filename. */
@@ -294,9 +279,10 @@ struct HeaderFileWriter : HeaderWriter, FileWriter {
 
 	void WriteStringID(const char *name, int stringid)
 	{
-		if (prev + 1 != stringid) fprintf(this->fh, "\n");
-		fprintf(this->fh, "static const StringID %s = 0x%X;\n", name, stringid);
+		if (prev + 1 != stringid) fmt::print(this->fh, "\n");
+		fmt::print(this->fh, "static const StringID {} = 0x{:X};\n", name, stringid);
 		prev = stringid;
+		total_strings++;
 	}
 
 	void Finalise(const StringData &data)
@@ -304,18 +290,20 @@ struct HeaderFileWriter : HeaderWriter, FileWriter {
 		/* Find the plural form with the most amount of cases. */
 		int max_plural_forms = 0;
 		for (uint i = 0; i < lengthof(_plural_forms); i++) {
-			max_plural_forms = max(max_plural_forms, _plural_forms[i].plural_count);
+			max_plural_forms = std::max(max_plural_forms, _plural_forms[i].plural_count);
 		}
 
-		fprintf(this->fh,
+		fmt::print(this->fh,
 			"\n"
-			"static const uint LANGUAGE_PACK_VERSION     = 0x%X;\n"
-			"static const uint LANGUAGE_MAX_PLURAL       = %u;\n"
-			"static const uint LANGUAGE_MAX_PLURAL_FORMS = %d;\n\n",
-			(uint)data.Version(), (uint)lengthof(_plural_forms), max_plural_forms
+			"static const uint LANGUAGE_PACK_VERSION     = 0x{:X};\n"
+			"static const uint LANGUAGE_MAX_PLURAL       = {};\n"
+			"static const uint LANGUAGE_MAX_PLURAL_FORMS = {};\n"
+			"static const uint LANGUAGE_TOTAL_STRINGS    = {};\n"
+			"\n",
+			data.Version(), lengthof(_plural_forms), max_plural_forms, total_strings
 		);
 
-		fprintf(this->fh, "#endif /* TABLE_STRINGS_H */\n");
+		fmt::print(this->fh, "#endif /* TABLE_STRINGS_H */\n");
 
 		this->FileWriter::Finalise();
 
@@ -327,7 +315,7 @@ struct HeaderFileWriter : HeaderWriter, FileWriter {
 #	if defined(_WIN32)
 			unlink(this->real_filename);
 #	endif
-			if (rename(this->filename, this->real_filename) == -1) error("rename() failed");
+			if (rename(this->filename, this->real_filename) == -1) FatalError("rename() failed");
 		}
 	}
 };
@@ -350,7 +338,7 @@ struct LanguageFileWriter : LanguageWriter, FileWriter {
 	void Finalise()
 	{
 		if (fputc(0, this->fh) == EOF) {
-			error("Could not write to %s", this->filename);
+			FatalError("Could not write to {}", this->filename);
 		}
 		this->FileWriter::Finalise();
 	}
@@ -358,7 +346,7 @@ struct LanguageFileWriter : LanguageWriter, FileWriter {
 	void Write(const byte *buffer, size_t length)
 	{
 		if (fwrite(buffer, sizeof(*buffer), length, this->fh) != length) {
-			error("Could not write to %s", this->filename);
+			FatalError("Could not write to {}", this->filename);
 		}
 	}
 };
@@ -409,7 +397,6 @@ static inline char *replace_pathsep(char *s) { return s; }
 
 /** Options of strgen. */
 static const OptionData _opts[] = {
-	  GETOPT_NOVAL(     'v',  "--version"),
 	GETOPT_GENERAL('C', '\0', "-export-commands", ODF_NO_VALUE),
 	GETOPT_GENERAL('L', '\0', "-export-plurals",  ODF_NO_VALUE),
 	GETOPT_GENERAL('P', '\0', "-export-pragmas",  ODF_NO_VALUE),
@@ -434,12 +421,8 @@ int CDECL main(int argc, char *argv[])
 		if (i == -1) break;
 
 		switch (i) {
-			case 'v':
-				puts("$Revision$");
-				return 0;
-
 			case 'C':
-				printf("args\tflags\tcommand\treplacement\n");
+				fmt::print("args\tflags\tcommand\treplacement\n");
 				for (const CmdStruct *cs = _cmd_structs; cs < endof(_cmd_structs); cs++) {
 					char flags;
 					if (cs->proc == EmitGender) {
@@ -451,22 +434,22 @@ int CDECL main(int argc, char *argv[])
 					} else {
 						flags = '0'; // Command needs no parameters
 					}
-					printf("%i\t%c\t\"%s\"\t\"%s\"\n", cs->consumes, flags, cs->cmd, strstr(cs->cmd, "STRING") ? "STRING" : cs->cmd);
+					fmt::print("{}\t{:c}\t\"{}\"\t\"{}\"\n", cs->consumes, flags, cs->cmd, strstr(cs->cmd, "STRING") ? "STRING" : cs->cmd);
 				}
 				return 0;
 
 			case 'L':
-				printf("count\tdescription\tnames\n");
+				fmt::print("count\tdescription\tnames\n");
 				for (const PluralForm *pf = _plural_forms; pf < endof(_plural_forms); pf++) {
-					printf("%i\t\"%s\"\t%s\n", pf->plural_count, pf->description, pf->names);
+					fmt::print("{}\t\"{}\"\t{}\n", pf->plural_count, pf->description, pf->names);
 				}
 				return 0;
 
 			case 'P':
-				printf("name\tflags\tdefault\tdescription\n");
-				for (size_t i = 0; i < lengthof(_pragmas); i++) {
-					printf("\"%s\"\t%s\t\"%s\"\t\"%s\"\n",
-							_pragmas[i][0], _pragmas[i][1], _pragmas[i][2], _pragmas[i][3]);
+				fmt::print("name\tflags\tdefault\tdescription\n");
+				for (size_t j = 0; j < lengthof(_pragmas); j++) {
+					fmt::print("\"{}\"\t{}\t\"{}\"\t\"{}\"\n",
+							_pragmas[j][0], _pragmas[j][1], _pragmas[j][2], _pragmas[j][3]);
 				}
 				return 0;
 
@@ -479,9 +462,8 @@ int CDECL main(int argc, char *argv[])
 				break;
 
 			case 'h':
-				puts(
-					"strgen - $Revision$\n"
-					" -v | --version    print version information and exit\n"
+				fmt::print(
+					"strgen\n"
 					" -t | --todo       replace any untranslated strings with '<TODO>'\n"
 					" -w | --warning    print a warning for any untranslated strings\n"
 					" -h | -? | --help  print this help message and exit\n"
@@ -492,7 +474,7 @@ int CDECL main(int argc, char *argv[])
 					" -export-pragmas   export all pragmas and exit\n"
 					" Run without parameters and strgen will search for english.txt and parse it,\n"
 					" creating strings.h. Passing an argument, strgen will translate that language\n"
-					" file using english.txt as a reference and output <language>.lng."
+					" file using english.txt as a reference and output <language>.lng.\n"
 				);
 				return 0;
 
@@ -505,7 +487,7 @@ int CDECL main(int argc, char *argv[])
 				break;
 
 			case -2:
-				fprintf(stderr, "Invalid arguments\n");
+				fmt::print(stderr, "Invalid arguments\n");
 				return 0;
 		}
 	}
@@ -568,7 +550,7 @@ int CDECL main(int argc, char *argv[])
 
 				/* if showing warnings, print a summary of the language */
 				if ((_show_todo & 2) != 0) {
-					fprintf(stdout, "%d warnings and %d errors for %s\n", _warnings, _errors, pathbuf);
+					fmt::print("{} warnings and {} errors for {}\n", _warnings, _errors, pathbuf);
 				}
 			}
 		}

@@ -10,7 +10,6 @@
 #ifndef LANGUAGE_H
 #define LANGUAGE_H
 
-#include "core/smallvec_type.hpp"
 #ifdef WITH_ICU_I18N
 #include <unicode/coll.h>
 #endif /* WITH_ICU_I18N */
@@ -58,6 +57,7 @@ struct LanguagePackHeader {
 	char cases[MAX_NUM_CASES][CASE_GENDER_LEN];     ///< the cases used by this translation
 
 	bool IsValid() const;
+	bool IsReasonablyFinished() const;
 
 	/**
 	 * Get the index for the given gender.

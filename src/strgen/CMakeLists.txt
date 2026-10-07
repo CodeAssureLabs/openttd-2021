@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.9)
 
 if (NOT HOST_BINARY_DIR)
     project(strgen)
@@ -10,6 +10,7 @@ if (NOT HOST_BINARY_DIR)
             strgen_base.cpp
             ../core/alloc_func.cpp
             ../misc/getoptdata.cpp
+            ../error.cpp
             ../string.cpp
     )
     add_definitions(-DSTRGEN)

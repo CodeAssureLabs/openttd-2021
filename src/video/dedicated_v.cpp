@@ -10,6 +10,7 @@
 #include "../stdafx.h"
 
 #include "../gfx_func.h"
+#include "../error_func.h"
 #include "../network/network.h"
 #include "../network/network_internal.h"
 #include "../console_func.h"
@@ -21,6 +22,7 @@
 #include "../core/random_func.hpp"
 #include "../saveload/saveload.h"
 #include "../thread.h"
+#include "../window_func.h"
 #include "dedicated_v.h"
 
 #ifdef __OS2__
@@ -102,12 +104,12 @@ static void CreateWindowsConsoleThread()
 	/* Create event to signal when console input is ready */
 	_hInputReady = CreateEvent(nullptr, false, false, nullptr);
 	_hWaitForInputHandling = CreateEvent(nullptr, false, false, nullptr);
-	if (_hInputReady == nullptr || _hWaitForInputHandling == nullptr) usererror("Cannot create console event!");
+	if (_hInputReady == nullptr || _hWaitForInputHandling == nullptr) UserError("Cannot create console event!");
 
 	_hThread = CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)CheckForConsoleInput, nullptr, 0, &dwThreadId);
-	if (_hThread == nullptr) usererror("Cannot create console thread!");
+	if (_hThread == nullptr) UserError("Cannot create console thread!");
 
-	DEBUG(driver, 2, "Windows console thread started");
+	Debug(driver, 2, "Windows console thread started");
 }
 
 static void CloseWindowsConsoleThread()
@@ -115,7 +117,7 @@ static void CloseWindowsConsoleThread()
 	CloseHandle(_hThread);
 	CloseHandle(_hInputReady);
 	CloseHandle(_hWaitForInputHandling);
-	DEBUG(driver, 2, "Windows console thread shut down");
+	Debug(driver, 2, "Windows console thread shut down");
 }
 
 #endif
@@ -135,8 +137,10 @@ static FVideoDriver_Dedicated iFVideoDriver_Dedicated;
 
 const char *VideoDriver_Dedicated::Start(const StringList &parm)
 {
+	this->UpdateAutoResolution();
+
 	int bpp = BlitterFactory::GetCurrentBlitter()->GetScreenDepth();
-	_dedicated_video_mem = (bpp == 0) ? nullptr : MallocT<byte>(_cur_resolution.width * _cur_resolution.height * (bpp / 8));
+	_dedicated_video_mem = (bpp == 0) ? nullptr : MallocT<byte>(static_cast<size_t>(_cur_resolution.width) * _cur_resolution.height * (bpp / 8));
 
 	_screen.width  = _screen.pitch = _cur_resolution.width;
 	_screen.height = _cur_resolution.height;
@@ -148,7 +152,7 @@ const char *VideoDriver_Dedicated::Start(const StringList &parm)
 	/* For win32 we need to allocate a console (debug mode does the same) */
 	CreateConsole();
 	CreateWindowsConsoleThread();
-	SetConsoleTitle(_T("OpenTTD Dedicated Server"));
+	SetConsoleTitle(L"OpenTTD Dedicated Server");
 #endif
 
 #ifdef _MSC_VER
@@ -161,7 +165,7 @@ const char *VideoDriver_Dedicated::Start(const StringList &parm)
 	OS2_SwitchToConsoleMode();
 #endif
 
-	DEBUG(driver, 1, "Loading dedicated server");
+	Debug(driver, 1, "Loading dedicated server");
 	return nullptr;
 }
 
@@ -193,24 +197,11 @@ static bool InputWaiting()
 	return select(STDIN + 1, &readfds, nullptr, nullptr, &tv) > 0;
 }
 
-static uint32 GetTime()
-{
-	struct timeval tim;
-
-	gettimeofday(&tim, nullptr);
-	return tim.tv_usec / 1000 + tim.tv_sec * 1000;
-}
-
 #else
 
 static bool InputWaiting()
 {
 	return WaitForSingleObject(_hInputReady, 1) == WAIT_OBJECT_0;
-}
-
-static uint32 GetTime()
-{
-	return GetTickCount();
 }
 
 #endif
@@ -239,16 +230,13 @@ static void DedicatedHandleKeyInput()
 			break;
 		}
 	}
-	str_validate(input_line, lastof(input_line));
+	StrMakeValidInPlace(input_line, lastof(input_line));
 
 	IConsoleCmdExec(input_line); // execute command
 }
 
 void VideoDriver_Dedicated::MainLoop()
 {
-	uint32 cur_ticks = GetTime();
-	uint32 next_tick = cur_ticks + MILLISECONDS_PER_TICK;
-
 	/* Signal handlers */
 #if defined(UNIX)
 	signal(SIGTERM, DedicatedSignalHandler);
@@ -264,53 +252,18 @@ void VideoDriver_Dedicated::MainLoop()
 	/* If SwitchMode is SM_LOAD_GAME, it means that the user used the '-g' options */
 	if (_switch_mode != SM_LOAD_GAME) {
 		StartNewGameWithoutGUI(GENERATE_NEW_SEED);
-		SwitchToMode(_switch_mode);
-		_switch_mode = SM_NONE;
-	} else {
-		_switch_mode = SM_NONE;
-		/* First we need to test if the savegame can be loaded, else we will end up playing the
-		 *  intro game... */
-		if (!SafeLoad(_file_to_saveload.name, _file_to_saveload.file_op, _file_to_saveload.detail_ftype, GM_NORMAL, BASE_DIR)) {
-			/* Loading failed, pop out.. */
-			DEBUG(net, 0, "Loading requested map failed, aborting");
-			_networking = false;
-		} else {
-			/* We can load this game, so go ahead */
-			SwitchToMode(SM_LOAD_GAME);
-		}
 	}
+
+	this->is_game_threaded = false;
 
 	/* Done loading, start game! */
 
-	if (!_networking) {
-		DEBUG(net, 0, "Dedicated server could not be started, aborting");
-		return;
-	}
-
 	while (!_exit_game) {
-		uint32 prev_cur_ticks = cur_ticks; // to check for wrapping
-		InteractiveRandom(); // randomness
-
 		if (!_dedicated_forks) DedicatedHandleKeyInput();
+		this->DrainCommandQueue();
 
-		cur_ticks = GetTime();
-		_realtime_tick += cur_ticks - prev_cur_ticks;
-		if (cur_ticks >= next_tick || cur_ticks < prev_cur_ticks || _ddc_fastforward) {
-			next_tick = cur_ticks + MILLISECONDS_PER_TICK;
-
-			GameLoop();
-			UpdateWindows();
-		}
-
-		/* Don't sleep when fast forwarding (for desync debugging) */
-		if (!_ddc_fastforward) {
-			/* Sleep longer on a dedicated server, if the game is paused and no clients connected.
-			 * That can allow the CPU to better use deep sleep states. */
-			if (_pause_mode != 0 && !HasClients()) {
-				CSleep(100);
-			} else {
-				CSleep(1);
-			}
-		}
+		ChangeGameSpeed(_ddc_fastforward);
+		this->Tick();
+		this->SleepTillNextTick();
 	}
 }
