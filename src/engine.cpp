@@ -66,12 +66,6 @@ static_assert(lengthof(_orig_rail_vehicle_info) + lengthof(_orig_road_vehicle_in
 
 const uint EngineOverrideManager::NUM_DEFAULT_ENGINES = _engine_counts[VEH_TRAIN] + _engine_counts[VEH_ROAD] + _engine_counts[VEH_SHIP] + _engine_counts[VEH_AIRCRAFT];
 
-Engine::Engine() :
-	overrides_count(0),
-	overrides(nullptr)
-{
-}
-
 Engine::Engine(VehicleType type, EngineID base)
 {
 	this->type = type;
@@ -134,11 +128,6 @@ Engine::Engine(VehicleType type, EngineID base)
 			this->info.string_id = STR_VEHICLE_NAME_AIRCRAFT_SAMPSON_U52 + base;
 			break;
 	}
-}
-
-Engine::~Engine()
-{
-	UnloadWagonOverrides(this);
 }
 
 /**
@@ -549,6 +538,7 @@ void SetupEngines()
 		 * in any case, and we just cleaned the pool. */
 		assert(Engine::CanAllocateItem());
 		const Engine *e = new Engine(eid.type, eid.internal_id);
+		(void)e; // assert only
 		assert(e->index == index);
 		index++;
 	}
@@ -578,7 +568,7 @@ static void CalcEngineReliability(Engine *e)
 	/* Check for early retirement */
 	if (e->company_avail != 0 && !_settings_game.vehicle.never_expire_vehicles && e->info.base_life != 0xFF) {
 		int retire_early = e->info.retire_early;
-		uint retire_early_max_age = max(0, e->duration_phase_1 + e->duration_phase_2 - retire_early * 12);
+		uint retire_early_max_age = std::max(0, e->duration_phase_1 + e->duration_phase_2 - retire_early * 12);
 		if (retire_early != 0 && age >= retire_early_max_age) {
 			/* Early retirement is enabled and we're past the date... */
 			e->company_avail = 0;
@@ -625,7 +615,7 @@ void SetYearEngineAgingStops()
 		YearMonthDay ymd;
 		ConvertDateToYMD(ei->base_intro + (ei->lifelength * DAYS_IN_LEAP_YEAR) / 2, &ymd);
 
-		_year_engine_aging_stops = max(_year_engine_aging_stops, ymd.year);
+		_year_engine_aging_stops = std::max(_year_engine_aging_stops, ymd.year);
 	}
 }
 
@@ -643,9 +633,8 @@ void StartupOneEngine(Engine *e, Date aging_date)
 	e->company_avail = 0;
 	e->company_hidden = 0;
 
-	/* Don't randomise the start-date in the first two years after gamestart to ensure availability
-	 * of engines in early starting games.
-	 * Note: TTDP uses fixed 1922 */
+	/* Vehicles with the same base_intro date shall be introduced at the same time.
+	 * Make sure they use the same randomisation of the date. */
 	SavedRandomSeeds saved_seeds;
 	SaveRandomSeeds(&saved_seeds);
 	SetRandomSeed(_settings_game.game_creation.generation_seed ^
@@ -654,6 +643,9 @@ void StartupOneEngine(Engine *e, Date aging_date)
 	              e->GetGRFID());
 	uint32 r = Random();
 
+	/* Don't randomise the start-date in the first two years after gamestart to ensure availability
+	 * of engines in early starting games.
+	 * Note: TTDP uses fixed 1922 */
 	e->intro_date = ei->base_intro <= ConvertYMDToDate(_settings_game.game_creation.starting_year + 2, 0, 1) ? ei->base_intro : (Date)GB(r, 0, 9) + ei->base_intro;
 	if (e->intro_date <= _date) {
 		e->age = (aging_date - e->intro_date) >> 5;
@@ -663,12 +655,12 @@ void StartupOneEngine(Engine *e, Date aging_date)
 
 	RestoreRandomSeeds(saved_seeds);
 
-	e->reliability_start = GB(r, 16, 14) + 0x7AE0;
 	r = Random();
+	e->reliability_start = GB(r, 16, 14) + 0x7AE0;
 	e->reliability_max   = GB(r,  0, 14) + 0xBFFF;
-	e->reliability_final = GB(r, 16, 14) + 0x3FFF;
 
 	r = Random();
+	e->reliability_final = GB(r, 16, 14) + 0x3FFF;
 	e->duration_phase_1 = GB(r, 0, 5) + 7;
 	e->duration_phase_2 = GB(r, 5, 4) + ei->base_life * 12 - 96;
 	e->duration_phase_3 = GB(r, 9, 7) + 120;
@@ -691,7 +683,7 @@ void StartupOneEngine(Engine *e, Date aging_date)
 void StartupEngines()
 {
 	/* Aging of vehicles stops, so account for that when starting late */
-	const Date aging_date = min(_date, ConvertYMDToDate(_year_engine_aging_stops, 0, 1));
+	const Date aging_date = std::min(_date, ConvertYMDToDate(_year_engine_aging_stops, 0, 1));
 
 	for (Engine *e : Engine::Iterate()) {
 		StartupOneEngine(e, aging_date);
@@ -719,11 +711,9 @@ static void EnableEngineForCompany(EngineID eid, CompanyID company)
 
 	SetBit(e->company_avail, company);
 	if (e->type == VEH_TRAIN) {
-		assert(e->u.rail.railtype < RAILTYPE_END);
-		c->avail_railtypes = AddDateIntroducedRailTypes(c->avail_railtypes | GetRailTypeInfo(e->u.rail.railtype)->introduces_railtypes, _date);
+		c->avail_railtypes = GetCompanyRailtypes(c->index);
 	} else if (e->type == VEH_ROAD) {
-		assert(e->u.road.roadtype < ROADTYPE_END);
-		c->avail_roadtypes = AddDateIntroducedRoadTypes(c->avail_roadtypes | GetRoadTypeInfo(e->u.road.roadtype)->introduces_roadtypes, _date);
+		c->avail_roadtypes = GetCompanyRoadTypes(c->index);
 	}
 
 	if (company == _local_company) {
@@ -733,6 +723,7 @@ static void EnableEngineForCompany(EngineID eid, CompanyID company)
 		InvalidateWindowData(WC_MAIN_TOOLBAR, 0);
 		if (e->type == VEH_ROAD) InvalidateWindowData(WC_BUILD_TOOLBAR, TRANSPORT_ROAD);
 		if (e->type == VEH_SHIP) InvalidateWindowData(WC_BUILD_TOOLBAR, TRANSPORT_WATER);
+		if (e->type == VEH_AIRCRAFT) InvalidateWindowData(WC_BUILD_TOOLBAR, TRANSPORT_AIR);
 	}
 }
 
@@ -744,8 +735,14 @@ static void EnableEngineForCompany(EngineID eid, CompanyID company)
 static void DisableEngineForCompany(EngineID eid, CompanyID company)
 {
 	Engine *e = Engine::Get(eid);
+	Company *c = Company::Get(company);
 
 	ClrBit(e->company_avail, company);
+	if (e->type == VEH_TRAIN) {
+		c->avail_railtypes = GetCompanyRailtypes(c->index);
+	} else if (e->type == VEH_ROAD) {
+		c->avail_roadtypes = GetCompanyRoadTypes(c->index);
+	}
 
 	if (company == _local_company) {
 		AddRemoveEngineFromAutoreplaceAndBuildWindows(e->type);
@@ -994,8 +991,7 @@ static void NewVehicleAvailable(Engine *e)
 
 	if (e->type == VEH_TRAIN) {
 		/* maybe make another rail type available */
-		RailType railtype = e->u.rail.railtype;
-		assert(railtype < RAILTYPE_END);
+		assert(e->u.rail.railtype < RAILTYPE_END);
 		for (Company *c : Company::Iterate()) c->avail_railtypes = AddDateIntroducedRailTypes(c->avail_railtypes | GetRailTypeInfo(e->u.rail.railtype)->introduces_railtypes, _date);
 	} else if (e->type == VEH_ROAD) {
 		/* maybe make another road type available */
@@ -1016,6 +1012,7 @@ static void NewVehicleAvailable(Engine *e)
 	/* Update the toolbar. */
 	if (e->type == VEH_ROAD) InvalidateWindowData(WC_BUILD_TOOLBAR, TRANSPORT_ROAD);
 	if (e->type == VEH_SHIP) InvalidateWindowData(WC_BUILD_TOOLBAR, TRANSPORT_WATER);
+	if (e->type == VEH_AIRCRAFT) InvalidateWindowData(WC_BUILD_TOOLBAR, TRANSPORT_AIR);
 
 	/* Close pending preview windows */
 	DeleteWindowById(WC_ENGINE_PREVIEW, index);
@@ -1194,7 +1191,7 @@ void CheckEngines()
 		if ((e->flags & ENGINE_AVAILABLE) != 0 && e->company_avail != 0) return;
 
 		/* Okay, try to find the earliest date. */
-		min_date = min(min_date, e->info.base_intro);
+		min_date = std::min(min_date, e->info.base_intro);
 	}
 
 	if (min_date < INT32_MAX) {
