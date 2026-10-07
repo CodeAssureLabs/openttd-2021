@@ -20,11 +20,11 @@
 	if (ScriptGame::IsMultiplayer()) return;
 
 	if (number == NUMBER_ALL) {
-		DeleteWindowByClass((::WindowClass)window);
+		CloseWindowByClass((::WindowClass)window);
 		return;
 	}
 
-	DeleteWindowById((::WindowClass)window, number);
+	CloseWindowById((::WindowClass)window, number);
 }
 
 /* static */ bool ScriptWindow::IsOpen(WindowClass window, uint32 number)
@@ -46,6 +46,7 @@
 	if (colour != TC_INVALID && (::TextColour)colour >= ::TC_END) return;
 
 	Window *w = FindWindowById((::WindowClass)window, number);
+	assert(w != nullptr);
 
 	if (widget == WIDGET_ALL) {
 		if (colour != TC_INVALID) return;

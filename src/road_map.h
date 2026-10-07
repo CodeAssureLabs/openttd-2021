@@ -15,6 +15,7 @@
 #include "rail_type.h"
 #include "road_func.h"
 #include "tile_map.h"
+#include "road_type.h"
 
 
 /** The different types of road tiles. */
@@ -48,7 +49,7 @@ static inline bool MayHaveRoad(TileIndex t)
  * @pre IsTileType(t, MP_ROAD)
  * @return The road tile type.
  */
-static inline RoadTileType GetRoadTileType(TileIndex t)
+debug_inline static RoadTileType GetRoadTileType(TileIndex t)
 {
 	assert(IsTileType(t, MP_ROAD));
 	return (RoadTileType)GB(_m[t].m5, 6, 2);
@@ -60,7 +61,7 @@ static inline RoadTileType GetRoadTileType(TileIndex t)
  * @pre IsTileType(t, MP_ROAD)
  * @return True if normal road.
  */
-static inline bool IsNormalRoad(TileIndex t)
+debug_inline static bool IsNormalRoad(TileIndex t)
 {
 	return GetRoadTileType(t) == ROAD_TILE_NORMAL;
 }
@@ -70,7 +71,7 @@ static inline bool IsNormalRoad(TileIndex t)
  * @param t Tile to query.
  * @return True if normal road tile.
  */
-static inline bool IsNormalRoadTile(TileIndex t)
+debug_inline static bool IsNormalRoadTile(TileIndex t)
 {
 	return IsTileType(t, MP_ROAD) && IsNormalRoad(t);
 }
@@ -102,7 +103,7 @@ static inline bool IsLevelCrossingTile(TileIndex t)
  * @pre IsTileType(t, MP_ROAD)
  * @return True if road depot.
  */
-static inline bool IsRoadDepot(TileIndex t)
+debug_inline static bool IsRoadDepot(TileIndex t)
 {
 	return GetRoadTileType(t) == ROAD_TILE_DEPOT;
 }
@@ -112,7 +113,7 @@ static inline bool IsRoadDepot(TileIndex t)
  * @param t Tile to query.
  * @return True if road depot tile.
  */
-static inline bool IsRoadDepotTile(TileIndex t)
+debug_inline static bool IsRoadDepotTile(TileIndex t)
 {
 	return IsTileType(t, MP_ROAD) && IsRoadDepot(t);
 }
@@ -281,17 +282,16 @@ static inline bool HasTownOwnedRoad(TileIndex t)
 	return HasTileRoadType(t, RTT_ROAD) && IsRoadOwner(t, RTT_ROAD, OWNER_TOWN);
 }
 
-/** Which directions are disallowed ? */
-enum DisallowedRoadDirections {
-	DRD_NONE,       ///< None of the directions are disallowed
-	DRD_SOUTHBOUND, ///< All southbound traffic is disallowed
-	DRD_NORTHBOUND, ///< All northbound traffic is disallowed
-	DRD_BOTH,       ///< All directions are disallowed
-	DRD_END,        ///< Sentinel
-};
-DECLARE_ENUM_AS_BIT_SET(DisallowedRoadDirections)
-/** Helper information for extract tool. */
-template <> struct EnumPropsT<DisallowedRoadDirections> : MakeEnumPropsT<DisallowedRoadDirections, byte, DRD_NONE, DRD_END, DRD_END, 2> {};
+/**
+ * Checks if a DisallowedRoadDirections is valid.
+ *
+ * @param wc The value to check
+ * @return true if the given value is a valid DisallowedRoadDirections.
+ */
+static inline bool IsValidDisallowedRoadDirections(DisallowedRoadDirections drt)
+{
+	return drt < DRD_END;
+}
 
 /**
  * Gets the disallowed directions

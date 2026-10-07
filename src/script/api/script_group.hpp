@@ -69,7 +69,7 @@ public:
 	 * @param group_id The group to set the name for.
 	 * @param name The name for the group (can be either a raw string, or a ScriptText object).
 	 * @pre IsValidGroup(group_id).
-	 * @pre name != nullptr && len(name) != 0
+	 * @pre name != null && len(name) != 0
 	 * @exception ScriptError::ERR_NAME_IS_NOT_UNIQUE
 	 * @return True if and only if the name was changed.
 	 */
@@ -127,6 +127,20 @@ public:
 	 * @return The number of engines with id engine_id in the group with id group_id.
 	 */
 	static int32 GetNumEngines(GroupID group_id, EngineID engine_id);
+
+	/**
+	 * Get the total number of vehicles in a given group and its sub-groups.
+	 * @param group_id The group to get the number of vehicles in.
+	 * @param vehicle_type The type of vehicle of the group.
+	 * @pre IsValidGroup(group_id) || group_id == GROUP_ALL || group_id == GROUP_DEFAULT.
+	 * @pre IsValidGroup(group_id) || vehicle_type == ScriptVehicle::VT_ROAD || vehicle_type == ScriptVehicle::VT_RAIL ||
+	 *   vehicle_type == ScriptVehicle::VT_WATER || vehicle_type == ScriptVehicle::VT_AIR
+	 * @return The total number of vehicles in the group with id group_id and it's sub-groups.
+	 * @note If the group is valid (neither GROUP_ALL nor GROUP_DEFAULT), the value of
+	 *  vehicle_type is retrieved from the group itself and not from the input value.
+	 *  But if the group is GROUP_ALL or GROUP_DEFAULT, then vehicle_type must be valid.
+	 */
+	static int32 GetNumVehicles(GroupID group_id, ScriptVehicle::VehicleType vehicle_type);
 
 	/**
 	 * Move a vehicle to a group.
@@ -218,6 +232,7 @@ public:
 	 * @param group_id The group id to set the colour of.
 	 * @param colour Colour to set.
 	 * @pre IsValidGroup(group_id).
+	 * @return True iff the colour was set successfully.
 	 */
 	static bool SetPrimaryColour(GroupID group_id, ScriptCompany::Colours colour);
 
@@ -226,6 +241,7 @@ public:
 	 * @param group_id The group id to set the colour of.
 	 * @param colour Colour to set.
 	 * @pre IsValidGroup(group_id).
+	 * @return True iff the colour was set successfully.
 	 */
 	static bool SetSecondaryColour(GroupID group_id, ScriptCompany::Colours colour);
 
@@ -233,6 +249,7 @@ public:
 	 * Get primary colour of a group.
 	 * @param group_id The group id to get the colour of.
 	 * @pre IsValidGroup(group_id).
+	 * @return The primary colour of the group.
 	 */
 	static ScriptCompany::Colours GetPrimaryColour(GroupID group_id);
 
@@ -240,6 +257,7 @@ public:
 	 * Get secondary colour for a group.
 	 * @param group_id The group id to get the colour of.
 	 * @pre IsValidGroup(group_id).
+	 * @return The secondary colour of the group.
 	 */
 	static ScriptCompany::Colours GetSecondaryColour(GroupID group_id);
 };

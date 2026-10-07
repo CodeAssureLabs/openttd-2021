@@ -10,10 +10,11 @@
 #ifndef GAMELOG_H
 #define GAMELOG_H
 
+#include <functional>
 #include "newgrf_config.h"
 
 /** The actions we log. */
-enum GamelogActionType {
+enum GamelogActionType : uint8 {
 	GLAT_START,        ///< Game created
 	GLAT_LOAD,         ///< Game loaded
 	GLAT_GRF,          ///< GRF changed
@@ -32,13 +33,7 @@ void GamelogStopAnyAction();
 void GamelogFree(struct LoggedAction *gamelog_action, uint gamelog_actions);
 void GamelogReset();
 
-/**
- * Callback for printing text.
- * @param s The string to print.
- */
-typedef void GamelogPrintProc(const char *s);
-void GamelogPrint(GamelogPrintProc *proc); // needed for WIN32 crash.log
-
+void GamelogPrint(std::function<void(const char *)> proc);
 void GamelogPrintDebug(int level);
 void GamelogPrintConsole();
 
@@ -48,7 +43,7 @@ bool GamelogTestEmergency();
 void GamelogRevision();
 void GamelogMode();
 void GamelogOldver();
-void GamelogSetting(const char *name, int32 oldval, int32 newval);
+void GamelogSetting(const std::string &name, int32 oldval, int32 newval);
 
 void GamelogGRFUpdate(const GRFConfig *oldg, const GRFConfig *newg);
 void GamelogGRFAddList(const GRFConfig *newg);

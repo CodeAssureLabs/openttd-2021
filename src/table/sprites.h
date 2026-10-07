@@ -54,7 +54,7 @@ static const SpriteID SPR_LARGE_SMALL_WINDOW = 682;
 
 /** Extra graphic spritenumbers */
 static const SpriteID SPR_OPENTTD_BASE   = 4896;
-static const uint16 OPENTTD_SPRITE_COUNT = 184;
+static const uint16 OPENTTD_SPRITE_COUNT = 191;
 
 /* Halftile-selection sprites */
 static const SpriteID SPR_HALFTILE_SELECTION_FLAT = SPR_OPENTTD_BASE;
@@ -163,6 +163,14 @@ static const SpriteID SPR_IMG_DELETE_LEFT            = SPR_OPENTTD_BASE + 166;
 static const SpriteID SPR_IMG_DELETE_RIGHT           = SPR_OPENTTD_BASE + 167;
 
 static const SpriteID SPR_WINDOW_DEFSIZE             = SPR_OPENTTD_BASE + 168;
+static const SpriteID SPR_RENAME                     = SPR_OPENTTD_BASE + 184;
+static const SpriteID SPR_GOTO_LOCATION              = SPR_OPENTTD_BASE + 185;
+
+static const SpriteID SPR_CHAT                       = SPR_OPENTTD_BASE + 186;
+static const SpriteID SPR_ADMIN                      = SPR_OPENTTD_BASE + 187;
+static const SpriteID SPR_JOIN                       = SPR_OPENTTD_BASE + 188;
+static const SpriteID SPR_PLAYER_SELF                = SPR_OPENTTD_BASE + 189;
+static const SpriteID SPR_PLAYER_HOST                = SPR_OPENTTD_BASE + 190;
 
 static const SpriteID SPR_IMG_CARGOFLOW              = SPR_OPENTTD_BASE + 174;
 
@@ -274,23 +282,21 @@ static const SpriteID SPR_TRAMWAY_PAVED_STRAIGHT_X     = SPR_TRAMWAY_BASE + 47;
 static const SpriteID SPR_TRAMWAY_DEPOT_WITH_TRACK     = SPR_TRAMWAY_BASE + 49;
 static const SpriteID SPR_TRAMWAY_BACK_WIRES_STRAIGHT  = SPR_TRAMWAY_BASE + 55;
 static const SpriteID SPR_TRAMWAY_FRONT_WIRES_STRAIGHT = SPR_TRAMWAY_BASE + 56;
-static const SpriteID SPR_TRAMWAY_BACK_WIRES_SLOPED    = SPR_TRAMWAY_BASE + 72;
-static const SpriteID SPR_TRAMWAY_FRONT_WIRES_SLOPED   = SPR_TRAMWAY_BASE + 68;
+static const SpriteID SPR_TRAMWAY_BACK_WIRES_SLOPED    = SPR_TRAMWAY_BASE + 68;
+static const SpriteID SPR_TRAMWAY_FRONT_WIRES_SLOPED   = SPR_TRAMWAY_BASE + 72;
 static const SpriteID SPR_TRAMWAY_TUNNEL_WIRES         = SPR_TRAMWAY_BASE + 80;
 static const SpriteID SPR_TRAMWAY_BRIDGE               = SPR_TRAMWAY_BASE + 107;
 static const SpriteID SPR_TRAMWAY_DEPOT_NO_TRACK       = SPR_TRAMWAY_BASE + 113;
 static const uint16 TRAMWAY_SPRITE_COUNT = 119;
 
 /** One way road sprites */
-static const SpriteID SPR_ONEWAY_BASE = SPR_TRAMWAY_BASE + TRAMWAY_SPRITE_COUNT;
-static const uint16 ONEWAY_SPRITE_COUNT = 6;
-
-/** Flags sprites (in same order as enum NetworkLanguage) */
-static const SpriteID SPR_FLAGS_BASE = SPR_ONEWAY_BASE + ONEWAY_SPRITE_COUNT;
-static const uint16 FLAGS_SPRITE_COUNT = 36;
+static const SpriteID SPR_ONEWAY_BASE           = SPR_TRAMWAY_BASE + TRAMWAY_SPRITE_COUNT;
+static const SpriteID SPR_ONEWAY_SLOPE_N_OFFSET = 6;
+static const SpriteID SPR_ONEWAY_SLOPE_S_OFFSET = 12;
+static const uint16 ONEWAY_SPRITE_COUNT = 18;
 
 /** Tunnel sprites with grass only for custom railtype tunnel. */
-static const SpriteID SPR_RAILTYPE_TUNNEL_BASE = SPR_FLAGS_BASE + FLAGS_SPRITE_COUNT;
+static const SpriteID SPR_RAILTYPE_TUNNEL_BASE = SPR_ONEWAY_BASE + ONEWAY_SPRITE_COUNT;
 static const uint16 RAILTYPE_TUNNEL_BASE_COUNT = 16;
 
 /* Not really a sprite, but an empty bounding box. Used to construct bounding boxes that help sorting the sprites, but do not have a sprite associated. */
@@ -1538,18 +1544,18 @@ enum Modifiers {
  * @see SpriteSetup
  */
 enum SpriteMasks {
-	MAX_SPRITES = 1 << SPRITE_WIDTH,       ///< Maximum number of sprites that can be loaded at a given time
+	MAX_SPRITES = 1U << SPRITE_WIDTH,      ///< Maximum number of sprites that can be loaded at a given time
 	SPRITE_MASK = MAX_SPRITES - 1,         ///< The mask to for the main sprite
 
-	MAX_PALETTES = 1 << PALETTE_WIDTH,
+	MAX_PALETTES = 1U << PALETTE_WIDTH,
 	PALETTE_MASK = MAX_PALETTES - 1,       ///< The mask for the auxiliary sprite (the one that takes care of recolouring)
 };
 
-static_assert( (1 << TRANSPARENT_BIT & SPRITE_MASK) == 0 );
-static_assert( (1 << RECOLOUR_BIT & SPRITE_MASK) == 0 );
+static_assert( (1U << TRANSPARENT_BIT & SPRITE_MASK) == 0 );
+static_assert( (1U << RECOLOUR_BIT & SPRITE_MASK) == 0 );
 static_assert( TRANSPARENT_BIT != RECOLOUR_BIT );
-static_assert( (1 << TRANSPARENT_BIT & PALETTE_MASK) == 0);
-static_assert( (1 << RECOLOUR_BIT & PALETTE_MASK) == 0 );
+static_assert( (1U << TRANSPARENT_BIT & PALETTE_MASK) == 0 );
+static_assert( (1U << RECOLOUR_BIT & PALETTE_MASK) == 0 );
 
 
 static const PaletteID PAL_NONE                    = 0;

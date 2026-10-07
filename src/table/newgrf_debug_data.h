@@ -12,11 +12,11 @@
 #include "../newgrf_roadtype.h"
 
 /* Helper for filling property tables */
-#define NIP(prop, base, variable, type, name) { name, (ptrdiff_t)cpp_offsetof(base, variable), cpp_sizeof(base, variable), prop, type }
+#define NIP(prop, base, variable, type, name) { name, [] (const void *b) -> const void * { return std::addressof(static_cast<const base *>(b)->variable); }, cpp_sizeof(base, variable), prop, type }
 #define NIP_END() { nullptr, 0, 0, 0, 0 }
 
 /* Helper for filling callback tables */
-#define NIC(cb_id, base, variable, bit) { #cb_id, (ptrdiff_t)cpp_offsetof(base, variable), cpp_sizeof(base, variable), bit, cb_id }
+#define NIC(cb_id, base, variable, bit) { #cb_id, [] (const void *b) -> const void * { return std::addressof(static_cast<const base *>(b)->variable); }, cpp_sizeof(base, variable), bit, cb_id }
 #define NIC_END() { nullptr, 0, 0, 0, 0 }
 
 /* Helper for filling variable tables */
@@ -42,6 +42,7 @@ static const NICallback _nic_vehicles[] = {
 	NICV(CBID_VEHICLE_SOUND_EFFECT,          CBM_VEHICLE_SOUND_EFFECT),
 	NICV(CBID_VEHICLE_AUTOREPLACE_SELECTION, CBM_NO_BIT),
 	NICV(CBID_VEHICLE_MODIFY_PROPERTY,       CBM_NO_BIT),
+	NICV(CBID_VEHICLE_NAME,                  CBM_VEHICLE_NAME),
 	NIC_END()
 };
 
@@ -63,7 +64,8 @@ static const NIVariable _niv_vehicles[] = {
 	NIV(0x4D, "position in articulated vehicle"),
 	NIV(0x60, "count vehicle id occurrences"),
 	// 0x61 not useful, since it requires register 0x10F
-	NIV(0x62, "Curvature/position difference to other vehicle"),
+	NIV(0x62, "curvature/position difference to other vehicle"),
+	NIV(0x63, "tile compatibility wrt. track-type"),
 	NIV_END()
 };
 
@@ -342,6 +344,15 @@ static const NIVariable _niv_industries[] = {
 	NIV(0x66, "get square of Euclidean distance of closes town"),
 	NIV(0x67, "count of industry and distance of closest instance"),
 	NIV(0x68, "count of industry and distance of closest instance with layout filter"),
+	NIV(0x69, "produced cargo waiting"),
+	NIV(0x6A, "cargo produced this month"),
+	NIV(0x6B, "cargo transported this month"),
+	NIV(0x6C, "cargo produced last month"),
+	NIV(0x6D, "cargo transported last month"),
+	NIV(0x6E, "date since cargo was delivered"),
+	NIV(0x6F, "waiting input cargo"),
+	NIV(0x70, "production rate"),
+	NIV(0x71, "percentage of cargo transported last month"),
 	NIV_END()
 };
 

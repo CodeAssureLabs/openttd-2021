@@ -57,8 +57,6 @@ struct AirportResolverObject : public ResolverObject {
 		}
 	}
 
-	const SpriteGroup *ResolveReal(const RealSpriteGroup *group) const override;
-
 	GrfSpecFeature GetFeature() const override;
 	uint32 GetDebugID() const override;
 };
@@ -145,8 +143,8 @@ bool AirportSpec::IsWithinMapBounds(byte table, TileIndex tile) const
 	byte h = this->size_y;
 	if (this->rotation[table] == DIR_E || this->rotation[table] == DIR_W) Swap(w, h);
 
-	return TileX(tile) + w < MapSizeX() &&
-		TileY(tile) + h < MapSizeY();
+	return TileX(tile) + w < Map::SizeX() &&
+		TileY(tile) + h < Map::SizeY();
 }
 
 /**
@@ -177,7 +175,7 @@ void AirportOverrideManager::SetEntitySpec(AirportSpec *as)
 {
 	byte airport_id = this->AddEntityID(as->grf_prop.local_id, as->grf_prop.grffile->grfid, as->grf_prop.subst_id);
 
-	if (airport_id == invalid_ID) {
+	if (airport_id == this->invalid_id) {
 		grfmsg(1, "Airport.SetEntitySpec: Too many airports allocated. Ignoring.");
 		return;
 	}
@@ -185,15 +183,15 @@ void AirportOverrideManager::SetEntitySpec(AirportSpec *as)
 	memcpy(AirportSpec::GetWithoutOverride(airport_id), as, sizeof(*as));
 
 	/* Now add the overrides. */
-	for (int i = 0; i < max_offset; i++) {
+	for (int i = 0; i < this->max_offset; i++) {
 		AirportSpec *overridden_as = AirportSpec::GetWithoutOverride(i);
 
-		if (entity_overrides[i] != as->grf_prop.local_id || grfid_overrides[i] != as->grf_prop.grffile->grfid) continue;
+		if (this->entity_overrides[i] != as->grf_prop.local_id || this->grfid_overrides[i] != as->grf_prop.grffile->grfid) continue;
 
 		overridden_as->grf_prop.override = airport_id;
 		overridden_as->enabled = false;
-		entity_overrides[i] = invalid_ID;
-		grfid_overrides[i] = 0;
+		this->entity_overrides[i] = this->invalid_id;
+		this->grfid_overrides[i] = 0;
 	}
 }
 
@@ -217,16 +215,6 @@ void AirportOverrideManager::SetEntitySpec(AirportSpec *as)
 	}
 
 	return this->st->GetNewGRFVariable(this->ro, variable, parameter, available);
-}
-
-/* virtual */ const SpriteGroup *AirportResolverObject::ResolveReal(const RealSpriteGroup *group) const
-{
-	/* Airport action 2s should always have only 1 "loaded" state, but some
-	 * times things don't follow the spec... */
-	if (group->num_loaded > 0) return group->loaded[0];
-	if (group->num_loading > 0) return group->loading[0];
-
-	return nullptr;
 }
 
 GrfSpecFeature AirportResolverObject::GetFeature() const

@@ -189,7 +189,7 @@ typedef SmallMap<uint32, GRFPresence> GrfIDMapping;
  * Prints active gamelog
  * @param proc the procedure to draw with
  */
-void GamelogPrint(GamelogPrintProc *proc)
+void GamelogPrint(std::function<void(const char*)> proc)
 {
 	char buffer[1024];
 	GrfIDMapping grf_names;
@@ -341,24 +341,13 @@ void GamelogPrint(GamelogPrintProc *proc)
 }
 
 
-static void GamelogPrintConsoleProc(const char *s)
-{
-	IConsolePrint(CC_WARNING, s);
-}
-
 /** Print the gamelog data to the console. */
 void GamelogPrintConsole()
 {
-	GamelogPrint(&GamelogPrintConsoleProc);
+	GamelogPrint([](const char *s) {
+		IConsolePrint(CC_WARNING, s);
+	});
 }
-
-static int _gamelog_print_level = 0; ///< gamelog debug level we need to print stuff
-
-static void GamelogPrintDebugProc(const char *s)
-{
-	DEBUG(gamelog, _gamelog_print_level, "%s", s);
-}
-
 
 /**
  * Prints gamelog to debug output. Code is executed even when
@@ -368,8 +357,9 @@ static void GamelogPrintDebugProc(const char *s)
  */
 void GamelogPrintDebug(int level)
 {
-	_gamelog_print_level = level;
-	GamelogPrint(&GamelogPrintDebugProc);
+	GamelogPrint([level](const char *s) {
+		Debug(gamelog, level, "{}", s);
+	});
 }
 
 
@@ -483,14 +473,14 @@ void GamelogOldver()
  * @param oldval old setting value
  * @param newval new setting value
  */
-void GamelogSetting(const char *name, int32 oldval, int32 newval)
+void GamelogSetting(const std::string &name, int32 oldval, int32 newval)
 {
 	assert(_gamelog_action_type == GLAT_SETTING);
 
 	LoggedChange *lc = GamelogChange(GLCT_SETTING);
 	if (lc == nullptr) return;
 
-	lc->setting.name = stredup(name);
+	lc->setting.name = stredup(name.c_str());
 	lc->setting.oldval = oldval;
 	lc->setting.newval = newval;
 }
@@ -814,7 +804,7 @@ void GamelogInfo(LoggedAction *gamelog_action, uint gamelog_actions, uint32 *las
 
 				case GLCT_REVISION:
 					*last_ottd_rev = lc->revision.newgrf;
-					*ever_modified = max(*ever_modified, lc->revision.modified);
+					*ever_modified = std::max(*ever_modified, lc->revision.modified);
 					break;
 
 				case GLCT_GRFREM:
